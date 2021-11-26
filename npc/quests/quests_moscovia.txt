@@ -9320,6 +9320,8 @@ moc_pryd04,126,120,0	script	Soldier#rus26	4_M_RUSMAN1,{
 mosk_dun01,45,250,3	script	1#rus27	WARPNPC,3,3,{
 	end;
 OnTouch:
+	if (checkhiding())
+		end;
 	warp "mosk_que",49,22;
 	end;
 
@@ -11897,6 +11899,7 @@ pay_dun04,163,186,0	script	Ghost Tree#rus45	HIDDEN_NPC,{
 	end;
 }
 
+/*@LOADGMSCRIPTS
 mosk_dun01,3,3,3	script	Koshei GlobalVar#admin	4_F_RUSCHILD,{
 	callfunc "F_GM_NPC";
 	mes "[Koshei GlobalVar]";
@@ -11948,4 +11951,8 @@ mosk_dun01,3,3,3	script	Koshei GlobalVar#admin	4_F_RUSCHILD,{
 			close;
 		}
 	}
+	end;
+OnInit:
+	consolemes(CONSOLEMES_INFO, "GM script loaded: %s", strnpcinfo(NPC_NAME_UNIQUE));
 }
+//@*/

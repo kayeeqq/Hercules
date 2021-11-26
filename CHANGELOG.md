@@ -22,6 +22,334 @@ If you are reading this in a text editor, simply ignore this section
 ### Removed
 -->
 
+## [v2021.11.03+1] `November 03 2021` `PATCH 1`
+
+### Fixed
+
+- Fixed a regression in the mob drop rate bonus calculation, always overriding it to 900%. (#3083)
+
+## [v2021.11.03] `November 03 2021`
+
+### Added
+
+- Implemented support for conditional comments in the script engine's parser, allowing to exclude blocks of code (including top-level commands) from parsing based on a condition, in a similar fashion to ifdef directives in the C preprocessor. See `doc/script_commands.txt` and the pull request description for detailed information on their use. (#3080)
+- Added a setting to prevent the GM administration NPCs from loading (leveraging conditional comments). (part of #3080)
+  - See `script_configuration.load_gm_scripts` in `conf/map/script.conf`.
+  - The provided administrative NPCs have been updated to support this setting and third party scripters that want to do the same can put their administrative NPCs behind conditional comments controlled by the `LOADGMSCRIPTS` feature (see `doc/script_commands.txt` for details.
+- Implemented the `bSubSkill` item bonus, reducing damage in percentage from the specified skill. (#2970)
+- Implemented the `bDropAddRace` item bonus, increasing item drop rate in percentage when killing monsters of the specified race. (part of #2970)
+- Implemented the Star Emperor and the Soul Reaper job classes and their respective skills. (#3030)
+- Implemented an option to ignore the Discount and Overcharge effect for a given item ID. See the Item DB flags `IgnoreDiscount` and `IgnoreOvercharge` respectively. (#3060, issue #3055)
+- Implemented an SC config option `HasVisualEffect` to indicate that a skill displays a visual effect on the affected unit, de-hardcoding it from source. (#3061)
+- Implemented the Instant kill state (`/item onekillmonster`), allowing GMs to kill mobs in one hit (the `@killmonster` permission is necessary). (#3063)
+- Implemented support for loading captcha images on server startup (#3064)
+- Implemented the Lapine Upgrade user interface. (#3068)
+- Exposed the former `rodex_sendmail_sub()` function as part of the script interface, as `script->buildin_rodex_sendmail_sub()`. (part of #3071)
+- Implemented a `checkhiding()` script command, returning true if a character is hidden (Hiding, Cloaking or Chase Walking but not GM Perfect Hide). See `doc/script_commands.txt` for details. (part of #3081)
+
+### Changed
+
+- Reworked the drop rate calculation and the way drop rate bonuses stack, to better accommodate for the new `bDropAddRace` bonus. (part of #2970)
+- Changed various card slot processing functions to check all of them even if an item has a limited amount of card slots, since they could contain other (non-card) enchantment items. (#3066)
+- Converted the elemental damage table to libconfig. See `(pre-)-re/attr_fix.conf`. A converter script `tools/attr_fix_converter.php` has been provided in order to help converting any customized tables. (#3070)
+- Added the inventory index for each item in the `@itemlist` command (part of #3071)
+- Changed the ambiguous return value of `getpetinfo(PETINFO_NAME)` when no pet is found. The empty string `""` is now returned instead of `"null"`, which could ambiguously be considered a valid pet name. (part of #3079)
+- Changed the WARPNPC scripted warps to behave in a consistent way to real non-scripted warps. (#3081)
+  - The use of `OnTouch_` has been replaced with `OnTouch` to prevent players from holding an NPC dialogue open to abuse the serialization mechanism of the former event and block the script from triggering for other players.
+  - A check for the hidden/cloaked status has been added, to match the behavior of non-scripted warps.
+- Applied the above `OnTouch_` to `OnTouch` conversion to the NPCs from the Cursed Spirit quest in order to prevent the same serialization abuse and the glitches that derive from it. (part of #3081)
+
+### Fixed
+
+- Fixed (implemented) lazy evaluation of the ternary conditional operator in the scripting language. Only the expected branch is now executed, as opposed to both branches. (#3074)
+- Fixed the behavior of the Splash Kunai (`KO_HAPPOKUNAI`) skill: (#3053, issue #1597)
+  - Updated damage formula to `3 * (Kunai Atk+ Weapon Atk + Base Atk)) * (Skill Level + 5) / 5`.
+  - Pierce attack modifier no longer applies to it.
+  - Element comes from the kunai rather than from the weapon.
+  - SP Cost gets increased and Hit count should be 1.
+- Fixed the behavior of the Dragon Breath (`RK_DRAGONBREATH`) skill: (part of #3053, issue #1597)
+  - It now applies the elemental modifier and ignores the target's flee.
+- Fixed the behavior of the Intense Telekinesis (`WL_TELEKINESIS_INTENSE`) skill: (part of #3053, issue #1597)
+  - Damage is now tripled when the skill element is Ghost.
+- Fixed several warnings reported by the Visual Studio compiler (#3058)
+- Fixed an incorrect condition in the WoE mob status calculation. Instead of relying on castle IDs it now correctly detects the type of WoE castle (FE or TE) and applies the appropriate status modifiers. (#3062)
+- Fixed the inconsistent behavior of `getcalendartime()` when supplied with the current hour and minute. (#3072)
+  - The command will now always return the next occurrence of the given time (as specified by the day of month or day of week parameter) instead of inconsistently returning today's timestamp in some cases.
+- Fixed the Lord Of Death spawning script never using one of the spawn locations. (#3075)
+- Fixed visual glitches in RoDEX when the first item of a character's inventory (having index 0) is added to an attachment slot. (#3071)
+- Fixed visual glitches when removing parts of an item stack from an attachment slot. (part of #3071)
+- Fixed some processing errors in RoDEX with newer clients, after the "bulk actions" update, that keep the rows from deleted messages on screen until refreshing and send bogus data to the server. (part of #3071)
+- Fixed the message body length check in the `rodex_sendmail()` script command, now allowing for the full message length of the RoDEX system as opposed to the shorter length from the earlier Mail system. (part of #3071)
+- Fixed the `map->foreachinpath()` path calculation having gaps or too narrow paths, affecting skills such as Sharpshooting. (#3076)
+- Fixed the behavior of the Acid Demonstration (`CR_ACIDDEMONSTRATION`) skill: (#3077)
+  - The strip effect from rogues was incorrectly applied when the Armor & Weapon Break triggers for non-player characters. Now nothing is applied instead, matching the official behavior.
+- Fixed the behavior of the Mental Charge (`HLIF_CHANGE`) skill: (#3078)
+  - In pre-renewal the skill now makes the caster always use the raw max MATK as base damage, as in official servers.
+
+### Removed
+
+- Removed the `set_sc_with_vfx()` macro, superseded by the `HasVisualEffect` SC config flag. (part of #3061)
+- Removed the `getguildname()` script command, deprecated since v2019.11.17 and superseded by `getguildinfo()` - see PR page for replacements if you were still relying on the deprecated command. (#3079)
+- Removed the `getguildmaster()` script command, deprecated since v2019.11.17 and superseded by `getguildinfo()` - see PR page for replacements if you were still relying on the deprecated command. (part of #3079)
+- Removed the `getguildmasterid()` script command, deprecated since v2019.11.17 and superseded by `getguildinfo()` - see PR page for replacements if you were still relying on the deprecated command. (part of #3079)
+- Removed the `petstat()` script command, deprecated since v2019.04.07 and superseded by `getpetinfo()` - see PR page for replacements if you were still relying on the deprecated command. (part of #3079)
+- Removed the `PET_*` constants related to the `petstat()` command. (part of #3079)
+- Removed the `specialeffect2()` script command, deprecated since 2017 and superseded by `specialeffect()` - see PR page for replacements if you were still relying on the deprecated command. (part of #3079)
+- Removed the `pcblockmove()` script command, deprecated since v2018.06.03 and superseded by `setpcblock()` - see PR page for replacements if you were still relying on the deprecated command. (part of #3079)
+- Removed the `kickwaitingroomall()` script command, deprecated since v2020.11.16 and superseded by `waitingroomkick()` - see PR page for replacements if you were still relying on the deprecated command. (part of #3079)
+- Removed the `debugmes()` script command, deprecated since v2019.05.05 and superseded by `consolemes()` - see PR page for replacements if you were still relying on the deprecated command. (part of #3079)
+- Removed the `misceffect()` script command, deprecated since 2017 and superseded by `specialeffect()` - see PR page for replacements if you were still relying on the deprecated command. (part of #3079)
+- Removed the `pow()` script command, deprecated since 2017 and superseded by the exponentiation oeprator `**` - see PR page for replacements if you were still relying on the deprecated command. (part of #3079)
+
+## [v2021.10.06+1] `October 06 2021`  `PATCH 1`
+
+### Fixed
+
+- Fixed a critical guild storage saving issue causing item duplication. (#3059)
+- Fixed the return code of `chr->memitemdata_to_sql()` to behave as documented. (part of #3059)
+- Fixed a possible out of bound read from a buffer in `clif_guild_basicinfo()`. (part of #3059)
+
+## [v2021.10.06] `October 06 2021`
+
+### Added
+
+- Implemented the official Macro Detection/Captcha system. Note: a client patch may be necessary, in order to correct an inconsistency between the BMP formats accepted by the Register functions and the Detector/Preview UI. (#3051)
+  - Includes:
+    - The Macro Register UI, available through the `/macro_register` command.
+    - The Macro Detector UI, triggered by the server to send captcha challenges to players.
+    - The Macro Reporter UI, available through the `/macro_detector` command.
+    - The Captcha Preview UI, available through the `/macro_preview <captcha_id>` command.
+  - See the Pull Request #3051 description and http://nemo.herc.ws/patches/ChangeCaptchaImageDecompressionSize/ for screenshots and more details.
+- Added a new SC flag `NoMagicBlocked`, to block a status change while under the no magic state. (#3050)
+- Added a startup check to ensure the best/fastest available clock source is used on Linux. (#3046)
+  - Additional related resources:
+    - https://www.kernel.org/doc/Documentation/timers/timekeeping.txt
+    - https://www.kernel.org/doc/Documentation/timers/
+    - https://access.redhat.com/solutions/18627
+- Added the skill flags `RangeModByVulture`, `RangeModBySnakeEye`, `RangeModByShadowJump`, `RangeModByRadius`, `RangeModByResearchTrap`, replacing hardcoded skill range modifiers. (#3043)
+
+### Changed
+
+- Removed redundant `sd->hd` NULL checks before calls to `homun_alive()`. (#3056)
+- Regenerated the `configure` script with Autoconf 2.71. (part of #3046)
+- Updated some party-related packets (`PACKET_ZC_ACK_MAKE_GROUP`, `PACKET_ZC_PARTY_JOIN_REQ`, `PACKET_ZC_PARTY_JOIN_REQ_ACK`, `PACKET_ZC_NOTIFY_CHAT_PARTY`, `PACKET_ZC_NOTIFY_POSITION_TO_GROUPM`, `PACKET_ZC_NOTIFY_HP_TO_GROUPM`, `PACKET_ZC_PARTY_MEMBER_JOB_LEVEL`, `PACKET_ZC_DELETE_MEMBER_FROM_GROUP`  to use the struct format. (#3049)
+- Updated `.mailmap`. (#3010)
+
+### Fixed
+
+- Fixed Kaite in Renewal to increase melee damage to 400% as in official servers. (#3054)
+- Added a missing `equipFlag` to the `ZC_ENCHANT_EQUIPMENT` packet. (#3052)
+- Fixed `SC_GENTLETOUCH_CHANGE` not applying the WATK bonus. (#3048, issue #1629)
+- Fixed the `Daehyon_Card` script effect to only work on One or Two Handed Sword. (#3047, issue #2996)
+- Fixed `SC_HOWLING_MINE` to use `status->isdead()` through the HPM interface instead of directly. (#3044)
+- Fixed the weapon type requirement of `KO_JYUMONJIKIRI` to require that left and right hand aren't bare fists (but the right hand can be a shield). (#3041)
+- Fixed the `Womens_Bundle` item script and the `npc_live_dialogues.txt` documentation still referencing the `F_RandMes()` function instead of `F_Rand()`. (#3040, issue #3039)
+- Fixed a redundant `MAPID_BABY_TAEKWON` in the `pc_jobchange()` fame list check. (#3057)
+
+### Others
+
+- Note: Even if we release at the beginning of the month, Hacktoberfest is still in progress! We'll be granting the `hacktoberfest-accepted` label to any valid PRs opened before October 31st, even if we'll include them in the November release. Make sure to sign up on https://hacktoberfest.digitalocean.com/ and open your PRs before the deadline if you wish to participate. Happy Hacktoberfest!
+
+## [v2021.09.01] `September 01 2021`
+
+### Added
+
+- Added a sanity check of skill IDs against `MAX_SKILL_ID` when loading the skill database. (part of #3033)
+- Added Rebellion skills, items and SCs to the Pre-Renewal database. (#3031)
+- Added the `NoBBReset` flag for SC types that shouldn't be reset by the Rebellion skill Banishing Buster. (#3032)
+
+### Changed
+
+- Increased `MAX_SKILL_ID` to 10020 to fit all the currently existing skills. (#3033)
+- Updated the list of job IDs displayed by `@jobchange`. (#3029)
+
+### Fixed
+
+- Fixed the mob groups reading the rate from the wrong object, resulting in the fallback value `MOBID_PORING` being returned in many cases. (#3037, issue #3036)
+- Fixed typos in various documentation comments. (#3035)
+- Fixed the Extreme Vacuum skill causing a permanent `SC_VACUUM_EXTREME` status when it hits several targets at the same time. (#3025, related to #2995)
+- Fixed the damage of piercing critical attacks with Thanatos Card in Renewal. (#3023, issue #3022)
+- Fixed the Ignition Break animation in recent (2018 and newer) clients. (#3034, issue #2511)
+- Fixed the Blast Mine, Claymore Trap and Land Mine damage to ignore card damage reductions. (#3024, formerly #1149)
+
+## [v2021.08.04] `August 04 2021`
+
+### Added
+
+- Added support for the official Guild Storage system, supported starting with PACKETVER 20131223. Older PACKETVERs aren't affected by this change. (#1092)
+  - When the official system is enabled, a guild will require the `GD_GUILD_STORAGE` skill in order to obtain access to Guild Storage.
+  - Starting with PACKETVER 20140205 it's possible to control access to the Guild Storage through permissions defined in the Guild window.
+  - Since this change can lock existing guilds out of their storage until and if they invest skill points in `GD_GUILD_STORAGE`, it's possible to opt out and keep using the custom system (fixed size, no skills required) by defining the `DISABLE_OFFICIAL_GUILD_STORAGE` preprocessor macro.
+  - When the official guild storage is enabled, `MAX_GUILD_STORAGE` can't/shouldn't be redefined. The `GUILD_STORAGE_EXPANSION_STEP` macro is instead provided, defining the amount of storage slots that each level of the `GD_GUILD_STORAGE` skill will provide.
+  - Increasing the maximum level of the `GD_GUILD_STORAGE` skill may lead to unexpected behaviors. If you must, you'll at least need to edit the `MAX_GUILD_STORAGE` macro definition to increase the maximum skill level.
+  - When this is enabled, the `MAX_GUILD_STORAGE` script constant will refer to the maximum possible guild storage, rather than the current size of a specific guild's storage.
+  - This requires a database migration.
+
+### Changed
+
+- Moved the `map->freeblock_unlock()` call from `skill_castend_nodamage_id_unknown()` to its caller. (#3019)
+- Converted the random monster databases to libconfig. See `db/*/mob_group.conf` and `db/mob_group2.conf`. A converter (`tools/mobgroupconverter.py`) is provided, in order to convert custom databases. (#3013)
+- Major refactoring of the Guild Storage related code and documentation. The Guild Storage items are now held in a dynamically sized array. (part of #1092)
+
+### Fixed
+
+- Fixed a crash when a bl is deleted twice. `map->freeblock()` will now detect it and prevent the double deletion. (#3021)
+- Fixed a damage overflow in `GN_CART_TORNADO` when a character's base strength is very high. The base str value is now capped to 130 for the skill formula's purposes. (#2927, issue #659)
+- Fixed the behavior of `SC_POWER_OF_GAIA` to increase the maximum HP in percentage rather than by a fixed amount. (#2918)
+
+### Removed
+
+- The txt version of the random monster databases (`mob_classchange`, `mob_pouch`, `mob_boss`, `mob_branch`, `mob_poring`) is no longer supported. Custom databases need to be converted to libconfig with the provided tool. (part of #3013)
+
+## [v2021.07.07] `July 07 2021`
+
+### Changed
+
+- Updated some guild-related packets to use the struct format. (#3016)
+
+### Fixed
+
+- Fixed off-hand damage bypassing any card reductions on the target. (#3014, issue #3011)
+- Fixed indentation and extra blank lines in the renewal skill db file. (#3012)
+- Fixed the use of `setunitdata()` on a mob to change that specific unit's view data instead of overwriting it globally. Any such changes will now persist in case of the mob database is reloaded. (#3006)
+
+## [v2021.06.02] `June 02 2021`
+
+### Added
+
+- Added diagnostic checks around map free blocks when asan is on, to track bl double free issues. (#3005)
+- Added support for checking the clients' supported features through client flags (requires a client patched with the [SendClientFlags](http://nemo.herc.ws/patches/SendClientFlags/) patch - currently supports `ENABLE_CASHSHOP_PREVIEW_PATCH` only, more to come later). See the `login_configuration/permission/check_client_flags` and `login_configuration/permission/report_client_flags_error` settings in `login-server.conf`. (#3001)
+- Added support for the Rebellion skills. (#2997)
+
+### Changed
+
+- Updated the cooldown of Neutral Barrier (`NC_NEUTRALBARRIER`) to depend on the skill level. (#2934)
+- Changed `successremovecards()` to automatically re-equip the item, for consistency with `failedremovecards()`. (part of #3004)
+
+### Fixed
+
+- Fixed an issue that prevented dual monster races from completing. (#2990, issue #2989)
+- Fixed a crash with evolved homunculi. (#3008)
+- Fixed mapflags in instanced maps not getting reloaded correctly after scripts are reloaded. (#3003, issue #3002)
+- Fixed the visual effect of Killing Cloud (`SO_CLOUD_KILL`). (#2980, issue #2978)
+- Fixed a regression in Ankle Snare (`HT_ANKLESNARE`) caused by a recent Manhole update. (#2965, issue #2964)
+- Fixed an issue that prevented a character from equipping items after attempting to use the Refine skill with no refinable items in inventory. (#3007)
+- Fixed an issue that prevented the automatic re-equipping of items by `failedremovecards()` `setequipoption()`. (#3004)
+
+## [v2021.05.05] `May 05 2021`
+
+### Added
+
+- Added settings to modify the chain item drop rates. See `item_rate_add_chain`, `item_drop_add_chain_min` and `item_drop_add_chain_max` in drops.conf for details. (#2983, issue #2982)
+- Added a check to ensure that the `map->freeblock_lock()` and `map->freeblock_unlock()` calls are balanced (GCC only). (#2992)
+
+### Changed
+
+- Documented that `struct script_state::rid` can contain the GID of a mob when called through `OnTouchNPC`. (part of #3000)
+- Merged the homunculus exp tables into `exp_group_db` (#2998)
+
+### Fixed
+
+- Fixed a crash in the `WL_WHITEIMPRISON` skill as well as possible crashes in the `ST_SWORDREJECT` and `ASC_BREAKER` skills. (#2991)
+- Fixed the adoption request entry in the character context menu. (#2993)
+- Fixed the Vacuum Extreme status becoming permanent until logout or death. (#2995, issue #2919)
+- Fixed Free Cast ignoring other speed modifiers (bypassing speed debuffs such as Curse). (#2987, issue #2976)
+- Fixed the trade restrictions for the Monster Ticket item, which should disallow dropping, trading, etc. (#2986, issue #2985)
+- Fixed an issue in the custom warper NPC that caused characters to get stuck when selecting the last warp option when it wasn't set yet. (#2984)
+- Fixed an error when `getarraysize()`, `soundeffectall()`, `atcommand()` or `useatcmd()` are called from an `OnTouchNPC` script. (#3000, related to issue #2989)
+- Fixed `montransform()`, `clan_join()`, `clan_leave()` and `clan_master()` not reporting an error when called without RID attached. (part of #3000)
+- Fixed the Water Screen skill, now deflecting the damage to the Aqua elemental spirit and healing the master by 1000 HP every 10 seconds. (#2981)
+- Fixed the Guardians in WoE:SE spawning in random locations instead of their designated ones. (#2999)
+
+### Removed
+
+- Removed the `homunculus_max_level` and `homunculus_S_max_level` battle configuration flags, now replaced by the `exp_group_db` configuration. (part of #2998 and 32fea2586d)
+
+## [v2021.04.05+1] `April 05 2021` `PATCH 1`
+
+### Fixed
+
+- Fixed a regression that caused the buffs from various skills not to get applied. (#2979, issue #2977)
+
+## [v2021.04.05] `April 05 2021`
+
+### Added
+
+- Added new `SP_*` constants in preparation for adding 4th jobs and reformatted the `status_point_types` enum to have one entry per line, with their respective values. (part of #2968)
+- Added support for the Baby Summoner job class. (part of #2968)
+- Added support for the Baby Ninja job class. (part of #2968)
+- Added support for the Baby Kagerou and Baby Oboro job classes. (part of #2968)
+- Added support for the Baby Taekwon job class. (part of #2968)
+- Added support for the Baby Star Gladiator job class. (part of #2968)
+- Added support for the Baby Soul Linker job class. (part of #2968)
+- Added support for the Baby Gunslinger job class. (part of #2968)
+- Added support for the Baby Rebellion job class. (part of #2968)
+- Added support for the Star Emperor job class and related skill ID constants and skill database entries. Skill ID conflicts between Star Emperor and Rebellion were solved in favor of the former for renewal and the latter for pre-renewal for the time being. (part of #2968)
+- Added support for the Baby Star Emperor job class. (part of #2968)
+- Added support for the Soul Reaper job class and related skill ID constants and skill database entries. (part of #2968)
+- Added support for the Baby Soul Reaper job class. (part of #2968)
+
+### Changed
+
+- Moved the mappings between skills and status changes (`Skill2SC` table) into the `StatusChange` field of the skill database. The `Skills` field of the `sc_config` is renamed to `Skill` and limited to one associated skill per SC. (#2971)
+- Added the corresponding numeric value next to each entry in the `e_class` enum, to prevent accidental renumbering and to make lookup easier. (part of #2968)
+- Added some missing constants for job IDs or separators in the `e_class` enum. (part of #2968)
+- Improved validation of the `class_exp_table` of the `job_db` with additional sanity checks. (part of #2968)
+- Moved the `EAJ_*` constants from `constants.conf` to the source and added the ones that were missing (`EAJ_WEDDING`, `EAJ_XMAS`, `EAJ_SUMMER`, `EAJ_BABY_SUMMONER`). (part of #2968)
+- Changed the warning message displayed when a constant is redefined with the same value as previously defined to mention that it has the same value. (part of #2968)
+- Renamed the `job_name()` function to `pc_job_name()`. The public interface name is still `pc->job_name()`. (part of #2968)
+- Moved the job enum values into separate files (`common/class.h`, `common/class_special.h` and `common/class_hidden.h`), to be accessed through the `ENUM_VALUE()` X-macro and reduce repetition. (part of #2968)
+- Added the `-Wswitch-enum` warning to the default compiler settings (with an exception for libbacktrace). (part of #2968)
+- Improved validation of `job_db2`, now detecting missing jobs. (part of #2968)
+- Changed some function parameters from integers to the appropriate enums. (part of #2968)
+- Split the status change config into renewal and pre-renewal. (part of #2963)
+- De-hardcoded the status change calculation flags, moving them from the source to the `CalcFlags` field of the `sc_config`. (#2963)
+
+### Fixed
+
+- Fixed a regression in the association between skills and status changes. (part of #2971, issue #2969)
+- Added support for the Summoner job to the `db2sql` plugin. (part of #2968)
+- Fixed validation of the skills cast through Abracadabra (Hocus Pocus). (#2972, related to #2859, issue #2824)
+- Fixed validation of the skills cast through Improvised Song. (#2972, related to #2859, issue #2823)
+- Worked around a client issue (packet containing garbage) that prevented proper validation of the Warp Portal skill use request when cast through Abracadabra, causing the caster to get stuck and unable to cast any other skills until relogging or teleporting. (#2972)
+
+### Removed
+
+- Removed the unused `FixedCastTime` field from the pre-renewal skill DB. (part of #2968)
+- Removed the `status->set_sc()` function, no longer needed. (part of #2963)
+
+## [v2021.03.08] `March 08 2021`
+
+### Added
+
+- Added support for preview in the cash shop. This is disabled by default and can be enabled by defining `ENABLE_CASHSHOP_PREVIEW_PATCH` or through the configure flag `--enable-cashshop-preview-patch`. A client patch is necessary, available at http://nemo.herc.ws/patches/ExtendCashShopPreview (#2944)
+- Added a console warning if a message that is not present in `messages.conf` is requested. (#2958)
+- Added the missing icons for `SC_DEFSET` and `SC_MDEFSET`. (#2953)
+- Added the `SC_NO_RECOVER_STATE` status preventing HP/SP recovery and the related item bonus `bStateNoRecoverRace`. (#2956)
+
+### Changed
+
+- De-hardcoded the association between status changes and skills from the source code. A new field `Skills` is added to the `sc_config`, allowing to specify a list of skills for each status change entry. The macro `add_sc` has been removed from `status.c`, use `status->set_sc()` instead. (#2954)
+- Converted packets `ZC_NOTIFY_SKILL`, `ZC_USE_SKILL`, `ZC_NOTIFY_GROUNDSKILL`, `ZC_SKILL_POSTDELAY` and `ZC_NOTIFY_SKILL_POSITION` to the structure format. (#2951)
+- Converted the Homunculus database to libconfig. A tool to help converting custom databases has been provided in `tools/homundbconverter.py`. (#2941)
+- De-hardcoded the list of skills that are blocked under `SC_STASIS` and `SC_KG_KAGEHUMI`. A new pair of `SkillInfo` flags `BlockedByStasis` and `BlockedByKagehumi` has been added to the skill database. (#2959)
+- Updated the item script of `Velum_Flail` to its official effects. (part of #2956)
+
+### Fixed
+
+- Fixed compilation with mingw. (#2945)
+- Fixed the CodeQL analysis builds in the CI. (#2946)
+- Fixed a possible use after free in `unit_skilluse_id2()`. (#2947)
+- Fixed the save point message of the Kafra in `alb2trea`. (#2950)
+- Fixed some issues/regressions in the regeneration code: (#2952)
+  - Fixed an issue that caused the SP regeneration rate bonus to be applied to the HP regeneration.
+  - Fixed the HP/SP regeneration always capping to a minimum of 1, causing unintended behavior. (issue #2910)
+  - Fixed a issue that caused the homunculus regeneration configuration to apply to elementals instead.
+  - Fixed the Happy Break bonus not triggering.
+  - Fixed the doridori doubled SP regeneration applying to jobs other than Super Novice.
+- Fixed Emergency Call ignoring `unit_skilluse_id2()` in Renewal. (#2949)
+- Fixed Manhole working on Guardians/Emperium while it shouldn't. (#2942)
+- Fixed `successremovecard()` not running the cards' unequip scripts. (#2933, issue #2922)
 
 ## [v2021.02.08] `February 08 2021`
 
@@ -1799,6 +2127,20 @@ If you are reading this in a text editor, simply ignore this section
 - New versioning scheme and project changelogs/release notes (#1853)
 
 [Unreleased]: https://github.com/HerculesWS/Hercules/compare/stable...master
+[v2021.11.03+1]: https://github.com/HerculesWS/Hercules/compare/v2021.11.03...v2021.11.03+1
+[v2021.11.03]: https://github.com/HerculesWS/Hercules/compare/v2021.10.06+1...v2021.11.03
+[v2021.10.06+1]: https://github.com/HerculesWS/Hercules/compare/v2021.10.06...v2021.10.06+1
+[v2021.10.06]: https://github.com/HerculesWS/Hercules/compare/v2021.09.01...v2021.10.06
+[v2021.09.01]: https://github.com/HerculesWS/Hercules/compare/v2021.08.04...v2021.09.01
+[v2021.08.04]: https://github.com/HerculesWS/Hercules/compare/v2021.07.07...v2021.08.04
+[v2021.07.07]: https://github.com/HerculesWS/Hercules/compare/v2021.06.02...v2021.07.07
+[v2021.06.02]: https://github.com/HerculesWS/Hercules/compare/v2021.05.05...v2021.06.02
+[v2021.05.05]: https://github.com/HerculesWS/Hercules/compare/v2021.04.05+1...v2021.05.05
+[v2021.04.05+1]: https://github.com/HerculesWS/Hercules/compare/v2021.04.05...v2021.04.05+1
+[v2021.04.05]: https://github.com/HerculesWS/Hercules/compare/v2021.03.08...v2021.04.05
+[v2021.03.08]: https://github.com/HerculesWS/Hercules/compare/v2021.02.08...v2021.03.08
+[v2021.02.08]: https://github.com/HerculesWS/Hercules/compare/v2021.01.11...v2021.02.08
+[v2021.01.11]: https://github.com/HerculesWS/Hercules/compare/v2020.12.14+1...v2021.01.11
 [v2020.12.14+1]: https://github.com/HerculesWS/Hercules/compare/v2020.12.14...v2020.12.14+1
 [v2020.12.14]: https://github.com/HerculesWS/Hercules/compare/v2020.11.16...v2020.12.14
 [v2020.11.16]: https://github.com/HerculesWS/Hercules/compare/v2020.10.19...v2020.11.16

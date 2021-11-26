@@ -197,6 +197,9 @@ enum item_itemid {
 	ITEMID_WYRD                  = 12732,
 	ITEMID_HAGALAZ               = 12733,
 	ITEMID_C_WING_OF_FLY         = 12887,
+	ITEMID_SILVER_BULLET         = 13201,
+	ITEMID_SANCTIFIED_BULLET     = 13220,
+	ITEMID_SILVER_BULLET_        = 13221,
 	ITEMID_DUN_TELE_SCROLL1      = 14527,
 	ITEMID_BATTLE_MANUAL25       = 14532,
 	ITEMID_BATTLE_MANUAL100      = 14533,
@@ -505,6 +508,15 @@ struct item_lapineddukddak {
 	struct script_code *script;
 };
 
+struct item_lapineupgrade {
+	int8 NeedRefineMin;
+	int8 NeedRefineMax;
+	int8 NeedOptionMin;
+	bool NoEnchant;
+	VECTOR_DECL(struct itemlist_entry) TargetItems;
+	struct script_code *script;
+};
+
 struct item_data {
 	int nameid;
 	char name[ITEM_NAME_LENGTH],jname[ITEM_NAME_LENGTH];
@@ -555,6 +567,8 @@ struct item_data {
 		unsigned no_options: 1; // < disallows use of item options on the item. (non-equippable items are automatically flagged) [Smokexyz]
 		unsigned drop_announce : 1; // Official Drop Announce [Jedzkie]
 		unsigned showdropeffect: 1; // < Allow showing effect on item drop [Asheraf]
+		unsigned ignore_discount : 1; // [Jedzkie]
+		unsigned ignore_overcharge : 1; // [Jedzkie]
 	} flag;
 	struct {// item stacking limitation
 		unsigned short amount;
@@ -575,6 +589,7 @@ struct item_data {
 	struct item_group *group;
 	struct item_package *package;
 	struct item_lapineddukddak *lapineddukddak;
+	struct item_lapineupgrade *lapineupgrade;
 	struct hplugin_data_store *hdata; ///< HPM Plugin Data Store
 };
 
@@ -670,7 +685,7 @@ struct itemdb_interface {
 	int (*searchname_sub) (union DBKey key, struct DBData *data, va_list ap);
 	int (*searchname_array_sub) (union DBKey key, struct DBData data, va_list ap);
 	int (*searchrandomid) (struct item_group *group);
-	const char* (*typename) (int type);
+	const char* (*typename) (enum item_types type);
 	void (*jobmask2mapid) (uint64 *bclass, uint64 jobmask);
 	void (*jobid2mapid) (uint64 *bclass, int job_class, bool enable);
 	void (*create_dummy_data) (void);
@@ -714,6 +729,10 @@ struct itemdb_interface {
 	bool (*read_libconfig_lapineddukddak) (void);
 	bool (*read_libconfig_lapineddukddak_sub) (struct config_setting_t *it, const char *source);
 	bool (*read_libconfig_lapineddukddak_sub_sources) (struct config_setting_t *sources, struct item_data *data);
+
+	bool (*read_libconfig_lapineupgrade) (void);
+	bool (*read_libconfig_lapineupgrade_sub) (struct config_setting_t *it, const char *source);
+	bool (*read_libconfig_lapineupgrade_sub_targets) (struct config_setting_t *sources, struct item_data *data);
 };
 
 #ifdef HERCULES_CORE

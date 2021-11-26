@@ -41,6 +41,7 @@
 #include "map/irc-bot.h"
 #include "map/itemdb.h"
 #include "map/log.h"
+#include "map/macro.h"
 #include "map/mail.h"
 #include "map/mapreg.h"
 #include "map/mercenary.h"
@@ -124,6 +125,9 @@ static inline void map_block_free_expand(void)
 {
 	map->block_free_list_size += 100;
 	RECREATE(map->block_free, struct block_list *, map->block_free_list_size);
+#ifdef SANITIZE
+	RECREATE(map->block_free_sanitize, int *, map->block_free_list_size);
+#endif
 }
 
 /*==========================================
@@ -148,10 +152,17 @@ static int map_freeblock(struct block_list *bl)
 			aFree(bl);
 		bl = NULL;
 	} else {
-		if( map->block_free_count >= map->block_free_list_size )
+		if (bl->deleted == true)
+			return map->block_free_lock;
+		if (map->block_free_count >= map->block_free_list_size)
 			map_block_free_expand();
 
-		map->block_free[map->block_free_count++] = bl;
+		map->block_free[map->block_free_count] = bl;
+#ifdef SANITIZE
+		map->block_free_sanitize[map->block_free_count] = aMalloc(4);
+#endif
+		bl->deleted = true;
+		map->block_free_count++;
 	}
 
 	return map->block_free_lock;
@@ -172,6 +183,10 @@ static int map_freeblock_unlock(void)
 	if ((--map->block_free_lock) == 0) {
 		int i;
 		for (i = 0; i < map->block_free_count; i++) {
+#ifdef SANITIZE
+			aFree(map->block_free_sanitize[i]);
+			map->block_free_sanitize[i] = NULL;
+#endif
 			if( map->block_free[i]->type == BL_ITEM )
 				ers_free(map->flooritem_ers, map->block_free[i]);
 			else
@@ -565,6 +580,8 @@ static struct skill_unit *map_find_skill_unit_oncell(struct block_list *target, 
  */
 static int bl_vforeach(int (*func)(struct block_list*, va_list), int blockcount, int max, va_list args)
 {
+	GUARD_MAP_LOCK
+
 	int i;
 	int returnCount = 0;
 
@@ -1350,7 +1367,6 @@ static int bl_vgetall_inpath(struct block_list *bl, va_list args)
 
 	int xi;
 	int yi;
-	int xu, yu;
 	int k;
 
 	nullpo_ret(bl);
@@ -1364,21 +1380,29 @@ static int bl_vgetall_inpath(struct block_list *bl, va_list args)
 	if ( k > magnitude2 && !path->search_long(NULL, NULL, m, x0, y0, xi, yi, CELL_CHKWALL) )
 		return 0; //Targets beyond the initial ending point need the wall check.
 
-	//All these shifts are to increase the precision of the intersection point and distance considering how it's
-	//int math.
-	k  = ( k << 4 ) / magnitude2; //k will be between 1~16 instead of 0~1
-	xi <<= 4;
-	yi <<= 4;
-	xu = ( x0 << 4 ) + k * ( x1 - x0 );
-	yu = ( y0 << 4 ) + k * ( y1 - y0 );
+	/**
+	 * We're shifting the coords 8 bits higher
+	 * to have higher precision on the cell comparisons.
+	 * Especially the multiplication of k * (x1 - x0)
+	 * between the intersecting point on the line and the bl we might affect
+	 * requires higher precision due to int math.
+	 * Since the coords are 8 bits higher,
+	 * the range is 8 bits higher too when comparing
+	 */
+	k = (k << 8) / magnitude2;
+	int xu = (x0 << 8) + k * (x1 - x0);
+	int yu = (y0 << 8) + k * (y1 - y0);
+	xi <<= 8;
+	yi <<= 8;
 
-//Avoid needless calculations by not getting the sqrt right away.
-#define MAGNITUDE2(x0, y0, x1, y1) ( ( ( x1 ) - ( x0 ) ) * ( ( x1 ) - ( x0 ) ) + ( ( y1 ) - ( y0 ) ) * ( ( y1 ) - ( y0 ) ) )
-
-	k  = MAGNITUDE2(xi, yi, xu, yu);
-
-	//If all dot coordinates were <<4 the square of the magnitude is <<8
-	if ( k > range )
+	/**
+	 * We're calculating the distance like path->distance,
+	 * but without CIRCULAR_AREA since NPCs use map->foreachinpath too.
+	 */
+	int dx = abs(xi - xu);
+	int dy = abs(yi - yu);
+	int distance = (dx < dy ? dy : dx);
+	if (distance > (range << 8))
 		return 0;
 
 	return 1;
@@ -1423,6 +1447,8 @@ static int map_vforeachinpath(int (*func)(struct block_list*, va_list), int16 m,
 	int magnitude2, len_limit; //The square of the magnitude
 	int mx0 = x0, mx1 = x1, my0 = y0, my1 = y1;
 
+//Avoid needless calculations by not getting the sqrt right away.
+#define MAGNITUDE2(x0, y0, x1, y1) ( ( ( x1 ) - ( x0 ) ) * ( ( x1 ) - ( x0 ) ) + ( ( y1 ) - ( y0 ) ) * ( ( y1 ) - ( y0 ) ) )
 	len_limit = magnitude2 = MAGNITUDE2(x0, y0, x1, y1);
 	if (magnitude2 < 1) //Same begin and ending point, can't trace path.
 		return 0;
@@ -1449,7 +1475,6 @@ static int map_vforeachinpath(int (*func)(struct block_list*, va_list), int16 m,
 		my0 -= range;
 		my1 += range;
 	}
-	range *= range << 8; //Values are shifted later on for higher precision using int math.
 
 	bl_getall_area(type, m, mx0, my0, mx1, my1, bl_vgetall_inpath, m, x0, y0, x1, y1, range, len_limit, magnitude2);
 
@@ -2110,6 +2135,8 @@ static int map_quit(struct map_session_data *sd)
 	party->booking_delete(sd); // Party Booking [Spiria]
 	pc->makesavestatus(sd);
 	pc->clean_skilltree(sd);
+	pc->crimson_marker_clear(sd);
+	macro->detector_disconnect(sd);
 	chrif->save(sd,1);
 	unit->free_pc(sd);
 	return 0;
@@ -6368,6 +6395,13 @@ static int cleanup_sub(struct block_list *bl, va_list ap)
 		case BL_SKILL:
 			skill->delunit(BL_UCAST(BL_SKILL, bl));
 			break;
+		case BL_NUL:
+		case BL_HOM:
+		case BL_MER:
+		case BL_CHAT:
+		case BL_ELEM:
+		case BL_ALL:
+			break;
 	}
 
 	return 1;
@@ -6379,6 +6413,19 @@ static int cleanup_sub(struct block_list *bl, va_list ap)
 static int cleanup_db_sub(union DBKey key, struct DBData *data, va_list va)
 {
 	return map->cleanup_sub(DB->data2ptr(data), va);
+}
+
+static void map_lock_check(const char *file, const char *func, int line, int lock_count)
+{
+	if (map->block_free_lock != lock_count) {
+		if (map->block_free_lock > lock_count) {
+			ShowError("map_lock_check: found missing call to map->freeblock_unlock: %s %s:%d\n", file, func, line);
+		} else {
+			ShowError("map_lock_check: found extra call to map->freeblock_unlock: %s %s:%d\n", file, func, line);
+		}
+		Assert_report(0);
+		map->block_free_lock = lock_count;
+	}
 }
 
 /*==========================================
@@ -6489,6 +6536,10 @@ int do_final(void)
 
 	if( map->block_free )
 		aFree(map->block_free);
+#ifdef SANITIZE
+	if (map->block_free_sanitize)
+		aFree(map->block_free_sanitize);
+#endif
 	if( map->bl_list )
 		aFree(map->bl_list);
 
@@ -6642,6 +6693,7 @@ static void map_load_defaults(void)
 	ircbot_defaults();
 	itemdb_defaults();
 	log_defaults();
+	macro_defaults();
 	mail_defaults();
 	npc_defaults();
 	script_defaults();
@@ -6988,6 +7040,7 @@ int do_init(int argc, char *argv[])
 	quest->init(minimal);
 	achievement->init(minimal);
 	stylist->init(minimal);
+	macro->init(minimal);
 	npc->init(minimal);
 	unit->init(minimal);
 	bg->init(minimal);
@@ -7118,6 +7171,9 @@ void map_defaults(void)
 	map->iwall_db = NULL;
 
 	map->block_free = NULL;
+#ifdef SANITIZE
+	map->block_free_sanitize = NULL;
+#endif
 	map->block_free_count = 0;
 	map->block_free_lock = 0;
 	map->block_free_list_size = 0;
@@ -7320,6 +7376,8 @@ PRAGMA_GCC9(GCC diagnostic pop)
 
 	map->merge_zone = map_merge_zone;
 	map->zone_clear_single = map_zone_clear_single;
+
+	map->lock_check = map_lock_check;
 
 	/**
 	 * mapit interface

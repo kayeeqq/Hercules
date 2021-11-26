@@ -62,7 +62,9 @@ typedef enum sc_conf_type {
 	SC_MADO_NO_RESET = 0x040,
 	SC_NO_CLEAR      = 0x080,
 	SC_VISIBLE       = 0x100,
-	SC_NO_BOSS       = 0x200
+	SC_NO_BOSS       = 0x200,
+	SC_BB_NO_RESET   = 0x400,
+	SC_NO_MAGIC_BLOCK = 0x800
 } sc_conf_type;
 
 /**
@@ -861,6 +863,53 @@ typedef enum sc_type {
 	SC_SKF_ASPD,
 	SC_SKF_CAST,
 	SC_ALMIGHTY,
+	SC_NO_RECOVER_STATE,
+
+	// Rebel
+	SC_FALLEN_ANGEL,
+	SC_HEAT_BARREL,
+	SC_PLATINUM_ALTER,
+	SC_ANTI_MATERIAL_BLAST,
+	SC_ETERNAL_CHAIN,
+	SC_CRIMSON_MARKER,
+	SC_QD_SHOT_READY,
+	SC_HOWLING_MINE,
+	SC_BIND_TRAP,
+
+	// Star Emperor
+	SC_SUNSTANCE,
+	SC_STARSTANCE,
+	SC_LUNARSTANCE,
+	SC_NEWMOON,
+	SC_FLASHKICK,
+	SC_FALLINGSTAR,
+	SC_LIGHTOFSUN,
+	SC_LIGHTOFMOON,
+	SC_LIGHTOFSTAR,
+	SC_UNIVERSESTANCE,
+	SC_NOVAEXPLOSING,
+	SC_GRAVITYCONTROL,
+	SC_CREATINGSTAR,
+	SC_DIMENSION,
+	SC_DIMENSION1,
+	SC_DIMENSION2,
+
+	// Soul Emperor
+	SC_SOULCOLLECT,
+	SC_SOULENERGY,
+	SC_SOULREAPER,
+	SC_SOULCURSE,
+	SC_SP_SHA,
+	SC_USE_SKILL_SP_SHA,
+	SC_SP_SPA,
+	SC_USE_SKILL_SP_SPA,
+	SC_SOULUNITY,
+	SC_SOULSHADOW,
+	SC_SOULFAIRY,
+	SC_SOULFALCON,
+	SC_SOULGOLEM,
+	SC_SOULDIVISION,
+
 #ifndef SC_MAX
 	SC_MAX, //Automatically updated max, used in for's to check we are within bounds.
 #endif
@@ -1233,7 +1282,6 @@ BEGIN_ZEROED_BLOCK; /* Everything within this block will be memset to 0 when sta
 	int HP_table[CLASS_COUNT][MAX_LEVEL + 1];
 	int SP_table[CLASS_COUNT][MAX_LEVEL + 1];
 	int aspd_base[CLASS_COUNT][MAX_SINGLE_WEAPON_TYPE+1]; // +1 for RENEWAL_ASPD
-	sc_type Skill2SCTable[MAX_SKILL_DB];  // skill  -> status
 	struct {
 		int id;
 		int relevant_bl_types;
@@ -1271,7 +1319,6 @@ struct status_interface {
 	void (*final) (void);
 	/* funcs */
 	// for looking up associated data
-	sc_type (*skill2sc) (int skill_id);
 	int (*sc2skill) (sc_type sc);
 	unsigned int (*sc2scb_flag) (sc_type sc);
 	int (*get_sc_relevant_bl_types) (sc_type type);
@@ -1402,13 +1449,16 @@ struct status_interface {
 	bool (*read_scdb_libconfig) (void);
 	bool (*read_scdb_libconfig_sub) (struct config_setting_t *it, int idx, const char *source);
 	bool (*read_scdb_libconfig_sub_flag) (struct config_setting_t *it, int type, const char *source);
+	bool (*read_scdb_libconfig_sub_calcflag) (struct config_setting_t *it, int type, const char *source);
 	bool (*read_scdb_libconfig_sub_flag_additional) (struct config_setting_t *it, int type, const char *source);
+	bool (*read_scdb_libconfig_sub_calcflag_additional) (struct config_setting_t *it, int type, const char *source);
+	bool (*read_scdb_libconfig_sub_skill) (struct config_setting_t *it, int type, const char *source);
 	void (*read_job_db) (void);
 	void (*read_job_db_sub) (int idx, const char *name, struct config_setting_t *jdb);
-	void (*set_sc) (uint16 skill_id, sc_type sc, unsigned int flag);
 	void (*copy) (struct status_data *a, const struct status_data *b);
 	int (*base_matk_min) (const struct status_data *st);
 	int (*base_matk_max) (const struct status_data *st);
+	void (*check_job_bonus) (int idx, const char *name, int class);
 };
 
 #ifdef HERCULES_CORE

@@ -328,7 +328,7 @@ static bool chrif_save(struct map_session_data *sd, int flag)
 
 	if( sd->status.pet_id > 0 && sd->pd )
 		intif->save_petdata(sd->status.account_id,&sd->pd->pet);
-	if( sd->hd && homun_alive(sd->hd) )
+	if (homun_alive(sd->hd))
 		homun->save(sd->hd);
 	if( sd->md && mercenary->get_lifetime(sd->md) > 0 )
 		mercenary->save(sd->md);
@@ -728,6 +728,8 @@ static int auth_db_cleanup_sub(union DBKey key, struct DBData *data, va_list ap)
 				node->node_created = timer->gettick(); //Refresh tick (avoid char-server load if connection is really bad)
 				chrif->save(node->sd, 1);
 				break;
+			case ST_LOGIN:
+			case ST_MAPCHANGE:
 			default:
 				//Clear data. any connected players should have timed out by now.
 				ShowInfo("auth_db: Node (state %s) timed out for %d:%d\n", states[node->state], node->account_id, node->char_id);

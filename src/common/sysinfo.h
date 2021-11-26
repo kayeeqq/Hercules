@@ -39,11 +39,7 @@ struct sysinfo_private;
 struct sysinfo_interface {
 	struct sysinfo_private *p;
 
-#if defined(WIN32) && !defined(__CYGWIN__)
 	long (*getpagesize) (void);
-#else
-	int (*getpagesize) (void);
-#endif
 	const char *(*platform) (void);
 	const char *(*osversion) (void);
 	const char *(*cpu) (void);
@@ -58,6 +54,7 @@ struct sysinfo_interface {
 	const char *(*vcsrevision_src) (void);
 	const char *(*vcsrevision_scripts) (void);
 	int (*build_revision) (void);
+	uint32 (*fflags) (void);
 	void (*vcsrevision_reload) (void);
 	bool (*is_superuser) (void);
 	void (*init) (void);

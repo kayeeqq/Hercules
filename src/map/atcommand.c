@@ -126,6 +126,8 @@ static const char *atcommand_msg(int msg_number)
 	if(atcommand->msg_table[0][msg_number] != NULL && atcommand->msg_table[0][msg_number][0] != '\0')
 		return atcommand->msg_table[0][msg_number];
 
+	ShowWarning("atcommand_msg: Invalid message number was specified: %d", msg_number);
+	Assert_report(0);
 	return "??";
 }
 
@@ -892,6 +894,8 @@ ACMD(storage)
  *------------------------------------------*/
 ACMD(guildstorage)
 {
+	int retval;
+
 	if (!sd->status.guild_id) {
 		clif->message(fd, msg_fd(fd,252)); // You are not in a guild.
 		return false;
@@ -915,8 +919,15 @@ ACMD(guildstorage)
 		return false;
 	}
 
-	if( gstorage->open(sd) ) {
-		clif->message(fd, msg_fd(fd,1201)); // Your guild's storage has already been opened by another member, try again later.
+	if ((retval = gstorage->open(sd)) != 0) {
+		if (retval == 2)
+			clif->message(fd, msg_fd(fd,252)); // You are not in a guild
+		else if (retval == 3)
+			clif->message(fd, msg_fd(fd,335)); // Your guild doesn't have storage!
+		else if (retval == 4)
+			clif->message(fd, msg_fd(fd,336)); // You're not authorized to open your guild storage!
+		else // retval == 1 or unknown results
+			clif->message(fd, msg_fd(fd,1201)); // Your guild's storage has already been opened by another member, try again later.
 		return false;
 	}
 
@@ -1016,7 +1027,7 @@ ACMD(jobchange)
 	 || job == JOB_WEDDING || job == JOB_XMAS || job == JOB_SUMMER
 	 || job == JOB_LORD_KNIGHT2 || job == JOB_PALADIN2
 	 || job == JOB_BABY_KNIGHT2 || job == JOB_BABY_CRUSADER2
-	 || job == JOB_STAR_GLADIATOR2
+	 || job == JOB_STAR_GLADIATOR2 || job == JOB_BABY_STAR_GLADIATOR2
 	 || (job >= JOB_RUNE_KNIGHT2 && job <= JOB_MECHANIC_T2)
 	 || (job >= JOB_BABY_RUNE2 && job <= JOB_BABY_MECHANIC2)
 	) {
@@ -1212,6 +1223,8 @@ ACMD(item)
 				clif->message(fd, msg_fd(fd, 1499)); //You can't add a guild bound item to a character without guild!
 				return false;
 			}
+			break;
+		case IBT_NONE:
 			break;
 		}
 	}
@@ -3398,6 +3411,29 @@ ACMD(spiritball)
 /*==========================================
  *
  *------------------------------------------*/
+ ACMD(soulball)
+{
+	int number;
+
+	if (!*message || (number = atoi(message)) < 0 || number > MAX_SOUL_BALL) {
+		char msg[CHAT_SIZE_MAX];
+		safesnprintf(msg, sizeof(msg), "Usage: @soulball <number: 0-%d>", MAX_SOUL_BALL);
+		clif->message(fd, msg);
+		return false;
+	}
+
+	if (sd->soulball > 0)
+		pc->delsoulball(sd, sd->soulball, true);
+
+	for (int i = 0; i < number; i++)
+		pc->addsoulball(sd, MAX_SOUL_BALL);
+
+	return true;
+}
+
+/*==========================================
+ *
+ *------------------------------------------*/
 ACMD(party)
 {
 	char party_name[NAME_LENGTH];
@@ -3812,37 +3848,41 @@ ACMD(reloadbattleconf)
 	if (prev_config.feature_roulette == 0 && battle_config.feature_roulette == 1 && !clif->parse_roulette_db())
 		battle_config.feature_roulette = 0;
 
-	if( prev_config.item_rate_mvp          != battle_config.item_rate_mvp
-	   ||  prev_config.item_rate_common       != battle_config.item_rate_common
-	   ||  prev_config.item_rate_common_boss  != battle_config.item_rate_common_boss
-	   ||  prev_config.item_rate_card         != battle_config.item_rate_card
-	   ||  prev_config.item_rate_card_boss    != battle_config.item_rate_card_boss
-	   ||  prev_config.item_rate_equip        != battle_config.item_rate_equip
-	   ||  prev_config.item_rate_equip_boss   != battle_config.item_rate_equip_boss
-	   ||  prev_config.item_rate_heal         != battle_config.item_rate_heal
-	   ||  prev_config.item_rate_heal_boss    != battle_config.item_rate_heal_boss
-	   ||  prev_config.item_rate_use          != battle_config.item_rate_use
-	   ||  prev_config.item_rate_use_boss     != battle_config.item_rate_use_boss
-	   ||  prev_config.item_rate_treasure     != battle_config.item_rate_treasure
-	   ||  prev_config.item_rate_adddrop      != battle_config.item_rate_adddrop
-	   ||  prev_config.logarithmic_drops      != battle_config.logarithmic_drops
-	   ||  prev_config.item_drop_common_min   != battle_config.item_drop_common_min
-	   ||  prev_config.item_drop_common_max   != battle_config.item_drop_common_max
-	   ||  prev_config.item_drop_card_min     != battle_config.item_drop_card_min
-	   ||  prev_config.item_drop_card_max     != battle_config.item_drop_card_max
-	   ||  prev_config.item_drop_equip_min    != battle_config.item_drop_equip_min
-	   ||  prev_config.item_drop_equip_max    != battle_config.item_drop_equip_max
-	   ||  prev_config.item_drop_mvp_min      != battle_config.item_drop_mvp_min
-	   ||  prev_config.item_drop_mvp_max      != battle_config.item_drop_mvp_max
-	   ||  prev_config.item_drop_heal_min     != battle_config.item_drop_heal_min
-	   ||  prev_config.item_drop_heal_max     != battle_config.item_drop_heal_max
-	   ||  prev_config.item_drop_use_min      != battle_config.item_drop_use_min
-	   ||  prev_config.item_drop_use_max      != battle_config.item_drop_use_max
-	   ||  prev_config.item_drop_treasure_min != battle_config.item_drop_treasure_min
-	   ||  prev_config.item_drop_treasure_max != battle_config.item_drop_treasure_max
-	   ||  prev_config.base_exp_rate          != battle_config.base_exp_rate
-	   ||  prev_config.job_exp_rate           != battle_config.job_exp_rate
+	if( prev_config.item_rate_mvp              != battle_config.item_rate_mvp
+	   ||  prev_config.item_rate_common        != battle_config.item_rate_common
+	   ||  prev_config.item_rate_common_boss   != battle_config.item_rate_common_boss
+	   ||  prev_config.item_rate_card          != battle_config.item_rate_card
+	   ||  prev_config.item_rate_card_boss     != battle_config.item_rate_card_boss
+	   ||  prev_config.item_rate_equip         != battle_config.item_rate_equip
+	   ||  prev_config.item_rate_equip_boss    != battle_config.item_rate_equip_boss
+	   ||  prev_config.item_rate_heal          != battle_config.item_rate_heal
+	   ||  prev_config.item_rate_heal_boss     != battle_config.item_rate_heal_boss
+	   ||  prev_config.item_rate_use           != battle_config.item_rate_use
+	   ||  prev_config.item_rate_use_boss      != battle_config.item_rate_use_boss
+	   ||  prev_config.item_rate_treasure      != battle_config.item_rate_treasure
+	   ||  prev_config.item_rate_adddrop       != battle_config.item_rate_adddrop
+	   ||  prev_config.item_rate_add_chain     != battle_config.item_rate_add_chain
+	   ||  prev_config.logarithmic_drops       != battle_config.logarithmic_drops
+	   ||  prev_config.item_drop_common_min    != battle_config.item_drop_common_min
+	   ||  prev_config.item_drop_common_max    != battle_config.item_drop_common_max
+	   ||  prev_config.item_drop_card_min      != battle_config.item_drop_card_min
+	   ||  prev_config.item_drop_card_max      != battle_config.item_drop_card_max
+	   ||  prev_config.item_drop_equip_min     != battle_config.item_drop_equip_min
+	   ||  prev_config.item_drop_equip_max     != battle_config.item_drop_equip_max
+	   ||  prev_config.item_drop_mvp_min       != battle_config.item_drop_mvp_min
+	   ||  prev_config.item_drop_mvp_max       != battle_config.item_drop_mvp_max
+	   ||  prev_config.item_drop_add_chain_min != battle_config.item_drop_add_chain_min
+	   ||  prev_config.item_drop_add_chain_max != battle_config.item_drop_add_chain_max
+	   ||  prev_config.item_drop_heal_min      != battle_config.item_drop_heal_min
+	   ||  prev_config.item_drop_heal_max      != battle_config.item_drop_heal_max
+	   ||  prev_config.item_drop_use_min       != battle_config.item_drop_use_min
+	   ||  prev_config.item_drop_use_max       != battle_config.item_drop_use_max
+	   ||  prev_config.item_drop_treasure_min  != battle_config.item_drop_treasure_min
+	   ||  prev_config.item_drop_treasure_max  != battle_config.item_drop_treasure_max
+	   ||  prev_config.base_exp_rate           != battle_config.base_exp_rate
+	   ||  prev_config.job_exp_rate            != battle_config.job_exp_rate
 	) { // Exp or Drop rates changed.
+		itemdb->read_chains();
 		mob->reload(); //Needed as well so rate changes take effect.
 		chrif->ragsrvinfo(battle_config.base_exp_rate, battle_config.job_exp_rate, battle_config.item_rate_common);
 	}
@@ -4160,9 +4200,11 @@ ACMD(mapinfo)
 			case UNIT_DIR_NORTHEAST:
 				strcpy(direction, msg_fd(fd, 1108)); // North East
 				break;
-			case 9: // is this actually used? [skyleo]
+			case UNIT_DIR_9: // is this actually used? [skyleo]
 				strcpy(direction, msg_fd(fd, 1109)); // North
 				break;
+			case UNIT_DIR_UNDEFINED:
+			case UNIT_DIR_MAX:
 			default:
 				strcpy(direction, msg_fd(fd, 1110)); // Unknown
 				break;
@@ -5570,13 +5612,13 @@ ACMD(cleargstorage)
 		return false;
 	}
 
-	j = guild_storage->storage_amount;
-	guild_storage->lock = 1; // Lock @gstorage: do not allow any item to be retrieved or stored from any guild member
+	j = guild_storage->items.capacity;
+	guild_storage->locked = true; // Lock @gstorage: do not allow any item to be retrieved or stored from any guild member
 	for (i = 0; i < j; ++i) {
-		gstorage->delitem(sd, guild_storage, i, guild_storage->items[i].amount);
+		gstorage->delitem(sd, guild_storage, i, guild_storage->items.data[i].amount);
 	}
 	gstorage->close(sd);
-	guild_storage->lock = 0; // Cleaning done, release lock
+	guild_storage->locked = false; // Cleaning done, release lock
 
 	clif->message(fd, msg_fd(fd,1395)); // Your guild storage was cleaned.
 	return true;
@@ -5690,7 +5732,7 @@ ACMD(useskill)
 	pc->autocast_clear(sd);
 
 	if (skill_id >= HM_SKILLBASE && skill_id < HM_SKILLBASE+MAX_HOMUNSKILL
-		&& sd->hd && homun_alive(sd->hd)) // (If used with @useskill, put the homunc as dest)
+		&& homun_alive(sd->hd)) // (If used with @useskill, put the homunc as dest)
 		bl = &sd->hd->bl;
 	else
 		bl = &sd->bl;
@@ -7211,25 +7253,11 @@ ACMD(homlevel)
 		return false;
 	}
 
-	switch( htype ) {
-		case HT_REG:
-		case HT_EVO:
-			if( hd->homunculus.level >= battle_config.hom_max_level ) {
-				snprintf(atcmd_output, sizeof(atcmd_output), msg_fd(fd,1478), hd->homunculus.level); // Homun reached its maximum level of '%d'
-				clif->message(fd, atcmd_output);
-				return true;
-			}
-			break;
-		case HT_S:
-			if( hd->homunculus.level >= battle_config.hom_S_max_level ) {
-				snprintf(atcmd_output, sizeof(atcmd_output), msg_fd(fd,1478), hd->homunculus.level); // Homun reached its maximum level of '%d'
-				clif->message(fd, atcmd_output);
-				return true;
-			}
-			break;
-		default:
-			ShowError("atcommand_homlevel: unknown htype '%d'\n",htype);
-			return false;
+
+	if (hd->homunculus.level >= homun->get_max_level(hd)) {
+		snprintf(atcmd_output, sizeof(atcmd_output), msg_fd(fd,1478), hd->homunculus.level); // Homun reached its maximum level of '%d'
+		clif->message(fd, atcmd_output);
+		return true;
 	}
 
 	do {
@@ -7301,7 +7329,7 @@ ACMD(makehomun)
 
 	homunid = atoi(message);
 
-	if (homunid == -1 && sd->status.hom_id && !(sd->hd && homun_alive(sd->hd))) {
+	if (homunid == -1 && sd->status.hom_id && !(homun_alive(sd->hd))) {
 		if (!sd->hd)
 			homun->call(sd);
 		else if( sd->hd->homunculus.vaporize )
@@ -7536,44 +7564,45 @@ ACMD(iteminfo)
 	int i, count = 1;
 
 	if (!*message) {
-		clif->message(fd, msg_fd(fd,1276)); // Please enter an item name/ID (usage: @ii/@iteminfo <item name/ID>).
+		clif->message(fd, msg_fd(fd, 1276)); // Please enter an item name/ID (usage: @ii/@iteminfo <item name/ID>).
 		return false;
 	}
 	if ((item_array[0] = itemdb->exists(atoi(message))) == NULL)
 		count = itemdb->search_name_array(item_array, MAX_SEARCH, message, IT_SEARCH_NAME_PARTIAL);
 
 	if (!count) {
-		clif->message(fd, msg_fd(fd,19)); // Invalid item ID or name.
+		clif->message(fd, msg_fd(fd, 19)); // Invalid item ID or name.
 		return false;
 	}
 
 	if (count > MAX_SEARCH) {
-		safesnprintf(atcmd_output, sizeof(atcmd_output), msg_fd(fd,269), MAX_SEARCH, count); // Displaying first %d out of %d matches
+		safesnprintf(atcmd_output, sizeof(atcmd_output), msg_fd(fd, 269), MAX_SEARCH, count); // Displaying first %d out of %d matches
 		clif->message(fd, atcmd_output);
 		count = MAX_SEARCH;
 	}
 	for (i = 0; i < count; i++) {
 		struct item_data *item_data = item_array[i];
-		safesnprintf(atcmd_output, sizeof(atcmd_output), msg_fd(fd,1277), // Item: '%s'/'%s'[%d] (%d) Type: %s | Extra Effect: %s
-				item_data->name,item_data->jname,item_data->slot,item_data->nameid,
+		if (item_data != NULL) {
+			safesnprintf(atcmd_output, sizeof(atcmd_output), msg_fd(fd, 1277), // Item: '%s'/'%s'[%d] (%d) Type: %s | Extra Effect: %s
+				item_data->name, item_data->jname, item_data->slot, item_data->nameid,
 				itemdb->typename(item_data->type),
-				(item_data->script==NULL)? msg_fd(fd,1278) : msg_fd(fd,1279) // None / With script
-				);
-		clif->message(fd, atcmd_output);
+				(item_data->script == NULL) ? msg_fd(fd, 1278) : msg_fd(fd, 1279) // None / With script
+			);
+			clif->message(fd, atcmd_output);
 
-		safesnprintf(atcmd_output, sizeof(atcmd_output), msg_fd(fd,1280), item_data->value_buy, item_data->value_sell, item_data->weight/10. ); // NPC Buy:%dz, Sell:%dz | Weight: %.1f
-		clif->message(fd, atcmd_output);
+			safesnprintf(atcmd_output, sizeof(atcmd_output), msg_fd(fd, 1280), item_data->value_buy, item_data->value_sell, item_data->weight / 10.); // NPC Buy:%dz, Sell:%dz | Weight: %.1f
+			clif->message(fd, atcmd_output);
 
-		if (item_data->maxchance == -1)
-			safestrncpy(atcmd_output, msg_fd(fd,1281), sizeof(atcmd_output)); //  - Available in the shops only.
-		else if ( !battle_config.atcommand_mobinfo_type ) {
-			if( item_data->maxchance )
-				safesnprintf(atcmd_output, sizeof(atcmd_output), msg_fd(fd,1282), (float)item_data->maxchance / 100 ); //  - Maximal monsters drop chance: %02.02f%%
-			else
-				safestrncpy(atcmd_output, msg_fd(fd,1283), sizeof(atcmd_output)); //  - Monsters don't drop this item.
+			if (item_data->maxchance == -1)
+				safestrncpy(atcmd_output, msg_fd(fd, 1281), sizeof(atcmd_output)); //  - Available in the shops only.
+			else if (!battle_config.atcommand_mobinfo_type) {
+				if (item_data->maxchance)
+					safesnprintf(atcmd_output, sizeof(atcmd_output), msg_fd(fd, 1282), (float)item_data->maxchance / 100); //  - Maximal monsters drop chance: %02.02f%%
+				else
+					safestrncpy(atcmd_output, msg_fd(fd, 1283), sizeof(atcmd_output)); //  - Monsters don't drop this item.
+			}
+			clif->message(fd, atcmd_output);
 		}
-		clif->message(fd, atcmd_output);
-
 	}
 	return true;
 }
@@ -7584,41 +7613,42 @@ ACMD(iteminfo)
 ACMD(whodrops)
 {
 	struct item_data *item_array[MAX_SEARCH];
-	int i,j, count = 1;
+	int i, j, count = 1;
 
 	if (!*message) {
-		clif->message(fd, msg_fd(fd,1284)); // Please enter item name/ID (usage: @whodrops <item name/ID>).
+		clif->message(fd, msg_fd(fd, 1284)); // Please enter item name/ID (usage: @whodrops <item name/ID>).
 		return false;
 	}
 	if ((item_array[0] = itemdb->exists(atoi(message))) == NULL)
 		count = itemdb->search_name_array(item_array, MAX_SEARCH, message, IT_SEARCH_NAME_PARTIAL);
 
 	if (!count) {
-		clif->message(fd, msg_fd(fd,19)); // Invalid item ID or name.
+		clif->message(fd, msg_fd(fd, 19)); // Invalid item ID or name.
 		return false;
 	}
 
 	if (count > MAX_SEARCH) {
-		safesnprintf(atcmd_output, sizeof(atcmd_output), msg_fd(fd,269), MAX_SEARCH, count); // Displaying first %d out of %d matches
+		safesnprintf(atcmd_output, sizeof(atcmd_output), msg_fd(fd, 269), MAX_SEARCH, count); // Displaying first %d out of %d matches
 		clif->message(fd, atcmd_output);
 		count = MAX_SEARCH;
 	}
 	for (i = 0; i < count; i++) {
 		struct item_data *item_data = item_array[i];
-		safesnprintf(atcmd_output, sizeof(atcmd_output), msg_fd(fd,1285), item_data->jname,item_data->slot); // Item: '%s'[%d]
-		clif->message(fd, atcmd_output);
-
-		if (item_data->mob[0].chance == 0) {
-			safestrncpy(atcmd_output, msg_fd(fd,1286), sizeof(atcmd_output)); //  - Item is not dropped by mobs.
-			clif->message(fd, atcmd_output);
-		} else {
-			safesnprintf(atcmd_output, sizeof(atcmd_output), msg_fd(fd,1287), MAX_SEARCH); //  - Common mobs with highest drop chance (only max %d are listed):
+		if (item_data != NULL) {
+			safesnprintf(atcmd_output, sizeof(atcmd_output), msg_fd(fd, 1285), item_data->jname, item_data->slot); // Item: '%s'[%d]
 			clif->message(fd, atcmd_output);
 
-			for (j=0; j < MAX_SEARCH && item_data->mob[j].chance > 0; j++)
-			{
-				safesnprintf(atcmd_output, sizeof(atcmd_output), "- %s (%02.02f%%)", mob->db(item_data->mob[j].id)->jname, item_data->mob[j].chance/100.);
+			if (item_data->mob[0].chance == 0) {
+				safestrncpy(atcmd_output, msg_fd(fd, 1286), sizeof(atcmd_output)); //  - Item is not dropped by mobs.
 				clif->message(fd, atcmd_output);
+			} else {
+				safesnprintf(atcmd_output, sizeof(atcmd_output), msg_fd(fd, 1287), MAX_SEARCH); //  - Common mobs with highest drop chance (only max %d are listed):
+				clif->message(fd, atcmd_output);
+
+				for (j = 0; j < MAX_SEARCH && item_data->mob[j].chance > 0; j++) {
+					safesnprintf(atcmd_output, sizeof(atcmd_output), "- %s (%02.02f%%)", mob->db(item_data->mob[j].id)->jname, item_data->mob[j].chance / 100.);
+					clif->message(fd, atcmd_output);
+				}
 			}
 		}
 	}
@@ -8631,9 +8661,9 @@ ACMD(itemlist)
 		}
 
 		if( it->refine )
-			StrBuf->Printf(&buf, "%d %s %+d (%s, id: %d)", it->amount, itd->jname, it->refine, itd->name, it->nameid);
+			StrBuf->Printf(&buf, "%d: %d %s %+d (%s, id: %d)", i, it->amount, itd->jname, it->refine, itd->name, it->nameid);
 		else
-			StrBuf->Printf(&buf, "%d %s (%s, id: %d)", it->amount, itd->jname, itd->name, it->nameid);
+			StrBuf->Printf(&buf, "%d: %d %s (%s, id: %d)", i, it->amount, itd->jname, itd->name, it->nameid);
 
 		if( it->equip ) {
 			char equipstr[CHAT_SIZE_MAX];
@@ -9128,7 +9158,9 @@ ACMD(set)
 		}
 	}
 
-	switch( data->type ) {
+	PRAGMA_GCC46(GCC diagnostic push)
+	PRAGMA_GCC46(GCC diagnostic ignored "-Wswitch-enum")
+	switch (data->type) {
 		case C_INT:
 			safesnprintf(atcmd_output, sizeof(atcmd_output),msg_fd(fd,1373),reg,data->u.num); // %s value is now :%d
 			break;
@@ -9142,6 +9174,7 @@ ACMD(set)
 			safesnprintf(atcmd_output, sizeof(atcmd_output),msg_fd(fd,1376),reg,data->type); // %s data type is not supported :%u
 			break;
 	}
+	PRAGMA_GCC46(GCC diagnostic pop)
 	clif->message(fd, atcmd_output);
 
 	aFree(data);
@@ -10306,6 +10339,7 @@ static void atcommand_basecommands(void)
 		ACMD_DEF(questskill),
 		ACMD_DEF(lostskill),
 		ACMD_DEF(spiritball),
+		ACMD_DEF(soulball),
 		ACMD_DEF(party),
 		ACMD_DEF(guild),
 		ACMD_DEF(breakguild),

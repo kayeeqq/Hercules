@@ -58,12 +58,15 @@ struct achievement_data; // map/achievement.h
 struct s_refine_requirement;
 struct PACKET_ZC_ACK_RANKING_sub;
 struct SKILLDATA;
+struct macroaidlist;
 
 enum battle_dmg_type;
 enum clif_messages;
 enum rodex_add_item;
 enum rodex_get_zeny;
 enum rodex_get_items;
+enum macro_detect_status;
+enum macro_report_status;
 
 /**
  * Defines
@@ -596,10 +599,15 @@ enum zc_ui_types {
 * Client to server open ui request types (packet 0x0a68)
 **/
 enum cz_ui_types {
+#if PACKETVER >= 20150128
 	CZ_STYLIST_UI = 1,
 	CZ_MACRO_REGISTER_UI = 2,
 	CZ_MACRO_DETECTOR_UI = 3,
-	CZ_ATTENDANCE_UI = 5
+#endif
+#if PACKETVER >= 20171122
+	CZ_ATTENDANCE_UI = 5,
+#endif
+	cz_ui_unused  // for avoid compilation errors
 };
 
 /**
@@ -873,7 +881,7 @@ struct clif_interface {
 	void (*blown) (struct block_list *bl);
 	void (*slide) (struct block_list *bl, int x, int y);
 	void (*fixpos) (struct block_list *bl);
-	void (*changelook) (struct block_list *bl,int type,int val);
+	void (*changelook) (struct block_list *bl, enum look type, int val);
 	void (*changetraplook) (struct block_list *bl,int val);
 	void (*refreshlook) (struct block_list *bl,int id,int type,int val,enum send_target target);
 	void (*sendlook) (struct block_list *bl, int id, int type, int val, int val2, enum send_target target);
@@ -904,6 +912,7 @@ struct clif_interface {
 	void (*bossmapinfo) (int fd, struct mob_data *md, enum bossmap_info_type flag);
 	void (*map_type) (struct map_session_data* sd, enum map_type type);
 	void (*maptypeproperty2) (struct block_list *bl,enum send_target t);
+	void (*crimson_marker) (struct map_session_data *sd, struct block_list *bl, bool remove);
 	/* multi-map-server */
 	void (*changemapserver) (struct map_session_data* sd, unsigned short map_index, int x, int y, uint32 ip, uint16 port, char *dnsHost);
 	void (*changemapserver_airship) (struct map_session_data* sd, unsigned short map_index, int x, int y, uint32 ip, uint16 port);
@@ -1033,8 +1042,8 @@ struct clif_interface {
 	void (*initialstatus) (struct map_session_data *sd);
 	void (*cooldown_list) (int fd, struct skill_cd* cd);
 	/* player-unit-specific-related */
-	void (*updatestatus) (struct map_session_data *sd,int type);
-	void (*changestatus) (struct map_session_data* sd,int type,int val);
+	void (*updatestatus) (struct map_session_data *sd, enum status_point_types type);
+	void (*changestatus) (struct map_session_data* sd, enum status_point_types type, int val);
 	void (*statusupack) (struct map_session_data *sd,int type,int ok,int val);
 	void (*movetoattack) (struct map_session_data *sd,struct block_list *bl);
 	void (*solved_charname) (int fd, int charid, const char* name);
@@ -1068,6 +1077,7 @@ struct clif_interface {
 	void (*devotion) (struct block_list *src, struct map_session_data *tsd);
 	void (*spiritball) (struct block_list *bl);
 	void (*spiritball_single) (int fd, struct map_session_data *sd);
+	void (*soulball) (struct map_session_data *sd, struct block_list *bl, enum send_target target);
 	void (*bladestop) (struct block_list *src, int dst_id, int active);
 	void (*mvp_effect) (struct map_session_data *sd);
 	void (*heal) (int fd,int type,int val);
@@ -1285,7 +1295,7 @@ struct clif_interface {
 	void (*mercenary_info) (struct map_session_data *sd);
 	void (*mercenary_skillblock) (struct map_session_data *sd);
 	void (*mercenary_message) (struct map_session_data* sd, int message);
-	void (*mercenary_updatestatus) (struct map_session_data *sd, int type);
+	void (*mercenary_updatestatus) (struct map_session_data *sd, enum status_point_types type);
 	/* item rental */
 	void (*rental_time) (int fd, int nameid, int seconds);
 	void (*rental_expired) (int fd, int index, int nameid);
@@ -1328,7 +1338,7 @@ struct clif_interface {
 	void (*search_store_info_click_ack) (struct map_session_data* sd, short x, short y);
 	/* elemental-related */
 	void (*elemental_info) (struct map_session_data *sd);
-	void (*elemental_updatestatus) (struct map_session_data *sd, int type);
+	void (*elemental_updatestatus) (struct map_session_data *sd, enum status_point_types type);
 	/* bgqueue */
 	void (*bgqueue_ack) (struct map_session_data *sd, enum BATTLEGROUNDS_QUEUE_ACK response, unsigned char arena_id);
 	void (*bgqueue_notice_delete) (struct map_session_data *sd, enum BATTLEGROUNDS_QUEUE_NOTICE_DELETED response, const char *name);
@@ -1705,7 +1715,7 @@ struct clif_interface {
 	void (*camera_change) (struct map_session_data *sd, float range, float rotation, float latitude, enum send_target target);
 	void (*pCameraInfo) (int fd, struct map_session_data *sd);
 	void (*item_preview) (struct map_session_data *sd, int n);
-	bool (*enchant_equipment) (struct map_session_data *sd, enum equip_pos pos, int cardSlot, int cardId);
+	bool (*enchant_equipment) (struct map_session_data *sd, enum equip_pos pos, int cardSlot, int cardId, int8 equipFlag);
 	void (*pReqRemainTime) (int fd, struct map_session_data *sd);
 	void (*npc_barter_open) (struct map_session_data *sd, struct npc_data *nd);
 	void (*pNPCBarterClosed) (int fd, struct map_session_data *sd);
@@ -1739,6 +1749,31 @@ struct clif_interface {
 	void (*pLapineUpgrade_close) (int fd, struct map_session_data *sd);
 	void (*pLapineUpgrade_makeItem) (int fd, struct map_session_data *sd);
 	void (*pReqGearOff) (int fd, struct map_session_data *sd);
+
+	/* Captcha Register */
+	void (*pCaptchaRegister) (int fd, struct map_session_data *sd);
+	void (*pCaptchaUpload) (int fd, struct map_session_data *sd);
+	void (*captcha_upload_request) (struct map_session_data *sd, const char *captcha_key, const int captcha_flag);
+	void (*captcha_upload_end) (struct map_session_data *sd);
+
+	/* Captcha Preview */
+	void (*pCaptchaPreviewRequest) (int fd, struct map_session_data *sd);
+	void (*captcha_preview_request_init) (struct map_session_data *sd, const char *captcha_key, const int image_size, const int captcha_flag);
+	void (*captcha_preview_request_download) (struct map_session_data *sd, const char *captcha_key, const int chunk_size, const char *chunk_data);
+
+	/* Macro Detector */
+	void (*pMacroDetectorDownloadAck) (int fd, struct map_session_data *sd);
+	void (*pMacroDetectorAnswer) (int fd, struct map_session_data *sd);
+	void (*macro_detector_request_init) (struct map_session_data *sd, const char *captcha_key, const int image_size);
+	void (*macro_detector_request_download) (struct map_session_data *sd, const char *captcha_key, const int chunk_size, const char *chunk_data);
+	void (*macro_detector_request_show) (struct map_session_data *sd);
+	void (*macro_detector_status) (struct map_session_data *sd, enum macro_detect_status stype);
+
+	/* Macro Reporter */
+	void (*pMacroReporterSelect) (int fd, struct map_session_data *sd);
+	void (*pMacroReporterAck) (int fd, struct map_session_data *sd);
+	void (*macro_reporter_select) (struct map_session_data *sd, const struct macroaidlist *aid_list);
+	void (*macro_reporter_status) (struct map_session_data *sd, enum macro_report_status stype);
 };
 
 #ifdef HERCULES_CORE

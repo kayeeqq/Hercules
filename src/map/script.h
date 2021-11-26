@@ -211,7 +211,8 @@ typedef enum c_op {
 	C_LSTR, //Language Str (struct script_code_str)
 
 	// operators
-	C_OP3, // a ? b : c
+	C_OP3_JNZ, // a ? b : c (jnz)
+	C_OP3_JMP, // a ? b : c (jmp)
 	C_LOR, // a || b
 	C_LAND, // a && b
 	C_LE, // a <= b
@@ -591,6 +592,7 @@ struct Script_Config {
 	bool warn_func_mismatch_paramnum;
 	bool functions_private_by_default;
 	bool functions_as_events;
+	bool load_gm_scripts;
 	int check_cmdcount;
 	int check_gotocount;
 	int input_min_value;
@@ -696,7 +698,8 @@ struct script_state {
 	int start,end;
 	int pos;
 	enum e_script_state state;
-	int rid,oid;
+	int rid; ///< GID of the player attached to the script (or the mob, when called through OnTouchNPC)
+	int oid;
 	struct script_code *script;
 	struct sleep_data {
 		int tick,timer,charid;
@@ -889,6 +892,9 @@ struct script_interface {
 	struct script_string_buf parse_simpleexpr_strbuf;
 	/* */
 	int parse_cleanup_timer_id;
+
+	VECTOR_DECL(char *) conditional_features;
+
 	/*  */
 	void (*init) (bool minimal);
 	void (*final) (void);
@@ -1047,6 +1053,7 @@ struct script_interface {
 	int (*buildin_query_sql_sub) (struct script_state *st, struct Sql *handle);
 	int (*buildin_instance_warpall_sub) (struct block_list *bl, va_list ap);
 	int (*buildin_mobuseskill_sub) (struct block_list *bl, va_list ap);
+	bool (*buildin_rodex_sendmail_sub) (struct script_state *st, struct rodex_message *msg);
 	int (*cleanfloor_sub) (struct block_list *bl, va_list ap);
 	int (*run_func) (struct script_state *st);
 	bool (*sprintf_helper) (struct script_state *st, int start, struct StringBuf *out);
@@ -1094,7 +1101,9 @@ struct script_interface {
 	void (*run_item_rental_end_script) (struct map_session_data *sd, struct item_data *data, int oid);
 	void (*run_item_rental_start_script) (struct map_session_data *sd, struct item_data *data, int oid);
 	void (*run_item_lapineddukddak_script) (struct map_session_data *sd, struct item_data *data, int oid);
+	void (*run_item_lapineupgrade_script) (struct map_session_data *sd, struct item_data *data, int oid);
 	bool (*sellitemcurrency_add) (struct npc_data *nd, struct script_state* st, int argIndex);
+	void (*declare_conditional_feature) (const char *feature, bool enabled);
 };
 
 #ifdef HERCULES_CORE

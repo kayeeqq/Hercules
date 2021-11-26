@@ -4896,6 +4896,8 @@ OnInit:
 	end;
 
 OnTouch:
+	if (checkhiding())
+		end;
 	warp "jupe_core",rand(149,151),286;
 	end;
 }
@@ -4936,6 +4938,8 @@ OnTimer10000:
 
 juperos_02,33,59,0	script	jupe_goto2F	WARPNPC,2,2,{
 OnTouch:
+	if (checkhiding())
+		end;
 	switch(rand(1,4)) {
 	case 1: warp "juperos_01",120,72; end;
 	case 2: warp "juperos_01",120,112; end;
@@ -4945,6 +4949,7 @@ OnTouch:
 	end;
 }
 
+/*@LOADGMSCRIPTS
 //== GM Management NPC =====================================
 sec_in02,39,167,0	script	Juperos Manager	4_F_OPERATION,{
 	callfunc "F_GM_NPC";
@@ -5007,4 +5012,8 @@ sec_in02,39,167,0	script	Juperos Manager	4_F_OPERATION,{
 			close;
 		}
 	}
+	end;
+OnInit:
+	consolemes(CONSOLEMES_INFO, "GM script loaded: %s", strnpcinfo(NPC_NAME_UNIQUE));
 }
+//@*/

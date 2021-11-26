@@ -108,6 +108,7 @@ static int instance_create(int owner_id, const char *name, enum instance_owner_t
 			iptr = g->instance;
 			icptr = &g->instances;
 			break;
+		case IOT_MAX:
 		default:
 			ShowError("instance_create: unknown type %u for owner_id %d and name %s.\n", type, owner_id, name);
 			return -1;
@@ -159,6 +160,9 @@ static int instance_create(int owner_id, const char *name, enum instance_owner_t
 				case IOT_GUILD:
 					RECREATE(g->instance, short, ++*icptr);
 					g->instance[g->instances-1] = i;
+					break;
+				case IOT_NONE:
+				case IOT_MAX:
 					break;
 			}
 		} else {
@@ -460,6 +464,13 @@ static int instance_cleanup_sub(struct block_list *bl, va_list ap)
 		case BL_SKILL:
 			skill->delunit(BL_UCAST(BL_SKILL, bl));
 			break;
+		case BL_NUL:
+		case BL_CHAT:
+		case BL_HOM:
+		case BL_MER:
+		case BL_ELEM:
+		case BL_ALL:
+			break;
 	}
 
 	return 1;
@@ -595,6 +606,7 @@ static void instance_destroy(int instance_id)
 			iptr = g->instance;
 			icptr = &g->instances;
 			break;
+		case IOT_MAX:
 		default:
 			ShowError("instance_destroy: unknown type %u for owner_id %d and name '%s'.\n", instance->list[instance_id].owner_type, instance->list[instance_id].owner_id, instance->list[instance_id].name);
 			break;
@@ -772,11 +784,34 @@ static void instance_force_destroy(struct map_session_data *sd)
 			}
 			break;
 		}
+		case IOT_NONE:
+		case IOT_MAX:
 		default:
 			continue;
 		}
 		instance->destroy(instance->list[i].id);
 		return;
+	}
+}
+
+/**
+ * reloads the map flags from the source map
+ *
+ * @param instance_id
+ */
+static void instance_reload_map_flags(int instance_id)
+{
+	Assert_retv(instance->valid(instance_id));
+
+	const struct instance_data *curInst = &instance->list[instance_id];
+
+	for (int i = 0; i < curInst->num_map; i++) {
+		struct map_data *dstMap = &map->list[curInst->map[i]];
+		const struct map_data *srcMap = &map->list[dstMap->instance_src_map];
+
+		memcpy(&dstMap->flag, &srcMap->flag, sizeof(struct map_flag));
+
+		dstMap->flag.src4instance = 0;
 	}
 }
 
@@ -792,11 +827,12 @@ static void do_reload_instance(void)
 				break;
 		}
 
-		if( k != instance->list[i].num_map ) /* any (or all) of them were disabled, we destroy */
+		if (k != instance->list[i].num_map) /* any (or all) of them were disabled, we destroy */ {
 			instance->destroy(i);
-		else {
+		} else {
 			/* populate the instance again */
 			instance->start(i);
+			instance->reload_map_flags(i);
 			/* restart timers */
 			instance->set_timeout(i,instance->list[i].original_progress_timeout,instance->list[i].idle_timeoutval);
 		}
@@ -864,4 +900,5 @@ void instance_defaults(void)
 	instance->valid = instance_is_valid;
 	instance->destroy_timer = instance_destroy_timer;
 	instance->force_destroy = instance_force_destroy;
+	instance->reload_map_flags = instance_reload_map_flags;
 }

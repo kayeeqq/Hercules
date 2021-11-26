@@ -851,6 +851,7 @@ struct HookingPointData HookingPoints[] = {
 	{ HP_POP(sysinfo->vcsrevision_src, HP_sysinfo_vcsrevision_src) },
 	{ HP_POP(sysinfo->vcsrevision_scripts, HP_sysinfo_vcsrevision_scripts) },
 	{ HP_POP(sysinfo->build_revision, HP_sysinfo_build_revision) },
+	{ HP_POP(sysinfo->fflags, HP_sysinfo_fflags) },
 	{ HP_POP(sysinfo->vcsrevision_reload, HP_sysinfo_vcsrevision_reload) },
 	{ HP_POP(sysinfo->is_superuser, HP_sysinfo_is_superuser) },
 	{ HP_POP(sysinfo->init, HP_sysinfo_init) },
@@ -881,6 +882,9 @@ struct HookingPointData HookingPoints[] = {
 	{ HP_POP(timer->perform, HP_timer_perform) },
 	{ HP_POP(timer->init, HP_timer_init) },
 	{ HP_POP(timer->final, HP_timer_final) },
+	{ HP_POP(timer->check_timers, HP_timer_check_timers) },
+	{ HP_POP(timer->get_current_clocksource, HP_timer_get_current_clocksource) },
+	{ HP_POP(timer->get_available_clocksource, HP_timer_get_available_clocksource) },
 };
 
 int HookingPointsLenMax = 43;

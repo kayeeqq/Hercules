@@ -127,7 +127,8 @@ static const char *script_op2name(int op)
 	RETURN_OP_NAME(C_LSTR);
 
 	// operators
-	RETURN_OP_NAME(C_OP3);
+	RETURN_OP_NAME(C_OP3_JNZ);
+	RETURN_OP_NAME(C_OP3_JMP);
 	RETURN_OP_NAME(C_LOR);
 	RETURN_OP_NAME(C_LAND);
 	RETURN_OP_NAME(C_LE);
@@ -230,6 +231,17 @@ static void script_reportsrc(struct script_state *st)
 				ShowDebug("Source (NPC): %s (invisible/not on a map)\n", nd->name);
 		}
 			break;
+		case BL_NUL:
+		case BL_ITEM:
+		case BL_ELEM:
+		case BL_HOM:
+		case BL_MER:
+		case BL_SKILL:
+		case BL_CHAT:
+		case BL_PC:
+		case BL_MOB:
+		case BL_PET:
+		case BL_ALL:
 		default:
 			if( bl->m >= 0 )
 				ShowDebug("Source (Non-NPC type %u): name %s at %s (%d,%d)\n", bl->type, clif->get_bl_name(bl), map->list[bl->m].name, bl->x, bl->y);
@@ -244,6 +256,8 @@ static void script_reportdata(struct script_data *data)
 {
 	if( data == NULL )
 		return;
+	PRAGMA_GCC46(GCC diagnostic push)
+	PRAGMA_GCC46(GCC diagnostic ignored "-Wswitch-enum")
 	switch( data->type ) {
 		case C_NOP:// no value
 			ShowDebug("Data: nothing (nil)\n");
@@ -279,6 +293,7 @@ static void script_reportdata(struct script_data *data)
 			ShowDebug("Data: %s\n", script->op2name(data->type));
 			break;
 	}
+	PRAGMA_GCC46(GCC diagnostic pop)
 }
 
 /// Reports on the console information about the current built-in function.
@@ -685,6 +700,8 @@ static void add_scriptl(int l)
 {
 	int backpatch = script->str_data[l].backpatch;
 
+	PRAGMA_GCC46(GCC diagnostic push)
+	PRAGMA_GCC46(GCC diagnostic ignored "-Wswitch-enum")
 	switch(script->str_data[l].type) {
 		case C_POS:
 		case C_USERFUNC_POS:
@@ -714,6 +731,7 @@ static void add_scriptl(int l)
 			script->addb(l>>16);
 			break;
 	}
+	PRAGMA_GCC46(GCC diagnostic pop)
 }
 
 /*==========================================
@@ -759,6 +777,39 @@ static const char *script_skip_space(const char *p)
 		else if( *p == '/' && p[1] == '*' )
 		{// block comment
 			p += 2;
+			if (*p == '@') {
+				const char *cond = p + 1;
+				bool negated = false;
+				int len = 0;
+				if (*cond == '!') {
+					negated = true;
+					cond++;
+				}
+				if (ISUPPER(cond[0])) {
+					len++;
+					while (ISUPPER(cond[len]) || ISDIGIT(cond[len]) || cond[len] == '_')
+						len++;
+				}
+				if (len >= 3 && cond[len] != '_' && !ISALNUM(cond[len])) {
+					int found = false;
+					int i;
+					ARR_FIND(0, VECTOR_LENGTH(script->conditional_features), i, strncmp(cond, VECTOR_INDEX(script->conditional_features, i), len) != 0);
+					if (i != VECTOR_LENGTH(script->conditional_features))
+						found = true;
+					if (negated)
+						found = !found;
+					p = cond + len; // Skip
+					while (ISSPACE(*p) && *p != '\n' && *p != '\r') // Condition stops at the line boundary
+						p++;
+					if (*p == '*' && p[1] == '/')
+						p += 2;
+					if (found)
+						continue; // Condition met: continue skipping whitespace
+					// else fall through and keep skipping until the end of the comment
+				} else {
+					script->disp_warning_message("script:script->skip_space: Invalid conditional comment: missing condition.", cond);
+				}
+			}
 			for(;;)
 			{
 				if( *p == '\0' ) {
@@ -844,7 +895,7 @@ static const char *parse_callfunc(const char *p, int require_paren, int is_custo
 	char *arg = NULL;
 	char null_arg = '\0';
 	int func;
-	bool macro = false;
+	bool lang_macro = false;
 
 	nullpo_retr(NULL, p);
 	// is need add check for arg null pointer below?
@@ -893,14 +944,14 @@ static const char *parse_callfunc(const char *p, int require_paren, int is_custo
 			if (script->syntax.last_func != -1) {
 				if (script->str_data[func].val == script->buildin_lang_macro_offset) {
 					script->syntax.lang_macro_active = true;
-					macro = true;
+					lang_macro = true;
 				} else if (script->str_data[func].val == script->buildin_lang_macro_fmtstring_offset) {
 					script->syntax.lang_macro_fmtstring_active = true;
-					macro = true;
+					lang_macro = true;
 				}
 			}
 
-			if (!macro) {
+			if (!lang_macro) {
 				// buildin function
 				script->syntax.last_func = script->str_data[func].val;
 				script->addl(func);
@@ -1034,7 +1085,7 @@ static const char *parse_callfunc(const char *p, int require_paren, int is_custo
 		}
 	}
 
-	if (!macro) {
+	if (!lang_macro) {
 		if (0 == --script->syntax.nested_call) {
 			script->syntax.last_func = -1;
 		}
@@ -1154,6 +1205,8 @@ static const char *parse_variable(const char *p)
 		return NULL;
 	}
 
+	PRAGMA_GCC46(GCC diagnostic push)
+	PRAGMA_GCC46(GCC diagnostic ignored "-Wswitch-enum")
 	switch( type ) {
 		case C_ADD_PRE: // pre ++
 		case C_SUB_PRE: // pre --
@@ -1173,6 +1226,7 @@ static const char *parse_variable(const char *p)
 		default: // everything else
 			p = script->skip_space( &p[2] );
 	}
+	PRAGMA_GCC46(GCC diagnostic pop)
 
 	if( p == NULL ) {
 		// end of line or invalid buffer
@@ -1631,7 +1685,7 @@ static const char *script_parse_subexpr(const char *p, int limit)
 	}
 	p=script->skip_space(p);
 	while((
-	   (op=C_OP3,    opl=0, len=1,*p=='?')              // ?:
+	   (op=C_OP3_JNZ,opl=0, len=1,*p=='?')              // ?:
 	|| (op=C_ADD,    opl=9, len=1,*p=='+' && p[1]!='+') // +
 	|| (op=C_SUB,    opl=9, len=1,*p=='-' && p[1]!='-') // -
 	|| (op=C_POW,    opl=11,len=2,*p=='*' && p[1]=='*') // **
@@ -1655,17 +1709,47 @@ static const char *script_parse_subexpr(const char *p, int limit)
 	|| (op=C_LT,     opl=7, len=1,*p=='<')              // <
 	) && opl>limit) {
 		p+=len;
-		if(op == C_OP3) {
-			p=script->parse_subexpr(p,-1);
-			p=script->skip_space(p);
-			if( *(p++) != ':')
-				disp_error_message("parse_subexpr: need ':'", p-1);
-			p=script->parse_subexpr(p,-1);
+		if (op == C_OP3_JNZ) {
+			// Ternary operator: given A ? B : C produces the rough equivalent of:
+			// A
+			// (op_3 jnz) jump_zero L1
+			// B
+			// (op_3 jmp) jump L2
+			// L1:
+			// C
+			// L2:
+			// (with the appropriate stack adjustments)
+			unsigned int n = (unsigned int)((intptr_t)p & 0xffffffffULL);
+			char label1[20] = "";
+			char label2[20] = "";
+			sprintf(label1, "__TR%x_JMP", n);
+			sprintf(label2, "__TR%x_FIN", n);
+			int l1 = script->add_str(label1);
+			int l2 = script->add_str(label2);
+			// (A is already parsed before this block)
+			// op_3 jnz (skip over B if A)
+			script->addl(l1);
+			script->addc(op);
+			// B
+			p = script->parse_subexpr(p, -1);
+			p = script->skip_space(p);
+			if (*(p++) != ':')
+				disp_error_message("parse_subexpr: need ':'", p - 1);
+			// op_3 jmp (skip over C)
+			script->addl(l2);
+			script->addc(C_OP3_JMP);
+			// L1:
+			script->set_label(l1, VECTOR_LENGTH(script->buf), p);
+			// C
+			p = script->parse_subexpr(p, -1);
+			p = script->skip_space(p);
+			// L2:
+			script->set_label(l2, VECTOR_LENGTH(script->buf), p);
 		} else {
-			p=script->parse_subexpr(p,opl);
+			p = script->parse_subexpr(p,opl);
+			script->addc(op);
+			p = script->skip_space(p);
 		}
-		script->addc(op);
-		p=script->skip_space(p);
 	}
 
 	return p;  /* return first untreated operator */
@@ -2500,8 +2584,11 @@ static void script_set_constant(const char *name, int value, bool is_parameter, 
 		script->str_data[n].type = is_parameter ? C_PARAM : C_INT;
 		script->str_data[n].val  = value;
 		script->str_data[n].deprecated = is_deprecated ? 1 : 0;
-	} else if( script->str_data[n].type == C_PARAM || script->str_data[n].type == C_INT ) {// existing parameter or constant
-		ShowError("script_set_constant: Attempted to overwrite existing %s '%s' (old value=%d, new value=%d).\n", ( script->str_data[n].type == C_PARAM ) ? "parameter" : "constant", name, script->str_data[n].val, value);
+	} else if (script->str_data[n].type == C_PARAM || script->str_data[n].type == C_INT) {  // existing parameter or constant
+		if (script->str_data[n].val != value)
+			ShowError("script_set_constant: Attempted to overwrite existing %s '%s' (old value=%d, new value=%d).\n", (script->str_data[n].type == C_PARAM) ? "parameter" : "constant", name, script->str_data[n].val, value);
+		else
+			ShowError("script_set_constant: Attempted to overwrite same existing %s '%s' (value=%d).\n", (script->str_data[n].type == C_PARAM) ? "parameter" : "constant", name, value);
 	} else {// existing name
 		ShowError("script_set_constant: Invalid name for %s '%s' (already defined as %s).\n", is_parameter ? "parameter" : "constant", name, script->op2name(script->str_data[n].type));
 	}
@@ -2522,7 +2609,10 @@ static void script_set_constant2(const char *name, int value, bool is_parameter,
 	}
 
 	if( script->str_data[n].type == C_INT && value && value != script->str_data[n].val ) { // existing constant
-		ShowWarning("script_set_constant2: Attempted to overwrite existing constant '%s' (old value=%d, new value=%d).\n", name, script->str_data[n].val, value);
+		if (script->str_data[n].val != value)
+			ShowWarning("script_set_constant2: Attempted to overwrite existing constant '%s' (old value=%d, new value=%d).\n", name, script->str_data[n].val, value);
+		else
+			ShowWarning("script_set_constant2: Attempted to overwrite same existing constant '%s' (value=%d).\n", name, value);
 		return;
 	}
 
@@ -2961,6 +3051,8 @@ static struct script_code *parse_script(const char *src, const char *file, int l
 
 		ShowMessage("%06x %s", i, script->op2name(op));
 
+		PRAGMA_GCC46(GCC diagnostic push)
+		PRAGMA_GCC46(GCC diagnostic ignored "-Wswitch-enum")
 		switch (op) {
 		case C_INT:
 			ShowMessage(" %d", script->get_num(&script->buf, &i));
@@ -2980,6 +3072,7 @@ static struct script_code *parse_script(const char *src, const char *file, int l
 			i += j+1;
 			break;
 		}
+		PRAGMA_GCC46(GCC diagnostic pop)
 		ShowMessage(CL_CLL"\n");
 	}
 #endif
@@ -3005,7 +3098,7 @@ static struct map_session_data *script_rid2sd(struct script_state *st)
 {
 	struct map_session_data *sd;
 	nullpo_retr(NULL, st);
-	if( !( sd = map->id2sd(st->rid) ) ) {
+	if ((sd = map->id2sd(st->rid)) == NULL) {
 		ShowError("script_rid2sd: fatal error ! player not attached!\n");
 		script->reportfunc(st);
 		script->reportsrc(st);
@@ -3635,7 +3728,7 @@ static bool script_is_permanent_variable(const char *name)
 		return false;
 
 	if (ISALNUM(name[0]) != 0)
-		return true; // Permanent characater variable.
+		return true; // Permanent character variable.
 
 	if (name[0] == '#')
 		return true; // Permanent (global) account variable.
@@ -3991,6 +4084,8 @@ static struct script_data *push_retinfo(struct script_stack *stack, struct scrip
 static struct script_data *push_copy(struct script_stack *stack, int pos)
 {
 	nullpo_retr(NULL, stack);
+	PRAGMA_GCC46(GCC diagnostic push)
+	PRAGMA_GCC46(GCC diagnostic ignored "-Wswitch-enum")
 	switch( stack->stack_data[pos].type ) {
 		case C_CONSTSTR:
 			return script->push_conststr(stack, stack->stack_data[pos].u.str);
@@ -4010,6 +4105,7 @@ static struct script_data *push_copy(struct script_stack *stack, int pos)
 			);
 			break;
 		}
+	PRAGMA_GCC46(GCC diagnostic pop)
 }
 
 /// Removes the values in indexes [start,end[ from the stack.
@@ -4162,13 +4258,13 @@ static void script_free_state(struct script_state *st)
 {
 	nullpo_retv(st);
 	if( idb_exists(script->st_db,st->id) ) {
-		struct map_session_data *sd = st->rid ? map->id2sd(st->rid) : NULL;
+		struct map_session_data *sd = st->rid != 0 ? map->id2sd(st->rid) : NULL;
 
 		if(st->bk_st) {// backup was not restored
 			ShowDebug("script_free_state: Previous script state lost (rid=%d, oid=%d, state=%u, bk_npcid=%d).\n", st->bk_st->rid, st->bk_st->oid, st->bk_st->state, st->bk_npcid);
 		}
 
-		if(sd && sd->st == st) { //Current script is aborted.
+		if (sd != NULL && sd->st == st) { //Current script is aborted.
 			if(sd->state.using_fake_npc){
 				clif->clearunit_single(sd->npc_id, CLR_OUTSIGHT, sd->fd);
 				sd->state.using_fake_npc = 0;
@@ -4266,29 +4362,58 @@ static int get_num(const struct script_buf *scriptbuf, int *pos)
 /// test ? if_true : if_false
 static void op_3(struct script_state *st, int op)
 {
-	struct script_data* data;
-	int flag = 0;
+	if (op == C_OP3_JNZ) {
+		// Top of the stack has comparison result (-2) and label (-1)
+		struct script_data *data = script_getdatatop(st, -2);
+		script->get_val(st, data);
 
-	data = script_getdatatop(st, -3);
-	script->get_val(st, data);
-
-	if (data_isstring(data)) {
-		flag = data->u.str[0]; // "" -> false
-	} else if (data_isint(data)) {
-		flag = data->u.num == 0 ? 0 : 1;// 0 -> false
+		bool jump = false;
+		if (data_isstring(data)) {
+			jump = data->u.str[0] == '\0' ? true : false;
+		} else if (data_isint(data)) {
+			jump = data->u.num == 0 ? true : false;
+		} else {
+			ShowError("script:op_3: invalid data for the ternary operator test\n");
+			script->reportdata(data);
+			script->reportsrc(st);
+			script_removetop(st, -2, 0);
+			script_pushnil(st);
+			return;
+		}
+		if (jump) {
+			data = script_getdatatop(st, -1);
+			if (!data_islabel(data)) {
+				ShowError("script:op_3: critical internal error in the ternary operator jnz label\n");
+				script->reportsrc(st);
+				script_pushnil(st);
+				st->state = END;
+				return;
+			}
+			int pos = script->conv_num(st, data);
+			script_removetop(st, -2, 0);
+			st->pos = pos;
+		} else {
+			script_removetop(st, -2, 0);
+		}
+	} else if (op == C_OP3_JMP) {
+		// Top of the stack has label (-1)
+		struct script_data* data = script_getdatatop(st, -1);
+		if (!data_islabel(data)) {
+			ShowError("script:op_3: critical internal error in the ternary operator jmp label\n");
+			script->reportsrc(st);
+			script_pushnil(st);
+			st->state = END;
+			return;
+		}
+		int pos = script->conv_num(st, data);
+		script_removetop(st, -1, 0);
+		st->pos = pos;
 	} else {
-		ShowError("script:op_3: invalid data for the ternary operator test\n");
-		script->reportdata(data);
+		ShowError("script:op3: unexpected operator %s\n", script->op2name(op));
 		script->reportsrc(st);
-		script_removetop(st, -3, 0);
 		script_pushnil(st);
-		return;
+		st->state = END;
 	}
-	if( flag )
-		script_pushcopytop(st, -2);
-	else
-		script_pushcopytop(st, -1);
-	script_removetop(st, -4, -1);
 }
 
 /// Binary string operators
@@ -4305,6 +4430,8 @@ static void op_2str(struct script_state *st, int op, const char *s1, const char 
 {
 	int a = 0;
 
+	PRAGMA_GCC46(GCC diagnostic push)
+	PRAGMA_GCC46(GCC diagnostic ignored "-Wswitch-enum")
 	switch(op) {
 	case C_EQ: a = (strcmp(s1,s2) == 0); break;
 	case C_NE: a = (strcmp(s1,s2) != 0); break;
@@ -4392,6 +4519,7 @@ static void op_2str(struct script_state *st, int op, const char *s1, const char 
 		st->state = END;
 		return;
 	}
+	PRAGMA_GCC46(GCC diagnostic pop)
 
 	script_pushint(st,a);
 }
@@ -4403,6 +4531,8 @@ static void op_2num(struct script_state *st, int op, int i1, int i2)
 	int ret;
 	int64 ret64;
 
+	PRAGMA_GCC46(GCC diagnostic push)
+	PRAGMA_GCC46(GCC diagnostic ignored "-Wswitch-enum")
 	switch( op ) {
 	case C_AND:     ret = i1 & i2;    break;
 	case C_OR:      ret = i1 | i2;    break;
@@ -4454,6 +4584,8 @@ static void op_2num(struct script_state *st, int op, int i1, int i2)
 			ret = INT_MAX;
 		}
 	}
+	PRAGMA_GCC46(GCC diagnostic pop)
+
 	script_pushint(st, ret);
 }
 
@@ -4479,6 +4611,8 @@ static void op_2(struct script_state *st, int op)
 	script->get_val(st, left);
 	script->get_val(st, right);
 
+	PRAGMA_GCC46(GCC diagnostic push)
+	PRAGMA_GCC46(GCC diagnostic ignored "-Wswitch-enum")
 	// automatic conversions
 	switch( op )
 	{
@@ -4493,6 +4627,7 @@ static void op_2(struct script_state *st, int op)
 		}
 		break;
 	}
+	PRAGMA_GCC46(GCC diagnostic pop)
 
 	if( data_isstring(left) && data_isstring(right) )
 	{// ss => op_2str
@@ -4552,6 +4687,9 @@ static void op_1(struct script_state *st, int op)
 
 	i1 = (int)data->u.num;
 	script_removetop(st, -1, 0);
+
+	PRAGMA_GCC46(GCC diagnostic push)
+	PRAGMA_GCC46(GCC diagnostic ignored "-Wswitch-enum")
 	switch( op ) {
 		case C_NEG: i1 = -i1; break;
 		case C_NOT: i1 = ~i1; break;
@@ -4563,6 +4701,8 @@ static void op_1(struct script_state *st, int op)
 			st->state = END;
 			return;
 	}
+	PRAGMA_GCC46(GCC diagnostic pop)
+
 	script_pushint(st, i1);
 }
 
@@ -4792,7 +4932,7 @@ static int run_script_timer(int tid, int64 tick, int id, intptr_t data)
 	if( st ) {
 		struct map_session_data *sd = map->id2sd(st->rid);
 
-		if((sd && sd->status.char_id != id) || (st->rid && !sd)) { //Character mismatch. Cancel execution.
+		if ((sd != NULL && sd->status.char_id != id) || (st->rid != 0 && sd == NULL)) { // Character mismatch. Cancel execution.
 			st->rid = 0;
 			st->state = END;
 		}
@@ -4813,7 +4953,7 @@ static void script_detach_state(struct script_state *st, bool dequeue_event)
 	struct map_session_data* sd;
 
 	nullpo_retv(st);
-	if(st->rid && (sd = map->id2sd(st->rid))!=NULL) {
+	if (st->rid != 0 && (sd = map->id2sd(st->rid)) != NULL) {
 		sd->st = st->bk_st;
 		sd->npc_id = st->bk_npcid;
 		if(st->bk_st) {
@@ -4848,12 +4988,10 @@ static void script_attach_state(struct script_state *st)
 	struct map_session_data* sd;
 
 	nullpo_retv(st);
-	if(st->rid && (sd = map->id2sd(st->rid))!=NULL)
-	{
-		if(st!=sd->st)
-		{
-			if(st->bk_st)
-			{// there is already a backup
+	if (st->rid != 0 && (sd = map->id2sd(st->rid)) != NULL) {
+		if (st != sd->st) {
+			if (st->bk_st != NULL) {
+				// there is already a backup
 				ShowDebug("script_free_state: Previous script state lost (rid=%d, oid=%d, state=%u, bk_npcid=%d).\n", st->bk_st->rid, st->bk_st->oid, st->bk_st->state, st->bk_npcid);
 			}
 			st->bk_st = sd->st;
@@ -4905,6 +5043,8 @@ static void run_script_main(struct script_state *st)
 
 	while( st->state == RUN ) {
 		enum c_op c = script->get_com(&st->script->script_buf, &st->pos);
+		PRAGMA_GCC46(GCC diagnostic push)
+		PRAGMA_GCC46(GCC diagnostic ignored "-Wswitch-enum")
 		switch(c) {
 			case C_EOL:
 				if( stack->defsp > stack->sp )
@@ -4937,9 +5077,9 @@ static void run_script_main(struct script_state *st)
 				translations = *((uint8 *)(&VECTOR_INDEX(st->script->script_buf, st->pos)));
 				st->pos += sizeof(translations);
 
-				if( (!st->rid || !(lsd = map->id2sd(st->rid)) || !lsd->lang_id) && !map->default_lang_id )
+				if ((st->rid == 0 || (lsd = map->id2sd(st->rid)) == NULL || lsd->lang_id == 0) && map->default_lang_id == 0) {
 					script->push_conststr(stack, script->string_list+string_id);
-				else {
+				} else {
 					uint8 k, wlang_id = lsd ? lsd->lang_id : map->default_lang_id;
 					int offset = st->pos;
 
@@ -5004,7 +5144,8 @@ static void run_script_main(struct script_state *st)
 				script->op_2(st, c);
 				break;
 
-			case C_OP3:
+			case C_OP3_JNZ:
+			case C_OP3_JMP:
 				script->op_3(st, c);
 				break;
 
@@ -5017,6 +5158,7 @@ static void run_script_main(struct script_state *st)
 				st->state=END;
 				break;
 		}
+		PRAGMA_GCC46(GCC diagnostic pop)
 		if( !st->freeloop && cmdcount>0 && (--cmdcount)<=0 ) {
 			ShowError("run_script: too many opeartions being processed non-stop !\n");
 			script->reportsrc(st);
@@ -5032,7 +5174,7 @@ static void run_script_main(struct script_state *st)
 		st->sleep.charid = sd?sd->status.char_id:0;
 		st->sleep.timer  = timer->add(timer->gettick()+st->sleep.tick,
 			script->run_timer, st->sleep.charid, (intptr_t)st->id);
-	} else if(st->state != END && st->rid) {
+	} else if (st->state != END && st->rid != 0) {
 		//Resume later (st is already attached to player).
 		if(st->bk_st) {
 			ShowWarning("Unable to restore stack! Double continuation!\n");
@@ -5047,7 +5189,7 @@ static void run_script_main(struct script_state *st)
 		}
 	} else {
 		//Dispose of script.
-		if ((sd = map->id2sd(st->rid))!=NULL) { //Restore previous stack and save char.
+		if ((sd = map->id2sd(st->rid)) != NULL) { // Restore previous stack and save char.
 			if(sd->state.using_fake_npc) {
 				clif->clearunit_single(sd->npc_id, CLR_OUTSIGHT, sd->fd);
 				sd->state.using_fake_npc = 0;
@@ -5094,6 +5236,7 @@ static bool script_config_read(const char *filename, bool imported)
 	libconfig->setting_lookup_bool_real(setting, "warn_func_mismatch_argtypes", &script->config.warn_func_mismatch_argtypes);
 	libconfig->setting_lookup_bool_real(setting, "functions_private_by_default", &script->config.functions_private_by_default);
 	libconfig->setting_lookup_bool_real(setting, "functions_as_events", &script->config.functions_as_events);
+	libconfig->setting_lookup_bool_real(setting, "load_gm_scripts", &script->config.load_gm_scripts);
 	libconfig->setting_lookup_int(setting, "check_cmdcount", &script->config.check_cmdcount);
 	libconfig->setting_lookup_int(setting, "check_gotocount", &script->config.check_gotocount);
 	libconfig->setting_lookup_int(setting, "input_min_value", &script->config.input_min_value);
@@ -5262,6 +5405,52 @@ static void script_generic_ui_array_expand(unsigned int plus)
 	script->generic_ui_array_size += plus + 100;
 	RECREATE(script->generic_ui_array, unsigned int, script->generic_ui_array_size);
 }
+
+static void script_declare_conditional_feature(const char *feature, bool enabled)
+{
+	nullpo_retv(feature);
+
+	if (!ISUPPER(feature[0])) {
+		ShowError("Invalid conditional feature '%s': identifier must begin with an uppercasee letter\n", feature);
+		return;
+	}
+	int i;
+	for (i = 1; feature[i] != '\0'; i++) {
+		if (!ISUPPER(feature[i]) && !ISDIGIT(feature[i]) && feature[i] != '_') {
+			ShowError("Invalid conditional feature '%s': identifier must be only composed of uppercase letters, numbers and/or underscores\n", feature);
+			return;
+		}
+	}
+	if (i < 3) {
+		ShowError("Invalid conditional feature '%s': identifier must be at least 3 characters long\n", feature);
+		return;
+	}
+	if (enabled == false && strcmp(feature, "TRUE") == 0) {
+		ShowError("Conditional feature '%s' cannot be disabled.\n", feature);
+		return;
+	}
+	if (enabled == true && strcmp(feature, "FALSE") == 0) {
+		ShowError("Conditional feature '%s' cannot be enabled.\n", feature);
+		return;
+	}
+
+	if (enabled) {
+		ARR_FIND(0, VECTOR_LENGTH(script->conditional_features), i, strcmp(feature, VECTOR_INDEX(script->conditional_features, i)) == 0);
+		if (i != VECTOR_LENGTH(script->conditional_features))
+			return; // Already declared
+		char *name = aStrdup(feature);
+		VECTOR_ENSURE(script->conditional_features, 1, 1);
+		VECTOR_PUSH(script->conditional_features, name);
+	} else {
+		ARR_FIND(0, VECTOR_LENGTH(script->conditional_features), i, strcmp(feature, VECTOR_INDEX(script->conditional_features, i)) == 0);
+		if (i == VECTOR_LENGTH(script->conditional_features))
+			return; // Not declared
+		char *name = VECTOR_INDEX(script->conditional_features, i);
+		VECTOR_ERASE(script->conditional_features, i);
+		aFree(name);
+	}
+}
+
 /*==========================================
  * Destructor
  *------------------------------------------*/
@@ -5371,6 +5560,11 @@ static void do_final_script(void)
 		VECTOR_CLEAR(VECTOR_INDEX(script->hqi, i).entries);
 	}
 	VECTOR_CLEAR(script->hqi);
+
+	while (VECTOR_LENGTH(script->conditional_features) > 0) {
+		aFree(VECTOR_POP(script->conditional_features));
+	}
+	VECTOR_CLEAR(script->conditional_features);
 
 	if( script->word_buf != NULL )
 		aFree(script->word_buf);
@@ -5911,6 +6105,18 @@ static void do_init_script(bool minimal)
 	script->read_constdb(false);
 	script->load_parameters();
 	script->hardcoded_constants();
+
+	script->declare_conditional_feature("TRUE", true);
+	script->declare_conditional_feature("FALSE", false);
+	script->declare_conditional_feature("HERCULES", true);
+#ifdef RENEWAL
+	script->declare_conditional_feature("RENEWAL", true);
+	script->declare_conditional_feature("PRERENEWAL", false);
+#else
+	script->declare_conditional_feature("RENEWAL", false);
+	script->declare_conditional_feature("PRERENEWAL", true);
+#endif
+	script->declare_conditional_feature("LOADGMSCRIPTS", script->config.load_gm_scripts);
 
 	if (minimal)
 		return;
@@ -7387,6 +7593,10 @@ static BUILDIN(percentheal)
 	if (sd->sc.data[SC_BITESCAR]) {
 		hp = 0;
 	}
+	if (sd->sc.data[SC_NO_RECOVER_STATE]) {
+		hp = 0;
+		sp = 0;
+	}
 	pc->percentheal(sd, hp, sp);
 	return true;
 }
@@ -7777,7 +7987,8 @@ static BUILDIN(getarraysize)
 		return false;// not a variable
 	}
 
-	script_pushint(st, script->array_highest_key(st,st->rid ? script->rid2sd(st) : NULL,reference_getname(data),reference_getref(data)));
+	struct map_session_data *sd = st->rid != 0 ? map->id2sd(st->rid) : NULL;
+	script_pushint(st, script->array_highest_key(st, sd, reference_getname(data), reference_getref(data)));
 	return true;
 }
 static int script_array_index_cmp(const void *a, const void *b)
@@ -9494,6 +9705,15 @@ static BUILDIN(getguildinfo)
 		case GUILDINFO_MASTER_NAME:
 			script_pushconststr(st, "");
 			break;
+		case GUILDINFO_LEVEL:
+		case GUILDINFO_ONLINE:
+		case GUILDINFO_AV_LEVEL:
+		case GUILDINFO_MAX_MEMBERS:
+		case GUILDINFO_EXP:
+		case GUILDINFO_NEXT_EXP:
+		case GUILDINFO_SKILL_POINTS:
+		case GUILDINFO_MASTER_CID:
+		case GUILDINFO_ID:
 		default:
 			script_pushint(st, -1);
 		}
@@ -9537,68 +9757,6 @@ static BUILDIN(getguildinfo)
 			st->state = END;
 			return false;
 		}
-	}
-	return true;
-}
-
-/*==========================================
- * Return the name of the @guild_id
- * null if not found
- *------------------------------------------*/
-static BUILDIN(getguildname)
-{
-	int guild_id;
-	struct guild* g;
-
-	guild_id = script_getnum(st,2);
-
-	if( ( g = guild->search(guild_id) ) != NULL )
-	{
-		script_pushstrcopy(st,g->name);
-	}
-	else
-	{
-		script_pushconststr(st,"null");
-	}
-	return true;
-}
-
-/*==========================================
- * Return the name of the guild master of @guild_id
- * null if not found
- *------------------------------------------*/
-static BUILDIN(getguildmaster)
-{
-	int guild_id;
-	struct guild* g;
-
-	guild_id = script_getnum(st,2);
-
-	if( ( g = guild->search(guild_id) ) != NULL )
-	{
-		script_pushstrcopy(st,g->member[0].name);
-	}
-	else
-	{
-		script_pushconststr(st,"null");
-	}
-	return true;
-}
-
-static BUILDIN(getguildmasterid)
-{
-	int guild_id;
-	struct guild* g;
-
-	guild_id = script_getnum(st,2);
-
-	if( ( g = guild->search(guild_id) ) != NULL )
-	{
-		script_pushint(st,g->member[0].char_id);
-	}
-	else
-	{
-		script_pushint(st,0);
 	}
 	return true;
 }
@@ -10492,6 +10650,7 @@ static BUILDIN(bonus)
 		case SP_VARCASTRATE:
 		case SP_FIXCASTRATE:
 		case SP_SKILL_USE_SP:
+		case SP_SUB_SKILL:
 			// these bonuses support skill names
 			if (script_isstringtype(st, 3)) {
 				val1 = skill->name2id(script_getstr(st, 3));
@@ -10871,6 +11030,29 @@ static BUILDIN(end)
 			}
 		}
 	}
+	return true;
+}
+
+/// Checks if the player is hidden (Hiding, Cloaking or Chase Walk)
+///
+/// checkhiding({<account id>}) -> <bool>
+static BUILDIN(checkhiding)
+{
+	struct map_session_data *sd;
+
+	if (script_hasdata(st, 2))
+		sd = map->id2sd(script_getnum(st, 2));
+	else
+		sd = script->rid2sd(st);
+
+	if (sd == NULL)
+		return true;// no player attached, report source
+
+	if (pc_ishiding(sd))
+		script_pushint(st, 1);
+	else
+		script_pushint(st, 0);
+
 	return true;
 }
 
@@ -11598,7 +11780,6 @@ static BUILDIN(monster)
 	unsigned int ai   = AI_NONE;
 	int mob_id;
 
-	struct map_session_data* sd;
 	int16 m;
 
 	if (script_hasdata(st, 8))
@@ -11632,11 +11813,10 @@ static BUILDIN(monster)
 		return false;
 	}
 
-	sd = map->id2sd(st->rid);
-
-	if (sd && strcmp(mapn, "this") == 0)
+	struct map_session_data *sd = map->id2sd(st->rid);
+	if (sd != NULL && strcmp(mapn, "this") == 0) {
 		m = sd->bl.m;
-	else {
+	} else {
 		if ( ( m = map->mapname2mapid(mapn) ) == -1 ) {
 			ShowWarning("buildin_monster: Attempted to spawn monster class %d on non-existing map '%s'\n",class_, mapn);
 			return false;
@@ -11707,7 +11887,6 @@ static BUILDIN(areamonster)
 	unsigned int ai   = AI_NONE;
 	int mob_id;
 
-	struct map_session_data* sd;
 	int16 m;
 
 	if (script_hasdata(st,10)) {
@@ -11731,11 +11910,10 @@ static BUILDIN(areamonster)
 		}
 	}
 
-	sd = map->id2sd(st->rid);
-
-	if (sd && strcmp(mapn, "this") == 0)
+	struct map_session_data *sd = map->id2sd(st->rid);
+	if (sd != NULL && strcmp(mapn, "this") == 0) {
 		m = sd->bl.m;
-	else {
+	} else {
 		if ( ( m = map->mapname2mapid(mapn) ) == -1 ) {
 			ShowWarning("buildin_areamonster: Attempted to spawn monster class %d on non-existing map '%s'\n",class_, mapn);
 			return false;
@@ -11800,6 +11978,8 @@ static int buildin_killmonster_sub(struct block_list *bl, va_list ap)
 }
 static BUILDIN(killmonster)
 {
+	GUARD_MAP_LOCK
+
 	const char *mapname,*event;
 	int16 m,allflag=0;
 	mapname=script_getstr(st,2);
@@ -12264,6 +12444,15 @@ static BUILDIN(getunits)
 			map->foreachnpc(buildin_getunits_sub_npc,
 				st, sd, id, start, &count, limit, name, ref, type);
 			break;
+		case BL_NUL:
+		case BL_ITEM:
+		case BL_ELEM:
+		case BL_HOM:
+		case BL_MER:
+		case BL_SKILL:
+		case BL_CHAT:
+		case BL_PET:
+		case BL_ALL:
 		default:
 			// fallback to global lookup (slowest option)
 			map->foreachiddb(buildin_getunits_sub,
@@ -12523,7 +12712,7 @@ static BUILDIN(detachnpctimer)
  *------------------------------------------*/
 static BUILDIN(playerattached)
 {
-	if(st->rid == 0 || map->id2sd(st->rid) == NULL)
+	if (st->rid == 0 || map->id2sd(st->rid) == NULL)
 		script_pushint(st,0);
 	else
 		script_pushint(st,st->rid);
@@ -13099,7 +13288,7 @@ static BUILDIN(sc_start)
 		val4 = 1;// Mark that this was a thrown sc_effect
 	}
 
-	if(!bl)
+	if (bl == NULL)
 		return true;
 
 	switch(start_type) {
@@ -13137,7 +13326,7 @@ static BUILDIN(sc_end)
 	if (script->potion_flag == 1 && script->potion_target) //##TODO how does this work [FlavioJS]
 		bl = map->id2bl(script->potion_target);
 
-	if (!bl)
+	if (bl == NULL)
 		return true;
 
 	if (type >= 0 && type < SC_MAX) {
@@ -13185,7 +13374,7 @@ static BUILDIN(getscrate)
 	else
 		bl = map->id2bl(st->rid);
 
-	if (bl)
+	if (bl != NULL)
 		rate = status->get_sc_def(bl, bl, (sc_type)type, 10000, 10000, SCFLAG_NONE);
 
 	script_pushint(st,rate);
@@ -13240,26 +13429,6 @@ static BUILDIN(getstatus)
 		default: script_pushint(st, 1); break;
 	}
 
-	return true;
-}
-
-/*==========================================
- *
- *------------------------------------------*/
-static BUILDIN(debugmes)
-{
-	struct StringBuf buf;
-	StrBuf->Init(&buf);
-
-	if (!script->sprintf_helper(st, 2, &buf)) {
-		StrBuf->Destroy(&buf);
-		script_pushint(st, 0);
-		return false;
-	}
-
-	ShowDebug("script debug : %d %d : %s\n", st->rid, st->oid, StrBuf->Value(&buf));
-	StrBuf->Destroy(&buf);
-	script_pushint(st, 1);
 	return true;
 }
 
@@ -13434,10 +13603,10 @@ static BUILDIN(roclass)
 		sex = script_getnum(st,3);
 	} else {
 		struct map_session_data *sd;
-		if (st->rid && (sd=script->rid2sd(st)) != NULL)
+		if (st->rid != 0 && (sd = map->id2sd(st->rid)) != NULL)
 			sex = sd->status.sex;
 		else
-			sex = 1; //Just use male when not found.
+			sex = SEX_MALE; //Just use male when not found.
 	}
 	script_pushint(st,pc->mapid2jobid(job, sex));
 	return true;
@@ -13663,37 +13832,6 @@ static BUILDIN(delwaitingroom)
 	}
 
 	chat->delete_npc_chat(nd);
-	return true;
-}
-
-/// Kicks all the players from the waiting room of the current or target npc.
-///
-/// kickwaitingroomall "<npc_name>";
-/// kickwaitingroomall;
-static BUILDIN(waitingroomkickall)
-{
-	struct npc_data *nd;
-	struct chat_data *cd;
-
-	if (script_hasdata(st, 2))
-		nd = npc->name2id(script_getstr(st, 2));
-	else
-		nd = map->id2nd(st->oid);
-
-	if (nd == NULL) {
-		if (script_hasdata(st, 2))
-			ShowWarning("buildin_waitingroomkickall: NPC '%s' not found.\n", script_getstr(st, 2));
-		else
-			ShowWarning("buildin_waitingroomkickall: NPC not found.\n");
-		return false;
-	}
-
-	if ((cd = map->id2cd(nd->chat_id)) == NULL) {
-		ShowWarning("buildin_waitingroomkickall: NPC '%s' does not have a chatroom.\n", nd->name);
-		return false;
-	}
-
-	chat->npc_kick_all(cd);
 	return true;
 }
 
@@ -13958,7 +14096,7 @@ static BUILDIN(warpwaitingpc)
 /// @param st Script state to detach the character from.
 static void script_detach_rid(struct script_state *st)
 {
-	if(st->rid) {
+	if (st->rid != 0) {
 		script->detach_state(st, false);
 		st->rid = 0;
 	}
@@ -14054,7 +14192,7 @@ static BUILDIN(getmapinfo)
 
 		if (st->oid) {
 			bl = map->id2bl(st->oid);
-		} else if (st->rid) {
+		} else if (st->rid != 0) {
 			bl = map->id2bl(st->rid);
 		}
 
@@ -14826,8 +14964,8 @@ static BUILDIN(getequipcardcnt)
 	}
 
 	count = 0;
-	for( j = 0; j < sd->inventory_data[i]->slot; j++ )
-		if( sd->status.inventory[i].card[j] && itemdb_type(sd->status.inventory[i].card[j]) == IT_CARD )
+	for( j = 0; j < MAX_SLOTS; j++ )
+		if(sd->status.inventory[i].card[j])
 			count++;
 
 	script_pushint(st,count);
@@ -14866,7 +15004,6 @@ static BUILDIN(successremovecards)
 			cardflag = 1;
 			item_tmp.nameid = sd->status.inventory[i].card[c];
 			item_tmp.identify = 1;
-			sd->status.inventory[i].card[c] = 0;
 
 			if ((flag = pc->additem(sd, &item_tmp, 1, LOG_TYPE_SCRIPT))) {
 				clif->additem(sd, 0, 0, flag);
@@ -14876,10 +15013,34 @@ static BUILDIN(successremovecards)
 	}
 
 	if (cardflag == 1) {
-		pc->unequipitem(sd, i, PCUNEQUIPITEM_FORCE);
-		clif->delitem(sd, i, 1, DELITEM_MATERIALCHANGE);
-		clif->additem(sd, i, 1, 0);
-		pc->equipitem(sd, i, sd->status.inventory[i].equip);
+		int flag;
+		struct item item_tmp;
+
+		memset(&item_tmp, 0, sizeof(item_tmp));
+
+		item_tmp.nameid = sd->status.inventory[i].nameid;
+		item_tmp.identify = 1;
+		item_tmp.refine = sd->status.inventory[i].refine;
+		item_tmp.attribute = sd->status.inventory[i].attribute;
+		item_tmp.expire_time = sd->status.inventory[i].expire_time;
+		item_tmp.bound = sd->status.inventory[i].bound;
+
+		for (int j = sd->inventory_data[i]->slot; j < MAX_SLOTS; j++)
+			item_tmp.card[j] = sd->status.inventory[i].card[j];
+
+		for (int j = 0; j < MAX_ITEM_OPTIONS; j++) {
+			item_tmp.option[j].index = sd->status.inventory[i].option[j].index;
+			item_tmp.option[j].value = sd->status.inventory[i].option[j].value;
+			item_tmp.option[j].param = sd->status.inventory[i].option[j].param;
+		}
+
+		int ep = sd->status.inventory[i].equip;
+		pc->delitem(sd, i, 1, 0, DELITEM_MATERIALCHANGE, LOG_TYPE_SCRIPT);
+		if ((flag = pc->additem(sd, &item_tmp, 1, LOG_TYPE_SCRIPT))) {
+			clif->additem(sd, 0, 0, flag);
+			map->addflooritem(&sd->bl, &item_tmp, 1, sd->bl.m, sd->bl.x, sd->bl.y, 0, 0, 0, 0, false);
+		}
+		pc->equipitem(sd, i, ep);
 		clif->misceffect(&sd->bl,3);
 	}
 	return true;
@@ -14939,10 +15100,11 @@ static BUILDIN(failedremovecards)
 		if (typefail == 0 || typefail == 2) { // destroy the item
 			pc->delitem(sd, i, 1, 0, DELITEM_FAILREFINE, LOG_TYPE_SCRIPT);
 		} else if (typefail == 1) {
+			int ep = sd->status.inventory[i].equip;
 			pc->unequipitem(sd, i, PCUNEQUIPITEM_FORCE);
 			clif->delitem(sd, i, 1, DELITEM_MATERIALCHANGE);
 			clif->additem(sd, i, 1, 0);
-			pc->equipitem(sd, i, sd->status.inventory[i].equip);
+			pc->equipitem(sd, i, ep);
 		}
 	}
 	clif->misceffect(&sd->bl, 2);
@@ -15731,7 +15893,8 @@ static BUILDIN(setequipoption)
 			/* Add Option Value */
 			sd->status.inventory[i].option[slot-1].value = value;
 		}
-
+		
+		int ep = sd->status.inventory[i].equip;
 		/* Unequip and simulate deletion of the item. */
 		pc->unequipitem(sd, i, PCUNEQUIPITEM_FORCE); // status calc will happen in pc->equipitem() below
 		clif->refine(sd->fd, 0, i, sd->status.inventory[i].refine); // notify client of a refine.
@@ -15742,7 +15905,7 @@ static BUILDIN(setequipoption)
 		clif->additem(sd, i, 1, 0); // notify client to simulate item addition.
 		/* Log addition of the item. */
 		logs->pick_pc(sd, LOG_TYPE_SCRIPT, 1, &sd->status.inventory[i], sd->inventory_data[i]);
-		pc->equipitem(sd, i, sd->status.inventory[i].equip); // force equip the item at the original position.
+		pc->equipitem(sd, i, ep); // force equip the item at the original position.
 		clif->misceffect(&sd->bl, 2); // show effect
 	}
 
@@ -16203,25 +16366,6 @@ static BUILDIN(classchange)
 }
 
 /*==========================================
- * Display an effect
- *------------------------------------------*/
-static BUILDIN(misceffect)
-{
-	int type;
-
-	type=script_getnum(st,2);
-	if(st->oid && st->oid != npc->fake_nd->bl.id) {
-		struct block_list *bl = map->id2bl(st->oid);
-		if (bl)
-			clif->specialeffect(bl,type,AREA);
-	} else {
-		struct map_session_data *sd = script->rid2sd(st);
-		if (sd != NULL)
-			clif->specialeffect(&sd->bl,type,AREA);
-	}
-	return true;
-}
-/*==========================================
  * Play a BGM on a single client [Rikter/Yommy]
  *------------------------------------------*/
 static BUILDIN(playbgm)
@@ -16334,12 +16478,11 @@ static int soundeffect_sub(struct block_list *bl, va_list ap)
  *------------------------------------------*/
 static BUILDIN(soundeffectall)
 {
-	struct block_list* bl;
 	const char* name;
 	int type;
 
-	bl = (st->rid) ? &(script->rid2sd(st)->bl) : map->id2bl(st->oid);
-	if (!bl)
+	struct block_list *bl = st->rid != 0 ? map->id2bl(st->rid) : map->id2bl(st->oid);
+	if (bl == NULL)
 		return true;
 
 	name = script_getstr(st,2);
@@ -16618,23 +16761,6 @@ static BUILDIN(specialeffectnum)
 	return true;
 }
 
-static BUILDIN(specialeffect2)
-{
-	struct map_session_data *sd;
-	int type = script_getnum(st,2);
-	enum send_target target = script_hasdata(st,3) ? (send_target)script_getnum(st,3) : AREA;
-
-	if (script_hasdata(st,4))
-		sd = script->nick2sd(st, script_getstr(st,4));
-	else
-		sd = script->rid2sd(st);
-
-	if (sd != NULL)
-		clif->specialeffect(&sd->bl, type, target);
-
-	return true;
-}
-
 static BUILDIN(removespecialeffect)
 {
 	struct block_list *bl = NULL;
@@ -16709,16 +16835,14 @@ static BUILDIN(nude)
  *------------------------------------------*/
 static BUILDIN(atcommand)
 {
-	struct map_session_data *sd, *dummy_sd = NULL;
+	struct map_session_data *sd = NULL;
+	struct map_session_data *dummy_sd = NULL;
 	int fd;
 	const char* cmd;
 
 	cmd = script_getstr(st,2);
 
-	if (st->rid) {
-		sd = script->rid2sd(st);
-		if (sd == NULL)
-			return true;
+	if (st->rid != 0 && (sd = map->id2sd(st->rid)) != NULL) {
 		fd = sd->fd;
 	} else { //Use a dummy character.
 		sd = dummy_sd = pc->get_dummy_sd();
@@ -16738,7 +16862,8 @@ static BUILDIN(atcommand)
 			aFree(dummy_sd);
 		return false;
 	}
-	if (dummy_sd) aFree(dummy_sd);
+	if (dummy_sd)
+		aFree(dummy_sd);
 	return true;
 }
 
@@ -16840,7 +16965,7 @@ static BUILDIN(getpetinfo)
 	int type = script_getnum(st, 2);
 	if (pd == NULL) {
 		if (type == PETINFO_NAME)
-			script_pushconststr(st, "null");
+			script_pushconststr(st, "");
 		else
 			script_pushint(st, 0);
 		return true;
@@ -17014,7 +17139,7 @@ static BUILDIN(checkequipedcard)
 		if(sd->status.inventory[i].nameid > 0 && sd->status.inventory[i].amount && sd->inventory_data[i]) {
 			if (itemdb_isspecial(sd->status.inventory[i].card[0]))
 				continue;
-			for (int n = 0; n < sd->inventory_data[i]->slot; n++) {
+			for (int n = 0; n < MAX_SLOTS; n++) {
 				if(sd->status.inventory[i].card[n]==c) {
 					script_pushint(st,1);
 					return true;
@@ -17708,7 +17833,7 @@ static BUILDIN(isequippedcnt)
 			} else { //Count cards.
 				if (itemdb_isspecial(sd->status.inventory[index].card[0]))
 					continue; //No cards
-				for(k=0; k<sd->inventory_data[index]->slot; k++) {
+				for(k = 0; k < MAX_SLOTS; k++) {
 					if (sd->status.inventory[index].card[k] == id)
 						ret++; //[Lupus]
 				}
@@ -17767,7 +17892,7 @@ static BUILDIN(isequipped)
 					itemdb_isspecial(sd->status.inventory[index].card[0]))
 					continue;
 
-				for (k = 0; k < sd->inventory_data[index]->slot; k++) {
+				for (k = 0; k < MAX_SLOTS; k++) {
 					//New hash system which should support up to 4 slots on any equipment. [Skotlex]
 					unsigned int hash = 0;
 					if (sd->status.inventory[index].card[k] != id)
@@ -17835,7 +17960,7 @@ static BUILDIN(cardscnt)
 		} else {
 			if (itemdb_isspecial(sd->status.inventory[index].card[0]))
 				continue;
-			for(k=0; k<sd->inventory_data[index]->slot; k++) {
+			for(k = 0; k < MAX_SLOTS; k++) {
 				if (sd->status.inventory[index].card[k] == id)
 					ret++;
 			}
@@ -18990,16 +19115,6 @@ static BUILDIN(sqrt) //[zBuffer]
 	return true;
 }
 
-static BUILDIN(pow) //[zBuffer]
-{
-	double i, a, b;
-	a = script_getnum(st,2);
-	b = script_getnum(st,3);
-	i = pow(a,b);
-	script_pushint(st,(int)i);
-	return true;
-}
-
 static BUILDIN(distance) //[zBuffer]
 {
 	int x0, y0, x1, y1;
@@ -19314,32 +19429,6 @@ static BUILDIN(getd)
 }
 
 // <--- [zBuffer] List of dynamic var commands
-// Pet stat [Lance]
-static BUILDIN(petstat)
-{
-	struct pet_data *pd;
-	int flag = script_getnum(st,2);
-	struct map_session_data *sd = script->rid2sd(st);
-	if (sd == NULL || sd->status.pet_id == 0 || sd->pd == NULL) {
-		if(flag == 2)
-			script_pushconststr(st, "");
-		else
-			script_pushint(st,0);
-		return true;
-	}
-	pd = sd->pd;
-	switch(flag) {
-		case 1: script_pushint(st,(int)pd->pet.class_); break;
-		case 2: script_pushstrcopy(st, pd->pet.name); break;
-		case 3: script_pushint(st,(int)pd->pet.level); break;
-		case 4: script_pushint(st,(int)pd->pet.hungry); break;
-		case 5: script_pushint(st,(int)pd->pet.intimate); break;
-		default:
-			script_pushint(st,0);
-			break;
-	}
-	return true;
-}
 
 static BUILDIN(callshop)
 {
@@ -19839,6 +19928,12 @@ static BUILDIN(rid2name)
 			case BL_PET: script_pushstrcopy(st, BL_UCCAST(BL_PET, bl)->pet.name); break;
 			case BL_HOM: script_pushstrcopy(st, BL_UCCAST(BL_HOM, bl)->homunculus.name); break;
 			case BL_MER: script_pushstrcopy(st, BL_UCCAST(BL_MER, bl)->db->name); break;
+			case BL_NUL:
+			case BL_ITEM:
+			case BL_ELEM:
+			case BL_SKILL:
+			case BL_CHAT:
+			case BL_ALL:
 			default:
 				ShowError("buildin_rid2name: BL type unknown.\n");
 				script_pushconststr(st,"");
@@ -19848,30 +19943,6 @@ static BUILDIN(rid2name)
 		ShowError("buildin_rid2name: invalid RID\n");
 		script_pushconststr(st,"(null)");
 	}
-	return true;
-}
-
-static BUILDIN(pcblockmove)
-{
-	int id, flag;
-	struct map_session_data *sd = NULL;
-
-	id = script_getnum(st,2);
-	flag = script_getnum(st,3);
-
-	if (id != 0)
-		sd = script->id2sd(st, id);
-	else
-		sd = script->rid2sd(st);
-
-	if (!sd)
-		return true;
-
-	if (flag)
-		sd->block_action.move = 1;
-	else
-		sd->block_action.move = 0;
-
 	return true;
 }
 
@@ -20019,6 +20090,11 @@ static BUILDIN(getunittype)
 		case BL_HOM:  value = 4; break;
 		case BL_MER:  value = 5; break;
 		case BL_ELEM: value = 6; break;
+		case BL_NUL:
+		case BL_ITEM:
+		case BL_SKILL:
+		case BL_CHAT:
+		case BL_ALL:
 		default:      value = -1; break;
 	}
 
@@ -20334,6 +20410,22 @@ static BUILDIN(setunitdata)
 			return false;
 		}
 
+		// Check if the view data will be modified
+		switch (type) {
+		case UDT_SEX:
+		//case UMOB_CLASS: // Called by status_set_viewdata
+		case UDT_HAIRSTYLE:
+		case UDT_HAIRCOLOR:
+		case UDT_HEADBOTTOM:
+		case UDT_HEADMIDDLE:
+		case UDT_HEADTOP:
+		case UDT_CLOTHCOLOR:
+		case UDT_SHIELD:
+		case UDT_WEAPON:
+			mob->set_dynamic_viewdata(md);
+			break;
+		}
+
 		switch (type) {
 		case UDT_SIZE:
 			md->status.size = (unsigned char)val;
@@ -20384,9 +20476,13 @@ static BUILDIN(setunitdata)
 			break;
 		case UDT_SEX:
 			md->vd->sex = (char)val;
+			clif->clearunit_area(bl, CLR_OUTSIGHT);
+			clif->spawn(bl);
 			break;
 		case UDT_CLASS:
 			mob->class_change(md, val);
+			clif->clearunit_area(bl, CLR_OUTSIGHT);
+			clif->spawn(bl);
 			break;
 		case UDT_HAIRSTYLE:
 			clif->changelook(bl, LOOK_HAIR, val);
@@ -21225,6 +21321,12 @@ static BUILDIN(setunitdata)
 
 		break;
 	}
+	case BL_NUL:
+	case BL_ITEM:
+	case BL_SKILL:
+	case BL_CHAT:
+	case BL_PC:
+	case BL_ALL:
 	default:
 		ShowError("buildin_setunitdata: Unknown object!\n");
 		script_pushint(st, 0);
@@ -21662,6 +21764,12 @@ static BUILDIN(getunitdata)
 		}
 	}
 		break;
+	case BL_NUL:
+	case BL_ITEM:
+	case BL_SKILL:
+	case BL_CHAT:
+	case BL_PC:
+	case BL_ALL:
 	default:
 		ShowError("buildin_getunitdata: Unknown object!\n");
 		script_pushint(st, -1);
@@ -21753,6 +21861,15 @@ static BUILDIN(setunitname)
 			safestrncpy(pd->pet.name, script_getstr(st, 3), NAME_LENGTH);
 		}
 			break;
+		case BL_NUL:
+		case BL_ITEM:
+		case BL_SKILL:
+		case BL_CHAT:
+		case BL_MER:
+		case BL_ELEM:
+		case BL_PC:
+		case BL_NPC:
+		case BL_ALL:
 		default:
 			script_pushint(st, 0);
 			ShowWarning("buildin_setunitname: Unknown object type!\n");
@@ -21979,6 +22096,15 @@ static BUILDIN(unitattack)
 		case BL_PET:
 			BL_UCAST(BL_PET, unit_bl)->target_id = target_bl->id;
 			break;
+		case BL_NUL:
+		case BL_ITEM:
+		case BL_SKILL:
+		case BL_CHAT:
+		case BL_MER:
+		case BL_ELEM:
+		case BL_HOM:
+		case BL_NPC:
+		case BL_ALL:
 		default:
 			ShowError("script:unitattack: unsupported source unit type %u\n", unit_bl->type);
 			script_pushint(st, 0);
@@ -22204,7 +22330,7 @@ static BUILDIN(sleep2)
 
 	if( ticks <= 0 ) {
 		// do nothing
-		script_pushint(st, (map->id2sd(st->rid)!=NULL));
+		script_pushint(st, (map->id2sd(st->rid) != NULL));
 	} else if( !st->sleep.tick ) {
 		// sleep for the target amount of time
 		st->state = RERUNLINE;
@@ -22213,7 +22339,7 @@ static BUILDIN(sleep2)
 		// sleep time is over
 		st->state = RUN;
 		st->sleep.tick = 0;
-		script_pushint(st, (map->id2sd(st->rid)!=NULL));
+		script_pushint(st, (map->id2sd(st->rid) != NULL));
 	}
 	return true;
 }
@@ -22236,12 +22362,11 @@ static BUILDIN(awake)
 
 	for( tst = dbi_first(iter); dbi_exists(iter); tst = dbi_next(iter) ) {
 		if( tst->oid == nd->bl.id ) {
-			struct map_session_data *sd = map->id2sd(tst->rid);
-
 			if( tst->sleep.timer == INVALID_TIMER ) {// already awake ???
 				continue;
 			}
-			if( (sd && sd->status.char_id != tst->sleep.charid) || (tst->rid && !sd)) {
+			struct map_session_data *sd = map->id2sd(tst->rid);
+			if ((sd != NULL && sd->status.char_id != tst->sleep.charid) || (tst->rid != 0 && sd == NULL)) {
 				// char not online anymore / another char of the same account is online - Cancel execution
 				tst->state = END;
 				tst->rid = 0;
@@ -22831,10 +22956,6 @@ static BUILDIN(setquestinfo)
 	case QINFO_HOMUN_LEVEL:
 	{
 		int min = script_getnum(st, 3);
-		if (min > battle_config.hom_max_level && min > battle_config.hom_S_max_level) {
-			ShowWarning("buildin_setquestinfo: minimum homunculus level given (%d) is bigger than the max possible level.\n", min);
-			return false;
-		}
 		qi->homunculus.level = min;
 		break;
 	}
@@ -24290,6 +24411,8 @@ static BUILDIN(is_function)
 		int n = script->search_str(str);
 
 		if (n >= 0) {
+			PRAGMA_GCC46(GCC diagnostic push)
+			PRAGMA_GCC46(GCC diagnostic ignored "-Wswitch-enum")
 			switch (script->str_data[n].type) {
 			case C_FUNC:
 				type = FUNCTION_IS_COMMAND;
@@ -24308,6 +24431,7 @@ static BUILDIN(is_function)
 					type = FUNCTION_IS_LOCAL;
 				}
 			}
+			PRAGMA_GCC46(GCC diagnostic pop)
 		}
 	}
 
@@ -24530,16 +24654,14 @@ static BUILDIN(unbindatcmd)
 
 static BUILDIN(useatcmd)
 {
-	struct map_session_data *sd, *dummy_sd = NULL;
+	struct map_session_data *sd = NULL;
+	struct map_session_data *dummy_sd = NULL;
 	int fd;
 	const char* cmd;
 
 	cmd = script_getstr(st,2);
 
-	if (st->rid) {
-		sd = script->rid2sd(st);
-		if (sd == NULL)
-			return true;
+	if (st->rid != 0 && (sd = map->id2sd(st->rid)) != NULL) {
 		fd = sd->fd;
 	} else {
 		// Use a dummy character.
@@ -24562,7 +24684,8 @@ static BUILDIN(useatcmd)
 	}
 
 	atcommand->exec(fd, sd, cmd, true);
-	if (dummy_sd) aFree(dummy_sd);
+	if (dummy_sd)
+		aFree(dummy_sd);
 	return true;
 }
 
@@ -24768,12 +24891,8 @@ static BUILDIN(montransform)
 {
 	int tick;
 	enum sc_type type;
-	struct block_list* bl;
 	int mob_id, val1, val2, val3, val4;
 	val1 = val2 = val3 = val4 = 0;
-
-	if( (bl = map->id2bl(st->rid)) == NULL )
-		return true;
 
 	if( script_isstringtype(st, 2) ) {
 		mob_id = mob->db_searchname(script_getstr(st, 2));
@@ -24816,10 +24935,9 @@ static BUILDIN(montransform)
 		val4 = script_getnum(st, 8);
 
 	if (tick != 0) {
-		struct map_session_data *sd = script->id2sd(st, bl->id);
-
+		struct map_session_data *sd = script->rid2sd(st);
 		if (sd == NULL)
-			return true;
+			return false;
 
 		if( battle_config.mon_trans_disable_in_gvg && map_flag_gvg2(sd->bl.m) ) {
 			clif->message(sd->fd, msg_sd(sd,1488)); // Transforming into monster is not allowed in Guild Wars.
@@ -24831,11 +24949,11 @@ static BUILDIN(montransform)
 			return true;
 		}
 
-		status_change_end(bl, SC_MONSTER_TRANSFORM, INVALID_TIMER); // Clear previous
-		sc_start2(NULL, bl, SC_MONSTER_TRANSFORM, 100, mob_id, type, tick);
+		status_change_end(&sd->bl, SC_MONSTER_TRANSFORM, INVALID_TIMER); // Clear previous
+		sc_start2(NULL, &sd->bl, SC_MONSTER_TRANSFORM, 100, mob_id, type, tick);
 
 		if (script_hasdata(st, 4))
-			sc_start4(NULL, bl, type, 100, val1, val2, val3, val4, tick);
+			sc_start4(NULL, &sd->bl, type, 100, val1, val2, val3, val4, tick);
 	}
 
 	return true;
@@ -26254,19 +26372,18 @@ static BUILDIN(removechannelhandler)
  */
 static BUILDIN(showscript)
 {
-	struct block_list *bl = NULL;
 	const char *msg = script_getstr(st, 2);
 	int id = 0, flag = AREA;
 
-	if (script_hasdata(st, 3)) {
+	if (script_hasdata(st, 3))
 		id = script_getnum(st, 3);
-		bl = map->id2bl(id);
-	}
-	else {
-		bl = st->rid ? map->id2bl(st->rid) : map->id2bl(st->oid);
-	}
+	else if (st->rid != 0)
+		id = st->rid;
+	else
+		id = st->oid;
 
-	if (!bl) {
+	struct block_list *bl = map->id2bl(id);
+	if (bl == NULL) {
 		ShowError("buildin_showscript: Script not attached. (id=%d, rid=%d, oid=%d)\n", id, st->rid, st->oid);
 		return false;
 	}
@@ -26348,7 +26465,7 @@ static BUILDIN(getcalendartime)
 		if (day_of_month < day) { // Next Month
 			info.tm_mon++;
 		} else if (day_of_month == day) { // Today
-			if (hour < cur_hour || (hour == cur_hour && minute < cur_min)) { // But past time, next month
+			if (hour < cur_hour || (hour == cur_hour && minute <= cur_min)) { // But past time, next month
 				info.tm_mon++;
 			}
 		}
@@ -26375,7 +26492,7 @@ static BUILDIN(getcalendartime)
 			info.tm_mday += (7 - cur_wday + day_of_week);
 		}
 	} else if (day_of_week == -1 && day_of_month == -1) { // Next occurence of hour/min
-		if (hour < cur_hour || (hour == cur_hour && minute < cur_min)) {
+		if (hour < cur_hour || (hour == cur_hour && minute <= cur_min)) {
 			info.tm_mday++;
 		}
 	}
@@ -26586,7 +26703,7 @@ static BUILDIN(navigateto)
 #endif
 }
 
-static bool rodex_sendmail_sub(struct script_state *st, struct rodex_message *msg)
+static bool buildin_rodex_sendmail_sub(struct script_state *st, struct rodex_message *msg)
 {
 	const char *sender_name, *title, *body;
 	const char *func_name = script->getfuncname(st);
@@ -26609,25 +26726,25 @@ static bool rodex_sendmail_sub(struct script_state *st, struct rodex_message *ms
 	}
 
 	sender_name = script_getstr(st, 3);
-	if (strlen(sender_name) >= NAME_LENGTH) {
-		ShowError("script:rodex_sendmail: Sender name must not be bigger than %d!\n", NAME_LENGTH - 1);
+	if (strlen(sender_name) >= sizeof(msg->sender_name)) {
+		ShowError("script:rodex_sendmail: Sender name must not be longer than %lu characters!\n", sizeof(msg->sender_name) - 1);
 		return false;
 	}
-	safestrncpy(msg->sender_name, sender_name, NAME_LENGTH);
+	safestrncpy(msg->sender_name, sender_name, sizeof(msg->sender_name));
 
 	title = script_getstr(st, 4);
-	if (strlen(title) >= RODEX_TITLE_LENGTH) {
-		ShowError("script:rodex_sendmail: Mail Title must not be bigger than %d!\n", RODEX_TITLE_LENGTH - 1);
+	if (strlen(title) >= sizeof(msg->title)) {
+		ShowError("script:rodex_sendmail: Mail Title must not be longer than %lu characters!\n", sizeof(msg->title) - 1);
 		return false;
 	}
-	safestrncpy(msg->title, title, RODEX_TITLE_LENGTH);
+	safestrncpy(msg->title, title, sizeof(msg->title));
 
 	body = script_getstr(st, 5);
-	if (strlen(body) >= MAIL_BODY_LENGTH) {
-		ShowError("script:rodex_sendmail: Mail Message must not be bigger than %d!\n", RODEX_BODY_LENGTH - 1);
+	if (strlen(body) >= sizeof(msg->body)) {
+		ShowError("script:rodex_sendmail: Mail Message must not be longer than %lu characters!\n", sizeof(msg->body) - 1);
 		return false;
 	}
-	safestrncpy(msg->body, body, MAIL_BODY_LENGTH);
+	safestrncpy(msg->body, body, sizeof(msg->body));
 
 	if (script_hasdata(st, 6)) {
 		msg->zeny = script_getnum(st, 6);
@@ -26646,7 +26763,7 @@ static BUILDIN(rodex_sendmail)
 	int item_count = 0, i = 0, param = 7;
 
 	// Common parameters - sender/message/zeny
-	if (rodex_sendmail_sub(st, &msg) == false)
+	if (script->buildin_rodex_sendmail_sub(st, &msg) == false)
 		return false;
 
 	// Item list
@@ -26714,7 +26831,7 @@ static BUILDIN(rodex_sendmail2)
 	int item_count = 0, i = 0, param = 7;
 
 	// Common parameters - sender/message/zeny
-	if (rodex_sendmail_sub(st, &msg) == false)
+	if (script->buildin_rodex_sendmail_sub(st, &msg) == false)
 		return false;
 
 	// Item list
@@ -26810,7 +26927,7 @@ static BUILDIN(clan_join)
 	if (script_hasdata(st, 3))
 		sd = map->id2sd(script_getnum(st, 3));
 	else
-		sd = map->id2sd(st->rid);
+		sd = script->rid2sd(st);
 
 	if (sd == NULL) {
 		script_pushint(st, false);
@@ -26835,7 +26952,7 @@ static BUILDIN(clan_leave)
 	if (script_hasdata(st, 2))
 		sd = map->id2sd(script_getnum(st, 2));
 	else
-		sd = map->id2sd(st->rid);
+		sd = script->rid2sd(st);
 
 	if (sd == NULL) {
 		script_pushint(st, false);
@@ -26880,7 +26997,7 @@ static BUILDIN(clan_master)
 
 static BUILDIN(airship_respond)
 {
-	struct map_session_data *sd = map->id2sd(st->rid);
+	struct map_session_data *sd = script->rid2sd(st);
 	int32 flag = script_getnum(st, 2);
 
 	if (sd == NULL)
@@ -27057,7 +27174,7 @@ static BUILDIN(enchantitem)
 		script_pushint(st, false);
 		return true;
 	}
-	const bool res = clif->enchant_equipment(sd, pc->equip_pos[pos], cardSlot, cardId);
+	const bool res = clif->enchant_equipment(sd, pc->equip_pos[pos], cardSlot, cardId, 1);
 	if (res) {
 		logs->pick_pc(sd, LOG_TYPE_CARD, -1, &sd->status.inventory[n],sd->inventory_data[n]);
 		sd->status.inventory[n].card[cardSlot] = cardId;
@@ -27225,6 +27342,28 @@ static BUILDIN(openlapineddukddakboxui)
 		return true;
 	}
 	clif->lapineDdukDdak_open(sd, item_id);
+	script_pushint(st, true);
+	return true;
+}
+
+static BUILDIN(openlapineupgradeui)
+{
+	struct map_session_data *sd = script->rid2sd(st);
+
+	if (sd == NULL)
+		return false;
+
+	const int item_id = script_getnum(st, 2);
+	struct item_data *it = itemdb->exists(item_id);
+	if (it == NULL || it->lapineupgrade == NULL) {
+		ShowError("buildin_openlapineupgradeui: Item %d is not valid\n", item_id);
+		script->reportfunc(st);
+		script->reportsrc(st);
+		script_pushint(st, false);
+		return true;
+	}
+
+	clif->lapineUpgrade_open(sd, item_id);
 	script_pushint(st, true);
 	return true;
 }
@@ -27456,6 +27595,22 @@ static void script_run_item_lapineddukddak_script(struct map_session_data *sd, s
 	script->current_item_id = 0;
 }
 
+static void script_run_item_lapineupgrade_script(struct map_session_data *sd, struct item_data *data, int oid) __attribute__((nonnull(1, 2)));
+
+/**
+ * Run item lapineddukddak script for item.
+ *
+ * @param sd    player session data. Must be correct and checked before.
+ * @param data  unequipped item data. Must be correct and checked before.
+ * @param oid   npc id. Can be also 0 or fake npc id.
+ */
+static void script_run_item_lapineupgrade_script(struct map_session_data *sd, struct item_data *data, int oid)
+{
+	script->current_item_id = data->nameid;
+	script->run(data->lapineupgrade->script, 0, sd->bl.id, oid);
+	script->current_item_id = 0;
+}
+
 #define BUILDIN_DEF(x,args) { buildin_ ## x , #x , args, false }
 #define BUILDIN_DEF2(x,x2,args) { buildin_ ## x , x2 , args, false }
 #define BUILDIN_DEF_DEPRECATED(x,args) { buildin_ ## x , #x , args, true }
@@ -27531,9 +27686,6 @@ static void script_parse_builtin(void)
 		BUILDIN_DEF(getpartyname,"i"),
 		BUILDIN_DEF(getpartymember,"i?"),
 		BUILDIN_DEF(getpartyleader,"i?"),
-		BUILDIN_DEF_DEPRECATED(getguildname,"i"),
-		BUILDIN_DEF_DEPRECATED(getguildmaster,"i"),
-		BUILDIN_DEF_DEPRECATED(getguildmasterid,"i"),
 		BUILDIN_DEF(getguildmember,"i?"),
 		BUILDIN_DEF(getguildinfo,"i?"),
 		BUILDIN_DEF(getguildonline, "i?"),
@@ -27638,7 +27790,6 @@ static void script_parse_builtin(void)
 		BUILDIN_DEF(sc_end,"i?"),
 		BUILDIN_DEF(getstatus, "i?"),
 		BUILDIN_DEF(getscrate,"ii?"),
-		BUILDIN_DEF_DEPRECATED(debugmes,"v*"),
 		BUILDIN_DEF(consolemes,"iv*"),
 		BUILDIN_DEF2(catchpet,"pet","i"),
 		BUILDIN_DEF2(birthpet,"bpet",""),
@@ -27653,7 +27804,6 @@ static void script_parse_builtin(void)
 		BUILDIN_DEF(changecharsex,""), // [4144]
 		BUILDIN_DEF(waitingroom, "si??????"),
 		BUILDIN_DEF(delwaitingroom, "?"),
-		BUILDIN_DEF2_DEPRECATED(waitingroomkickall, "kickwaitingroomall", "?"),
 		BUILDIN_DEF(waitingroomkick, "??"),
 		BUILDIN_DEF(enablewaitingroomevent, "?"),
 		BUILDIN_DEF(disablewaitingroomevent, "?"),
@@ -27702,7 +27852,6 @@ static void script_parse_builtin(void)
 		BUILDIN_DEF(getskilllist,""),
 		BUILDIN_DEF(clearitem,""),
 		BUILDIN_DEF(classchange,"ii?"),
-		BUILDIN_DEF_DEPRECATED(misceffect,"i"),
 		BUILDIN_DEF(playbgm,"s"),
 		BUILDIN_DEF(playbgmall,"s?????"),
 		BUILDIN_DEF(soundeffect,"si"),
@@ -27720,7 +27869,6 @@ static void script_parse_builtin(void)
 		BUILDIN_DEF(specialeffect,"i???"), // npc skill effect [Valaris]
 		BUILDIN_DEF(specialeffectnum,"iii???"), // npc skill effect with num [4144]
 		BUILDIN_DEF(removespecialeffect,"i???"),
-		BUILDIN_DEF_DEPRECATED(specialeffect2,"i??"), // skill effect on players[Valaris]
 		BUILDIN_DEF(nude,""), // nude command [Valaris]
 		BUILDIN_DEF(mapwarp,"ssii??"), // Added by RoVeRT
 		BUILDIN_DEF(atcommand,"s"), // [MouseJstr]
@@ -27740,6 +27888,7 @@ static void script_parse_builtin(void)
 		BUILDIN_DEF(setnpcdir,"*"), // [4144]
 		BUILDIN_DEF(getnpcclass,"?"), // [4144]
 		BUILDIN_DEF(getmapxy,"rrri?"), //by Lorky [Lupus]
+		BUILDIN_DEF(checkhiding, "?"),
 		BUILDIN_DEF(checkoption1,"i?"),
 		BUILDIN_DEF(checkoption2,"i?"),
 		BUILDIN_DEF(guildgetexp,"i"),
@@ -27805,7 +27954,6 @@ static void script_parse_builtin(void)
 		// List of mathematics commands --->
 		BUILDIN_DEF(log10,"i"),
 		BUILDIN_DEF(sqrt,"i"), //[zBuffer]
-		BUILDIN_DEF_DEPRECATED(pow,"ii"), //[zBuffer]
 		BUILDIN_DEF(distance,"iiii"), //[zBuffer]
 		// <--- List of mathematics commands
 		BUILDIN_DEF(min, "i*"),
@@ -27817,7 +27965,6 @@ static void script_parse_builtin(void)
 		BUILDIN_DEF(getd,"s"),
 		BUILDIN_DEF(setd,"sv"),
 		// <--- [zBuffer] List of dynamic var commands
-		BUILDIN_DEF_DEPRECATED(petstat, "i"), // Deprecated 2019-03-11
 		BUILDIN_DEF(callshop,"s?"), // [Skotlex]
 		BUILDIN_DEF(npcshopitem,"sii*"), // [Lance]
 		BUILDIN_DEF(npcshopadditem,"sii*"),
@@ -27844,7 +27991,6 @@ static void script_parse_builtin(void)
 		BUILDIN_DEF(rid2name,"i"),
 		BUILDIN_DEF(pcfollow,"ii"),
 		BUILDIN_DEF(pcstopfollow,"i"),
-		BUILDIN_DEF_DEPRECATED(pcblockmove,"ii"), // Deprecated 2018-05-04
 		BUILDIN_DEF(setpcblock, "ii?"),
 		BUILDIN_DEF(checkpcblock, "?"),
 		// <--- [zBuffer] List of player cont commands
@@ -28086,6 +28232,7 @@ static void script_parse_builtin(void)
 		BUILDIN_DEF(identify, "i"),
 		BUILDIN_DEF(identifyidx, "i"),
 		BUILDIN_DEF(openlapineddukddakboxui, "i"),
+		BUILDIN_DEF(openlapineupgradeui, "i"),
 
 		BUILDIN_DEF(callfunctionofnpc, "vs*"),
 	};
@@ -28812,6 +28959,163 @@ static void script_hardcoded_constants(void)
 	script->set_constant("MF_SRC4INSTANCE", MF_SRC4INSTANCE, false, false);
 	script->set_constant("MF_CVC", MF_CVC, false, false);
 
+	script->constdb_comment("Job masks / Job map_ids");
+
+	script->set_constant("EAJL_2_1", JOBL_2_1, false, false);
+	script->set_constant("EAJL_2_2", JOBL_2_2, false, false);
+	script->set_constant("EAJL_2", JOBL_2, false, false);
+	script->set_constant("EAJL_UPPER", JOBL_UPPER, false, false);
+	script->set_constant("EAJL_BABY", JOBL_BABY, false, false);
+	script->set_constant("EAJL_THIRD", JOBL_THIRD, false, false);
+
+	script->set_constant("EAJ_BASEMASK", MAPID_BASEMASK, false, false);
+	script->set_constant("EAJ_UPPERMASK", MAPID_UPPERMASK, false, false);
+	script->set_constant("EAJ_THIRDMASK", MAPID_THIRDMASK, false, false);
+
+	script->set_constant("EAJ_NOVICE", MAPID_NOVICE, false, false);
+	script->set_constant("EAJ_SWORDMAN", MAPID_SWORDMAN, false, false);
+	script->set_constant("EAJ_MAGE", MAPID_MAGE, false, false);
+	script->set_constant("EAJ_ARCHER", MAPID_ARCHER, false, false);
+	script->set_constant("EAJ_ACOLYTE", MAPID_ACOLYTE, false, false);
+	script->set_constant("EAJ_MERCHANT", MAPID_MERCHANT, false, false);
+	script->set_constant("EAJ_THIEF", MAPID_THIEF, false, false);
+	script->set_constant("EAJ_TAEKWON", MAPID_TAEKWON, false, false);
+	script->set_constant("EAJ_WEDDING", MAPID_WEDDING, false, false);
+	script->set_constant("EAJ_GUNSLINGER", MAPID_GUNSLINGER, false, false);
+	script->set_constant("EAJ_NINJA", MAPID_NINJA, false, false);
+	script->set_constant("EAJ_XMAS", MAPID_XMAS, false, false);
+	script->set_constant("EAJ_SUMMER", MAPID_SUMMER, false, false);
+	script->set_constant("EAJ_GANGSI", MAPID_GANGSI, false, false);
+	script->set_constant("EAJ_SUMMONER", MAPID_SUMMONER, false, false);
+
+	script->set_constant("EAJ_SUPER_NOVICE", MAPID_SUPER_NOVICE, false, false);
+	script->set_constant("EAJ_KNIGHT", MAPID_KNIGHT, false, false);
+	script->set_constant("EAJ_WIZARD", MAPID_WIZARD, false, false);
+	script->set_constant("EAJ_HUNTER", MAPID_HUNTER, false, false);
+	script->set_constant("EAJ_PRIEST", MAPID_PRIEST, false, false);
+	script->set_constant("EAJ_BLACKSMITH", MAPID_BLACKSMITH, false, false);
+	script->set_constant("EAJ_ASSASSIN", MAPID_ASSASSIN, false, false);
+	script->set_constant("EAJ_STAR_GLADIATOR", MAPID_STAR_GLADIATOR, false, false);
+	script->set_constant("EAJ_REBELLION", MAPID_REBELLION, false, false);
+	script->set_constant("EAJ_KAGEROUOBORO", MAPID_KAGEROUOBORO, false, false);
+	script->set_constant("EAJ_DEATH_KNIGHT", MAPID_DEATH_KNIGHT, false, false);
+
+	script->set_constant("EAJ_CRUSADER", MAPID_CRUSADER, false, false);
+	script->set_constant("EAJ_SAGE", MAPID_SAGE, false, false);
+	script->set_constant("EAJ_BARDDANCER", MAPID_BARDDANCER, false, false);
+	script->set_constant("EAJ_MONK", MAPID_MONK, false, false);
+	script->set_constant("EAJ_ALCHEMIST", MAPID_ALCHEMIST, false, false);
+	script->set_constant("EAJ_ROGUE", MAPID_ROGUE, false, false);
+	script->set_constant("EAJ_SOUL_LINKER", MAPID_SOUL_LINKER, false, false);
+	script->set_constant("EAJ_DARK_COLLECTOR", MAPID_DARK_COLLECTOR, false, false);
+
+	script->set_constant("EAJ_NOVICE_HIGH", MAPID_NOVICE_HIGH, false, false);
+	script->set_constant("EAJ_SWORDMAN_HIGH", MAPID_SWORDMAN_HIGH, false, false);
+	script->set_constant("EAJ_MAGE_HIGH", MAPID_MAGE_HIGH, false, false);
+	script->set_constant("EAJ_ARCHER_HIGH", MAPID_ARCHER_HIGH, false, false);
+	script->set_constant("EAJ_ACOLYTE_HIGH", MAPID_ACOLYTE_HIGH, false, false);
+	script->set_constant("EAJ_MERCHANT_HIGH", MAPID_MERCHANT_HIGH, false, false);
+	script->set_constant("EAJ_THIEF_HIGH", MAPID_THIEF_HIGH, false, false);
+
+	script->set_constant("EAJ_LORD_KNIGHT", MAPID_LORD_KNIGHT, false, false);
+	script->set_constant("EAJ_HIGH_WIZARD", MAPID_HIGH_WIZARD, false, false);
+	script->set_constant("EAJ_SNIPER", MAPID_SNIPER, false, false);
+	script->set_constant("EAJ_HIGH_PRIEST", MAPID_HIGH_PRIEST, false, false);
+	script->set_constant("EAJ_WHITESMITH", MAPID_WHITESMITH, false, false);
+	script->set_constant("EAJ_ASSASSIN_CROSS", MAPID_ASSASSIN_CROSS, false, false);
+
+	script->set_constant("EAJ_PALADIN", MAPID_PALADIN, false, false);
+	script->set_constant("EAJ_PROFESSOR", MAPID_PROFESSOR, false, false);
+	script->set_constant("EAJ_CLOWNGYPSY", MAPID_CLOWNGYPSY, false, false);
+	script->set_constant("EAJ_CHAMPION", MAPID_CHAMPION, false, false);
+	script->set_constant("EAJ_CREATOR", MAPID_CREATOR, false, false);
+	script->set_constant("EAJ_STALKER", MAPID_STALKER, false, false);
+
+	script->set_constant("EAJ_BABY", MAPID_BABY, false, false);
+	script->set_constant("EAJ_BABY_SWORDMAN", MAPID_BABY_SWORDMAN, false, false);
+	script->set_constant("EAJ_BABY_MAGE", MAPID_BABY_MAGE, false, false);
+	script->set_constant("EAJ_BABY_ARCHER", MAPID_BABY_ARCHER, false, false);
+	script->set_constant("EAJ_BABY_ACOLYTE", MAPID_BABY_ACOLYTE, false, false);
+	script->set_constant("EAJ_BABY_MERCHANT", MAPID_BABY_MERCHANT, false, false);
+	script->set_constant("EAJ_BABY_THIEF", MAPID_BABY_THIEF, false, false);
+	script->set_constant("EAJ_BABY_NINJA", MAPID_BABY_NINJA, false, false);
+	script->set_constant("EAJ_BABY_SUMMONER", MAPID_BABY_SUMMONER, false, false);
+	script->set_constant("EAJ_BABY_GUNSLINGER", MAPID_BABY_GUNSLINGER, false, false);
+
+	script->set_constant("EAJ_SUPER_BABY", MAPID_SUPER_BABY, false, false);
+	script->set_constant("EAJ_BABY_KNIGHT", MAPID_BABY_KNIGHT, false, false);
+	script->set_constant("EAJ_BABY_WIZARD", MAPID_BABY_WIZARD, false, false);
+	script->set_constant("EAJ_BABY_HUNTER", MAPID_BABY_HUNTER, false, false);
+	script->set_constant("EAJ_BABY_PRIEST", MAPID_BABY_PRIEST, false, false);
+	script->set_constant("EAJ_BABY_BLACKSMITH", MAPID_BABY_BLACKSMITH, false, false);
+	script->set_constant("EAJ_BABY_ASSASSIN", MAPID_BABY_ASSASSIN, false, false);
+	script->set_constant("EAJ_BABY_KAGEROUOBORO", MAPID_BABY_KAGEROUOBORO, false, false);
+	script->set_constant("EAJ_BABY_TAEKWON", MAPID_BABY_TAEKWON, false, false);
+	script->set_constant("EAJ_BABY_STAR_GLADIATOR", MAPID_BABY_STAR_GLADIATOR, false, false);
+	script->set_constant("EAJ_BABY_REBELLION", MAPID_BABY_REBELLION, false, false);
+
+	script->set_constant("EAJ_BABY_CRUSADER", MAPID_BABY_CRUSADER, false, false);
+	script->set_constant("EAJ_BABY_SAGE", MAPID_BABY_SAGE, false, false);
+	script->set_constant("EAJ_BABY_BARDDANCER", MAPID_BABY_BARDDANCER, false, false);
+	script->set_constant("EAJ_BABY_MONK", MAPID_BABY_MONK, false, false);
+	script->set_constant("EAJ_BABY_ALCHEMIST", MAPID_BABY_ALCHEMIST, false, false);
+	script->set_constant("EAJ_BABY_ROGUE", MAPID_BABY_ROGUE, false, false);
+	script->set_constant("EAJ_BABY_SOUL_LINKER", MAPID_BABY_SOUL_LINKER, false, false);
+	script->set_constant("EAJ_BABY_STAR_EMPEROR", MAPID_BABY_STAR_EMPEROR, false, false);
+	script->set_constant("EAJ_BABY_SOUL_REAPER", MAPID_BABY_SOUL_REAPER, false, false);
+
+	script->set_constant("EAJ_SUPER_NOVICE_E", MAPID_SUPER_NOVICE_E, false, false);
+	script->set_constant("EAJ_RUNE_KNIGHT", MAPID_RUNE_KNIGHT, false, false);
+	script->set_constant("EAJ_WARLOCK", MAPID_WARLOCK, false, false);
+	script->set_constant("EAJ_RANGER", MAPID_RANGER, false, false);
+	script->set_constant("EAJ_ARCH_BISHOP", MAPID_ARCH_BISHOP, false, false);
+	script->set_constant("EAJ_MECHANIC", MAPID_MECHANIC, false, false);
+	script->set_constant("EAJ_GUILLOTINE_CROSS", MAPID_GUILLOTINE_CROSS, false, false);
+	script->set_constant("EAJ_STAR_EMPEROR", MAPID_STAR_EMPEROR, false, false);
+
+	script->set_constant("EAJ_ROYAL_GUARD", MAPID_ROYAL_GUARD, false, false);
+	script->set_constant("EAJ_SORCERER", MAPID_SORCERER, false, false);
+	script->set_constant("EAJ_MINSTRELWANDERER", MAPID_MINSTRELWANDERER, false, false);
+	script->set_constant("EAJ_SURA", MAPID_SURA, false, false);
+	script->set_constant("EAJ_GENETIC", MAPID_GENETIC, false, false);
+	script->set_constant("EAJ_SHADOW_CHASER", MAPID_SHADOW_CHASER, false, false);
+	script->set_constant("EAJ_SOUL_REAPER", MAPID_SOUL_REAPER, false, false);
+
+	script->set_constant("EAJ_RUNE_KNIGHT_T", MAPID_RUNE_KNIGHT_T, false, false);
+	script->set_constant("EAJ_WARLOCK_T", MAPID_WARLOCK_T, false, false);
+	script->set_constant("EAJ_RANGER_T", MAPID_RANGER_T, false, false);
+	script->set_constant("EAJ_ARCH_BISHOP_T", MAPID_ARCH_BISHOP_T, false, false);
+	script->set_constant("EAJ_MECHANIC_T", MAPID_MECHANIC_T, false, false);
+	script->set_constant("EAJ_GUILLOTINE_CROSS_T", MAPID_GUILLOTINE_CROSS_T, false, false);
+
+	script->set_constant("EAJ_ROYAL_GUARD_T", MAPID_ROYAL_GUARD_T, false, false);
+	script->set_constant("EAJ_SORCERER_T", MAPID_SORCERER_T, false, false);
+	script->set_constant("EAJ_MINSTRELWANDERER_T", MAPID_MINSTRELWANDERER_T, false, false);
+	script->set_constant("EAJ_SURA_T", MAPID_SURA_T, false, false);
+	script->set_constant("EAJ_GENETIC_T", MAPID_GENETIC_T, false, false);
+	script->set_constant("EAJ_SHADOW_CHASER_T", MAPID_SHADOW_CHASER_T, false, false);
+
+	script->set_constant("EAJ_SUPER_BABY_E", MAPID_SUPER_BABY_E, false, false);
+	script->set_constant("EAJ_BABY_RUNE", MAPID_BABY_RUNE, false, false);
+	script->set_constant("EAJ_BABY_WARLOCK", MAPID_BABY_WARLOCK, false, false);
+	script->set_constant("EAJ_BABY_RANGER", MAPID_BABY_RANGER, false, false);
+	script->set_constant("EAJ_BABY_BISHOP", MAPID_BABY_BISHOP, false, false);
+	script->set_constant("EAJ_BABY_MECHANIC", MAPID_BABY_MECHANIC, false, false);
+	script->set_constant("EAJ_BABY_CROSS", MAPID_BABY_CROSS, false, false);
+
+	script->set_constant("EAJ_BABY_GUARD", MAPID_BABY_GUARD, false, false);
+	script->set_constant("EAJ_BABY_SORCERER", MAPID_BABY_SORCERER, false, false);
+	script->set_constant("EAJ_BABY_MINSTRELWANDERER", MAPID_BABY_MINSTRELWANDERER, false, false);
+	script->set_constant("EAJ_BABY_SURA", MAPID_BABY_SURA, false, false);
+	script->set_constant("EAJ_BABY_GENETIC", MAPID_BABY_GENETIC, false, false);
+	script->set_constant("EAJ_BABY_CHASER", MAPID_BABY_CHASER, false, false);
+
+	script->constdb_comment("Monster Group Ids");
+	script->set_constant("MOBG_DEAD_BRANCH", MOBG_DEAD_BRANCH, false, false);
+	script->set_constant("MOBG_PORING", MOBG_PORING, false, false);
+	script->set_constant("MOBG_BLOODY_BRANCH", MOBG_BLOODY_BRANCH, false, false);
+	script->set_constant("MOBG_POUCH", MOBG_POUCH, false, false);
+	script->set_constant("MOBG_CLASS_CHANGE", MOBG_CLASS_CHANGE, false, false);
 
 	script->constdb_comment("Renewal");
 #ifdef RENEWAL
@@ -28902,6 +29206,7 @@ void script_defaults(void)
 
 	VECTOR_INIT(script->buf);
 	VECTOR_INIT(script->translation_buf);
+	VECTOR_INIT(script->conditional_features);
 
 	script->parse_options = 0;
 	script->buildin_set_ref = 0;
@@ -29094,6 +29399,7 @@ void script_defaults(void)
 	script->buildin_query_sql_sub = buildin_query_sql_sub;
 	script->buildin_instance_warpall_sub = buildin_instance_warpall_sub;
 	script->buildin_mobuseskill_sub = buildin_mobuseskill_sub;
+	script->buildin_rodex_sendmail_sub = buildin_rodex_sendmail_sub;
 	script->cleanfloor_sub = script_cleanfloor_sub;
 	script->run_func = run_func;
 	script->getfuncname = script_getfuncname;
@@ -29180,6 +29486,8 @@ void script_defaults(void)
 	script->run_item_rental_start_script = script_run_item_rental_start_script;
 	script->run_item_rental_end_script = script_run_item_rental_end_script;
 	script->run_item_lapineddukddak_script = script_run_item_lapineddukddak_script;
+	script->run_item_lapineupgrade_script = script_run_item_lapineupgrade_script;
 
 	script->sellitemcurrency_add = script_sellitemcurrency_add;
+	script->declare_conditional_feature = script_declare_conditional_feature;
 }

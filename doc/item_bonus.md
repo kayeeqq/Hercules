@@ -225,6 +225,7 @@ bonus bCritAtkRate,`n`;           | Increase critical damage by +`n`%
 bonus bNoWeaponDamage,`n`;        | Prevents from receiving `n`% physical damage
 bonus bNoMagicDamage,`n`;         | Prevents from receiving `n`% magical effect (Attack, Healing, Support spells are all blocked)
 bonus bNoMiscDamage,`n`;          | Adds `n`% reduction to received misc damage
+bonus2 bSubSkill,`sk`,`n`;        | Reduce damage received from `sk` skill by `n`%
 
 Heal                              | Description
 :-------------------------------- | :-------------------------
@@ -379,6 +380,7 @@ bonus bMagicSPGainValue,`n`;           | Gains +`n` SP when killing an enemy wit
 bonus2 bHPGainRaceAttack,`r`,`n`;      | Heals `n` HP when attacking race `r` on every hit
 bonus2 bSPGainRaceAttack,`r`,`n`;      | Heals `n` SP when attacking race `r` on every hit
 bonus2 bSPGainRace,`r`,`n`;            | When killing a monster of race `r` by physical attack gain `n` SP
+bonus3 bStateNoRecoverRace,`r`,`x`,`t`;| Set target to a no recovery state based on race `r` at `x`% for `t` milliseconds with normal attack.
 
 Damage return                          | Description
 :------------------------------------- | :-------------------------
@@ -418,6 +420,7 @@ bonus bAddMonsterDropChainItem,`ic`;       | Able to get Item of chain `ic` when
 bonus2 bAddMonsterDropChainItem,`ic`,`r`;  | Able to get item of chain `ic` when you kill a monster of race `r`
 bonus2 bGetZenyNum,`x`,`n`;                | When killing a monster, there is a `n`% chance of gaining 1~x zeny (only the highest among all is applied).
 bonus2 bAddGetZenyNum,`x`,`n`;             | When killing a monster, there is a `n`% chance of gaining 1~x zeny (Stackable) <br/> x: <br/> < 0: Max Zeny gain is `(-x*monster_level)`
+bonus2 bDropAddRace,`r`,`n`;               | Increase item drop rate by `n`% when you kill a monster of race `r`
 
 Misc effects                           | Description
 :------------------------------------- | :-------------------------

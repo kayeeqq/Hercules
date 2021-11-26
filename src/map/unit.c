@@ -98,6 +98,10 @@ static struct unit_data *unit_bl2ud(struct block_list *bl)
 		return &BL_UCAST(BL_ELEM, bl)->ud;
 	case BL_SKILL: // No assertion to not spam the server console when attacking a skill type unit such as Ice Wall.
 		return NULL;
+	case BL_NUL:
+	case BL_ITEM:
+	case BL_CHAT:
+	case BL_ALL:
 	default:
 		Assert_retr(NULL, false);
 	}
@@ -132,6 +136,10 @@ static const struct unit_data *unit_cbl2ud(const struct block_list *bl)
 		return &BL_UCCAST(BL_ELEM, bl)->ud;
 	case BL_SKILL: // No assertion to not spam the server console when attacking a skill type unit such as Ice Wall.
 		return NULL;
+	case BL_NUL:
+	case BL_ITEM:
+	case BL_CHAT:
+	case BL_ALL:
 	default:
 		Assert_retr(NULL, false);
 	}
@@ -1074,6 +1082,17 @@ static int unit_warp(struct block_list *bl, short m, short x, short y, enum clr_
 			if (map->list[bl->m].flag.noteleport)
 				return 1;
 			break;
+		case BL_NUL:
+		case BL_PET:
+		case BL_HOM:
+		case BL_MER:
+		case BL_ITEM:
+		case BL_SKILL:
+		case BL_NPC:
+		case BL_CHAT:
+		case BL_ELEM:
+		case BL_ALL:
+			break;
 	}
 
 	if (x<0 || y<0) {
@@ -1309,10 +1328,10 @@ static int unit_resume_running(int tid, int64 tick, int id, intptr_t data)
 	nullpo_ret(ud);
 	if(sd && pc_isridingwug(sd))
 		clif->skill_nodamage(ud->bl,ud->bl,RA_WUGDASH,ud->skill_lv,
-		                     sc_start4(ud->bl,ud->bl,status->skill2sc(RA_WUGDASH),100,ud->skill_lv,unit->getdir(ud->bl),0,0,1));
+		                     sc_start4(ud->bl,ud->bl,skill->get_sc_type(RA_WUGDASH),100,ud->skill_lv,unit->getdir(ud->bl),0,0,1));
 	else
 		clif->skill_nodamage(ud->bl,ud->bl,TK_RUN,ud->skill_lv,
-		                     sc_start4(ud->bl,ud->bl,status->skill2sc(TK_RUN),100,ud->skill_lv,unit->getdir(ud->bl),0,0,0));
+		                     sc_start4(ud->bl,ud->bl,skill->get_sc_type(TK_RUN),100,ud->skill_lv,unit->getdir(ud->bl),0,0,0));
 
 	if (sd) clif->walkok(sd);
 
@@ -1370,6 +1389,8 @@ static int unit_set_walkdelay(struct block_list *bl, int64 tick, int delay, int 
 //-------------- stop here
 static int unit_skilluse_id2(struct block_list *src, int target_id, uint16 skill_id, uint16 skill_lv, int casttime, int castcancel)
 {
+	GUARD_MAP_LOCK
+
 	struct unit_data *ud;
 	struct status_data *tstatus;
 	struct status_change *sc;
@@ -1450,6 +1471,13 @@ static int unit_skilluse_id2(struct block_list *src, int target_id, uint16 skill
 				} else {
 					clif->skill_fail(sd, skill_id, USESKILL_FAIL_GC_WEAPONBLOCKING, 0, 0);
 					return 0;
+				}
+				break;
+			case RL_QD_SHOT:
+				if (sc != NULL && sc->data[SC_QD_SHOT_READY]) {
+					if ((target = map->id2bl(sc->data[SC_QD_SHOT_READY]->val1)) == NULL)
+						return 0;
+					temp = 1;
 				}
 				break;
 		}
@@ -1701,6 +1729,20 @@ static int unit_skilluse_id2(struct block_list *src, int target_id, uint16 skill
 				casttime <<= 1;
 		}
 		break;
+	case RL_C_MARKER:
+		{
+			uint8 i = 0;
+
+			ARR_FIND(0, MAX_SKILL_CRIMSON_MARKER, i, sd->c_marker[i] == target_id);
+			if (i == MAX_SKILL_CRIMSON_MARKER) {
+				ARR_FIND(0, MAX_SKILL_CRIMSON_MARKER, i, sd->c_marker[i] == 0);
+				if (i == MAX_SKILL_CRIMSON_MARKER) { // No free slots, skill Fail
+					clif->skill_fail(sd, skill_id, USESKILL_FAIL_LEVEL, 0, 0);
+					return 0;
+				}
+			}
+		}
+		break;
 	}
 
 	// moved here to prevent Suffragium from ending if skill fails
@@ -1725,6 +1767,9 @@ static int unit_skilluse_id2(struct block_list *src, int target_id, uint16 skill
 		} else if( sc->data[SC_CLOAKINGEXCEED] && !(sc->data[SC_CLOAKINGEXCEED]->val4&4) && skill_id != GC_CLOAKINGEXCEED ) {
 			status_change_end(src,SC_CLOAKINGEXCEED, INVALID_TIMER);
 			if (!src->prev) return 0;
+		} else if (sc->data[SC_NEWMOON] != NULL && skill_id != SJ_NEWMOONKICK) {
+			status_change_end(src, SC_NEWMOON, INVALID_TIMER);
+			if (!src->prev) return 0;
 		}
 	}
 
@@ -1733,6 +1778,8 @@ static int unit_skilluse_id2(struct block_list *src, int target_id, uint16 skill
 
 	if (sd != NULL && sd->auto_cast_current.itemskill_instant_cast && sd->auto_cast_current.type == AUTOCAST_ITEM)
 		casttime = 0;
+
+	map->freeblock_lock();
 
 	// in official this is triggered even if no cast time.
 	clif->useskill(src, src->id, target_id, 0,0, skill_id, skill_lv, casttime);
@@ -1760,6 +1807,13 @@ static int unit_skilluse_id2(struct block_list *src, int target_id, uint16 skill
 					md->target_id = src->id;
 					md->state.aggressive = (tstatus->mode&MD_ANGRY)?1:0;
 					md->min_chase = md->db->range3;
+					break;
+				case MSS_ANY:
+				case MSS_DEAD:
+				case MSS_BERSERK:
+				case MSS_ANGRY:
+				case MSS_ANYTARGET:
+				case MSS_LOOT:
 					break;
 				}
 			}
@@ -1798,6 +1852,8 @@ static int unit_skilluse_id2(struct block_list *src, int target_id, uint16 skill
 	if (sd != NULL && battle_config.prevent_logout_trigger & PLT_SKILL)
 		sd->canlog_tick = timer->gettick();
 
+	map->freeblock_unlock();
+
 	return 1;
 }
 
@@ -1808,7 +1864,7 @@ static int unit_skilluse_pos(struct block_list *src, short skill_x, short skill_
 	int ret = unit->skilluse_pos2(src, skill_x, skill_y, skill_id, skill_lv, casttime, castcancel);
 	struct map_session_data *sd = BL_CAST(BL_PC, src);
 
-	if (sd != NULL)
+	if (sd != NULL && sd->auto_cast_current.skill_id != AL_WARP)
 		pc->autocast_remove(sd, sd->auto_cast_current.type, sd->auto_cast_current.skill_id,
 				    sd->auto_cast_current.skill_lv);
 
@@ -1932,6 +1988,9 @@ static int unit_skilluse_pos2(struct block_list *src, short skill_x, short skill
 			if (!src->prev) return 0; //Warped away!
 		} else if (sc->data[SC_CLOAKINGEXCEED] && !(sc->data[SC_CLOAKINGEXCEED]->val4&4)) {
 			status_change_end(src, SC_CLOAKINGEXCEED, INVALID_TIMER);
+			if (!src->prev) return 0;
+		} else if (sc->data[SC_NEWMOON] != NULL && skill_id != SJ_NEWMOONKICK) {
+			status_change_end(src, SC_NEWMOON, INVALID_TIMER);
 			if (!src->prev) return 0;
 		}
 	}
@@ -2263,6 +2322,8 @@ static int unit_calc_pos(struct block_list *bl, int tx, int ty, enum unit_dir di
  *------------------------------------------*/
 static int unit_attack_timer_sub(struct block_list *src, int tid, int64 tick)
 {
+	GUARD_MAP_LOCK
+
 	struct block_list *target;
 	struct unit_data *ud;
 	struct status_data *sstatus;
@@ -2560,6 +2621,8 @@ static int unit_changeviewsize(struct block_list *bl, short size)
  *------------------------------------------*/
 static int unit_remove_map(struct block_list *bl, enum clr_type clrtype, const char *file, int line, const char *func)
 {
+	GUARD_MAP_LOCK
+
 	struct unit_data *ud = unit->bl2ud(bl);
 	struct status_change *sc = status->get_sc(bl);
 	nullpo_ret(bl);
@@ -2600,6 +2663,7 @@ static int unit_remove_map(struct block_list *bl, enum clr_type clrtype, const c
 		status_change_end(bl, SC_RG_CCONFINE_M, INVALID_TIMER);
 		status_change_end(bl, SC_RG_CCONFINE_S, INVALID_TIMER);
 		status_change_end(bl, SC_HIDING, INVALID_TIMER);
+		status_change_end(bl, SC_FLASHKICK, INVALID_TIMER);
 		// Ensure the bl is a PC; if so, we'll handle the removal of cloaking and cloaking exceed later
 		if ( bl->type != BL_PC ) {
 			status_change_end(bl, SC_CLOAKING, INVALID_TIMER);
@@ -2624,6 +2688,7 @@ static int unit_remove_map(struct block_list *bl, enum clr_type clrtype, const c
 		status_change_end(bl, SC_NETHERWORLD, INVALID_TIMER);
 		status_change_end(bl, SC_SUHIDE, INVALID_TIMER);
 		status_change_end(bl, SC_SV_ROOTTWIST, INVALID_TIMER);
+		status_change_end(bl, SC_NEWMOON, INVALID_TIMER);
 	}
 
 	if (bl->type&(BL_CHAR|BL_PET)) {
@@ -2793,6 +2858,12 @@ static int unit_remove_map(struct block_list *bl, enum clr_type clrtype, const c
 			}
 			break;
 		}
+		case BL_NUL:
+		case BL_ITEM:
+		case BL_SKILL:
+		case BL_NPC:
+		case BL_CHAT:
+		case BL_ALL:
 		default: break;// do nothing
 	}
 	/**
@@ -2839,6 +2910,8 @@ static void unit_free_pc(struct map_session_data *sd)
  *------------------------------------------*/
 static int unit_free(struct block_list *bl, enum clr_type clrtype)
 {
+	GUARD_MAP_LOCK
+
 	struct unit_data *ud = unit->bl2ud( bl );
 	nullpo_ret(bl);
 	nullpo_ret(ud);
@@ -2975,6 +3048,9 @@ static int unit_free(struct block_list *bl, enum clr_type clrtype)
 		case BL_MOB:
 		{
 			struct mob_data *md = BL_UCAST(BL_MOB, bl);
+
+			mob->free_dynamic_viewdata(md);
+
 			if( md->spawn_timer != INVALID_TIMER )
 			{
 				timer->delete(md->spawn_timer,mob->delayspawn);
@@ -3082,6 +3158,13 @@ static int unit_free(struct block_list *bl, enum clr_type clrtype)
 			elemental->summon_stop(ed);
 			break;
 		}
+		case BL_NUL:
+		case BL_ITEM:
+		case BL_SKILL:
+		case BL_NPC:
+		case BL_CHAT:
+		case BL_ALL:
+			break;
 	}
 
 	skill->clear_unitgroup(bl);

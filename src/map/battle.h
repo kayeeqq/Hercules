@@ -306,7 +306,7 @@ struct Battle_Config {
 	int attack_attr_none;
 	int item_rate_mvp, item_rate_common, item_rate_common_boss, item_rate_card, item_rate_card_boss,
 	item_rate_equip, item_rate_equip_boss, item_rate_heal, item_rate_heal_boss, item_rate_use,
-	item_rate_use_boss, item_rate_treasure, item_rate_adddrop;
+	item_rate_use_boss, item_rate_treasure, item_rate_adddrop, item_rate_add_chain;
 
 	int logarithmic_drops;
 	int item_drop_common_min,item_drop_common_max; // Added by TyrNemesis^
@@ -317,6 +317,7 @@ struct Battle_Config {
 	int item_drop_use_min,item_drop_use_max; //End
 	int item_drop_treasure_min,item_drop_treasure_max; //by [Skotlex]
 	int item_drop_adddrop_min,item_drop_adddrop_max; //[Skotlex]
+	int item_drop_add_chain_min,item_drop_add_chain_max;
 
 	int prevent_logout; // Added by RoVeRT
 
@@ -477,8 +478,6 @@ struct Battle_Config {
 	int mail_show_status;
 	int client_limit_unit_lv;
 	int client_emblem_max_blank_percent;
-	int hom_max_level;
-	int hom_S_max_level;
 	int hom_bonus_exp_from_master;
 
 	// [BattleGround Settings]
@@ -630,9 +629,12 @@ struct Battle_Config {
 	int merc_natural_heal_hp;
 	int merc_natural_heal_sp;
 	int merc_natural_heal_cap;
+
+	int macro_detect_retry;
+	int macro_detect_timeout;
 };
 
-/* criteria for battle_config.idletime_critera */
+/* criteria for battle_config.idletime_criteria */
 enum e_battle_config_idletime {
 	BCIDLE_WALK          = 0x001,
 	BCIDLE_USESKILLTOID  = 0x002,
@@ -668,7 +670,7 @@ struct delay_damage {
 struct battle_interface {
 	/* */
 	struct Battle_Config *bc;
-	/* */
+	/* elemental damage rate. [Defending Element Level][Attacking Element][Defending Element] */
 	int attr_fix_table[4][ELE_MAX][ELE_MAX];
 	struct eri *delay_damage_ers; //For battle delay damage structures.
 	/* init */
