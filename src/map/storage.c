@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2021 Hercules Dev Team
+ * Copyright (C) 2012-2022 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -297,7 +297,7 @@ static int storage_add_from_inventory(struct map_session_data *sd, int index, in
 	if (storage->additem(sd, &sd->status.inventory[index], amount) == 0)
 		pc->delitem(sd, index, amount, 0, DELITEM_TOSTORAGE, LOG_TYPE_STORAGE);
 	else
-		clif->item_movefailed(sd, index);
+		clif->item_movefailed(sd, index, amount);
 
 	return 1;
 }
@@ -683,7 +683,7 @@ static int storage_guild_storageadd(struct map_session_data *sd, int index, int 
 	if (gstorage->additem(sd, stor, &sd->status.inventory[index], amount) == 0)
 		pc->delitem(sd, index, amount, 0, DELITEM_TOSTORAGE, LOG_TYPE_GSTORAGE);
 	else
-		clif->item_movefailed(sd, index);
+		clif->item_movefailed(sd, index, amount);
 
 	return 1;
 }

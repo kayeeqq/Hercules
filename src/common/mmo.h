@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2021 Hercules Dev Team
+ * Copyright (C) 2012-2022 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -409,6 +409,10 @@ STATIC_ASSERT(MAX_ITEM_OPTIONS <= 5, "This value is limited by the client and da
 #define RODEX_MAIL_PER_PAGE 7
 #endif
 
+#ifndef MAX_GRADE_MATERIALS
+#define MAX_GRADE_MATERIALS 3
+#endif
+
 // The following system marks a different job ID system used by the map server,
 // which makes a lot more sense than the normal one. [Skotlex]
 // These marks the "level" of the job.
@@ -483,6 +487,7 @@ struct item {
 	unsigned int equip; // Location(s) where item is equipped (using enum equip_pos for bitmasking).
 	char identify;
 	char refine;
+	char grade;
 	char attribute;
 	int card[MAX_SLOTS];
 	unsigned int expire_time;
@@ -784,6 +789,14 @@ struct mmo_charstatus {
 	int body;
 	int party_id,guild_id,clan_id,pet_id,hom_id,mer_id,ele_id;
 	int fame;
+
+	// 4th job basic stats. client using only char but here we save as int [4144]
+	int pow;
+	int sta;
+	int wis;
+	int spl;
+	int con;
+	int crt;
 
 	// Mercenary Guilds Rank
 	int arch_faith, arch_calls;

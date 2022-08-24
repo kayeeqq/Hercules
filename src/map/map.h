@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2021 Hercules Dev Team
+ * Copyright (C) 2012-2022 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -437,6 +437,16 @@ enum elements {
 	ELE_UNDEAD,
 	ELE_MAX,
 	ELE_ALL = 0xFF
+};
+
+/**
+ * Types of Ball Types
+ * Used by clif_spiritball [KeiKun]
+ */
+enum spirit_ball_types {
+	BALL_TYPE_NONE = 0,
+	BALL_TYPE_SPIRIT,
+	BALL_TYPE_SOUL
 };
 
 /**
@@ -910,6 +920,18 @@ enum map_zone_merge_type {
 	MZMT_NEVERMERGE, ///< Cannot merge with any zones.
 };
 
+/**
+ * align for packet ZC_SAY_DIALOG_ALIGN
+ **/
+enum say_dialog_align {
+	DIALOG_ALIGN_LEFT   = 0,
+	DIALOG_ALIGN_RIGHT  = 1,
+	DIALOG_ALIGN_CENTER = 2,
+	DIALOG_ALIGN_TOP    = 3,
+	DIALOG_ALIGN_MIDDLE = 4,
+	DIALOG_ALIGN_BOTTOM = 5
+};
+
 struct map_zone_data {
 	char name[MAP_ZONE_NAME_LENGTH];/* 20'd */
 	enum map_zone_merge_type merge_type;
@@ -935,6 +957,11 @@ struct map_drop_list {
 	int drop_type;
 	int drop_per;
 };
+
+/**
+ * Map ID (m) for "none" or unallocated map.
+ */
+#define MAPID_NONE -1
 
 struct map_data {
 	char name[MAP_NAME_LENGTH];
@@ -1500,6 +1527,12 @@ END_ZEROED_BLOCK;
 	int (*readgat) (struct map_data *m);
 	int (*readallmaps) (void);
 	bool (*config_read) (const char *filename, bool imported);
+	bool (*config_read_console) (const char *filename, struct config_t *config, bool imported);
+	bool (*config_read_connection) (const char *filename, struct config_t *config, bool imported);
+	bool (*config_read_inter) (const char *filename, struct config_t *config, bool imported);
+	bool (*config_read_database) (const char *filename, struct config_t *config, bool imported);
+	bool (*config_read_map_list) (const char *filename, struct config_t *config, bool imported);
+
 	bool (*read_npclist) (const char *filename, bool imported);
 	bool (*inter_config_read) (const char *filename, bool imported);
 	bool (*inter_config_read_database_names) (const char *filename, const struct config_t *config, bool imported);
@@ -1526,6 +1559,7 @@ END_ZEROED_BLOCK;
 
 #ifdef HERCULES_CORE
 void map_defaults(void);
+void mapit_defaults(void);
 #endif // HERCULES_CORE
 
 HPShared struct mapit_interface *mapit;

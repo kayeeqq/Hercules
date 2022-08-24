@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2021 Hercules Dev Team
+ * Copyright (C) 2012-2022 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -475,6 +475,7 @@ enum script_iteminfo_types {
 	ITEMINFO_CLASS_UPPER,
 	// ITEMINFO_FLAG_AVAILABLE,
 	ITEMINFO_FLAG_NO_REFINE,
+	ITEMINFO_FLAG_NO_GRADE,
 	ITEMINFO_FLAG_DELAY_CONSUME,
 	ITEMINFO_FLAG_AUTOEQUIP,
 	ITEMINFO_FLAG_AUTO_FAVORITE,
@@ -581,6 +582,20 @@ enum itemskill_flag {
 	ISF_CHECKCONDITIONS = 0x01, // Check skill conditions and consume them.
 	ISF_INSTANTCAST = 0x02, // Cast skill instantaneously.
 	ISF_CASTONSELF = 0x04, // Forcefully cast skill on invoking character without showing the target selection cursor.
+};
+
+/**
+ * Homunculus Info types.
+ */
+enum script_hominfo_types {
+	HOMINFO_ID = 0,
+	HOMINFO_CLASS,
+	HOMINFO_NAME,
+	HOMINFO_INTIMACY,
+	HOMINFO_HUNGRY,
+	HOMINFO_RENAME,
+	HOMINFO_LEVEL,
+	HOMINFO_MAX
 };
 
 /**
@@ -878,7 +893,13 @@ struct script_interface {
 	const char *parser_current_npc_name;
 	/* */
 	int buildin_mes_offset;
+	int buildin_mes2_offset;
+	int buildin_zmes1_offset;
+	int buildin_zmes2_offset;
 	int buildin_mesf_offset;
+	int buildin_mes2f_offset;
+	int buildin_zmes1f_offset;
+	int buildin_zmes2f_offset;
 	int buildin_select_offset;
 	int buildin_lang_macro_offset;
 	int buildin_lang_macro_fmtstring_offset;

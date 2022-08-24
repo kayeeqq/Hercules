@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2021 Hercules Dev Team
+ * Copyright (C) 2012-2022 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -1774,6 +1774,8 @@ static int battle_calc_skillratio(int attack_type, struct block_list *src, struc
 					skillratio += 100 + 100 * skill_lv;
 					if ((status_get_max_hp(target) / 100) <= 50)
 						skillratio *= 2;
+					if (sd != NULL && pc->checkskill(sd, SU_SPIRITOFLIFE) > 0)
+						skillratio += skillratio * status_get_hp(src) / status_get_max_hp(src);
 					break;
 				case SU_LUNATICCARROTBEAT:
 					skillratio += 100 + 100 * skill_lv;
@@ -7850,6 +7852,12 @@ static const struct battle_data {
 	{ "merc_natural_heal_cap",              &battle_config.merc_natural_heal_cap,          1000,    1,      INT_MAX,        },
 	{ "macro_detect_retry",                 &battle_config.macro_detect_retry,                1,    1,      INT_MAX,        },
 	{ "macro_detect_timeout",               &battle_config.macro_detect_timeout,              0,    0,      INT_MAX,        },
+	{ "roulette_gold_step",                 &battle_config.roulette_gold_step,               10,   1,      INT_MAX,        },
+	{ "roulette_silver_step",               &battle_config.roulette_silver_step,             10,   1,      INT_MAX,        },
+	{ "roulette_bronze_step",               &battle_config.roulette_bronze_step,             1,    1,      INT_MAX,        },
+	{ "features/grader_max_used",           &battle_config.grader_max_used,                   0,    0,      MAX_ITEM_GRADE, },
+	{ "dynamic_npc_timeout",                &battle_config.dynamic_npc_timeout,               0,    0,      INT_MAX,        },
+	{ "dynamic_npc_range",                  &battle_config.dynamic_npc_range,                 0,    0,      INT_MAX,        },
 };
 
 static bool battle_set_value_sub(int index, int value)

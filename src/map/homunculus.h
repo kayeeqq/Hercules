@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2021 Hercules Dev Team
+ * Copyright (C) 2012-2022 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -212,7 +212,7 @@ struct homunculus_interface {
 	void (*delspiritball) (struct homun_data *hd, int count, int type);
 	int8 (*get_intimacy_grade) (struct homun_data *hd);
 	int (*get_max_level) (struct homun_data *hd);
-	uint64 (*get_exp) (struct homun_data *hd, int idx);
+	uint64 (*get_exp_next) (struct homun_data *hd);
 };
 
 #ifdef HERCULES_CORE

@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2021 Hercules Dev Team
+ * Copyright (C) 2012-2022 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -81,7 +81,7 @@ static time_t start_time;
 static struct timer_func_list {
 	struct timer_func_list* next;
 	TimerFunc func;
-	char* name;
+	const char* name;
 } *tfl_root = NULL;
 
 /// Sets the name of a timer function.

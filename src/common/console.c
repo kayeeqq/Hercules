@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2021 Hercules Dev Team
+ * Copyright (C) 2012-2022 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -89,7 +89,7 @@ static void display_title(void)
 	ShowInfo("%s revision (scripts): '"CL_WHITE"%s"CL_RESET"'\n", vcstype, sysinfo->vcsrevision_scripts());
 	ShowInfo("OS version: '"CL_WHITE"%s"CL_RESET" [%s]'\n", sysinfo->osversion(), sysinfo->arch());
 	ShowInfo("CPU: '"CL_WHITE"%s [%d]"CL_RESET"'\n", sysinfo->cpu(), sysinfo->cpucores());
-	ShowInfo("Compiled with %s\n", sysinfo->compiler());
+	ShowInfo("Compiled with %s, zlib: %s\n", sysinfo->compiler(), sysinfo->zlib());
 	ShowInfo("Compile Flags: %s\n", sysinfo->cflags());
 	ShowInfo("Feature Flags: 0x%x\n", sysinfo->fflags());
 	ShowInfo("Timer Function Type: %s\n", sysinfo->time());

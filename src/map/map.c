@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2021 Hercules Dev Team
+ * Copyright (C) 2012-2022 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -34,6 +34,7 @@
 #include "map/clif.h"
 #include "map/duel.h"
 #include "map/elemental.h"
+#include "map/grader.h"
 #include "map/guild.h"
 #include "map/homunculus.h"
 #include "map/instance.h"
@@ -490,7 +491,7 @@ static int map_count_oncell(int16 m, int16 x, int16 y, int type, int flag)
 						continue;
 					if (bl->type == BL_NPC) {
 						const struct npc_data *nd = BL_UCCAST(BL_NPC, bl);
-						if (nd->class_ == FAKE_NPC || nd->class_ == HIDDEN_WARP_CLASS)
+						if (nd->class_ == FAKE_NPC || nd->class_ == HIDDEN_WARP_CLASS || nd->dyn.isdynamic)
 							continue;
 					}
 				}
@@ -4400,15 +4401,15 @@ static bool map_config_read(const char *filename, bool imported)
 	libconfig->setting_lookup_bool(setting, "use_grf", &map->enable_grf);
 	libconfig->setting_lookup_mutable_string(setting, "default_language", map->default_lang_str, sizeof(map->default_lang_str));
 
-	if (!map_config_read_console(filename, &config, imported))
+	if (!map->config_read_console(filename, &config, imported))
 		retval = false;
-	if (!map_config_read_connection(filename, &config, imported))
+	if (!map->config_read_connection(filename, &config, imported))
 		retval = false;
-	if (!map_config_read_inter(filename, &config, imported))
+	if (!map->config_read_inter(filename, &config, imported))
 		retval = false;
-	if (!map_config_read_database(filename, &config, imported))
+	if (!map->config_read_database(filename, &config, imported))
 		retval = false;
-	if (!map_config_read_map_list(filename, &config, imported))
+	if (!map->config_read_map_list(filename, &config, imported))
 		retval = false;
 
 	// import should overwrite any previous configuration, so it should be called last
@@ -6496,6 +6497,7 @@ int do_final(void)
 	skill->final();
 	status->final();
 	refine->final();
+	grader->final();
 	unit->final();
 	bg->final();
 	duel->final();
@@ -6677,6 +6679,7 @@ static void map_load_defaults(void)
 {
 	mapindex_defaults();
 	map_defaults();
+	mapit_defaults();
 	/* */
 	atcommand_defaults();
 	battle_defaults();
@@ -6722,6 +6725,7 @@ static void map_load_defaults(void)
 	rodex_defaults();
 	stylist_defaults();
 	refine_defaults();
+	grader_defaults();
 }
 /**
  * --run-once handler
@@ -7029,6 +7033,7 @@ int do_init(int argc, char *argv[])
 	mob->init(minimal);
 	pc->init(minimal);
 	refine->init(minimal);
+	grader->init(minimal);
 	status->init(minimal);
 	party->init(minimal);
 	guild->init(minimal);
@@ -7352,6 +7357,13 @@ PRAGMA_GCC9(GCC diagnostic pop)
 	map->readgat = map_readgat;
 	map->readallmaps = map_readallmaps;
 	map->config_read = map_config_read;
+
+	map->config_read_console = map_config_read_console;
+	map->config_read_connection = map_config_read_connection;
+	map->config_read_inter = map_config_read_inter;
+	map->config_read_database = map_config_read_database;
+	map->config_read_map_list = map_config_read_map_list;
+
 	map->read_npclist = map_read_npclist;
 	map->inter_config_read = inter_config_read;
 	map->inter_config_read_database_names = inter_config_read_database_names;
@@ -7378,7 +7390,10 @@ PRAGMA_GCC9(GCC diagnostic pop)
 	map->zone_clear_single = map_zone_clear_single;
 
 	map->lock_check = map_lock_check;
+}
 
+void mapit_defaults(void)
+{
 	/**
 	 * mapit interface
 	 **/

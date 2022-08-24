@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2021 Hercules Dev Team
+ * Copyright (C) 2012-2022 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -74,6 +74,10 @@ struct hplugin_data_store;
 #endif
 #if MAX_ITEM_ID > 0xFFFF && PACKETVER_MAIN_NUM < 20181121 && PACKETVER_RE_NUM < 20180704 && PACKETVER_ZERO_NUM < 20181114
 #error "For clients before 20181121 Main and 20180704 RE and 20181114 zero, MAX_ITEM_ID must be smaller than 0x10000"
+#endif
+
+#ifndef MAX_ITEM_GRADE
+#define MAX_ITEM_GRADE 7
 #endif
 
 enum item_itemid {
@@ -556,6 +560,7 @@ struct item_data {
 	struct {
 		unsigned available : 1;
 		unsigned no_refine : 1; // [celest]
+		unsigned no_grade : 1;
 		unsigned delay_consume : 1;     ///< Signifies items that are not consumed immediately upon double-click [Skotlex]
 		unsigned trade_restriction : 9; ///< Item trade restrictions mask (@see enum ItemTradeRestrictions)
 		unsigned autoequip : 1;

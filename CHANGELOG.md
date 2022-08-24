@@ -22,6 +22,342 @@ If you are reading this in a text editor, simply ignore this section
 ### Removed
 -->
 
+## [v2022.06.01] `June 01 2022`
+
+### Added
+
+- Added support for newer packetvers/encryption keys/client messages (up to 20220518). (#3142)
+- Added the `mes2()`, `mes2f()`, `next2()` script commands and related packets. (part of #3142)
+  - This family of commands is only supported by main clients starting from 20220504, client implementation may be incomplete.
+  - The commands work similarly to their respective counterparts without `2`, but will display the window with the NPC messages on the bottom of the screen.
+- Added the `setdialogsize()`, `setdialogpos()`, `setdialogpospercent()` script commands, allowing control over the NPC dialog size and position (supported by main clients starting from 20220504). Example scripts are provided in the `custom` folder. (part of #3142)
+- Added the `playbgmall2()` script command as an extended version of `playbgmall()` providing looping control (supported by main clients starting from 20220504). (part of #3142)
+- Added the `soundeffectall2()` script command as an extended version of `soundeffectall()` providing more precise looping control (supported by main clients starting from 20220504). (part of #3142)
+- Added the `PLAY_SOUND_*` constants to be used for the `type` parameter of `soundeffect()` and `soundeffectall()`. (part of #3142)
+- Added `pc->bonus_addele()` and `pc->bonus_subele()` to the `pc` interface. (#3139)
+- Added `enum instance_window_info_type` to specify the instance destruction reason. (part of #3141)
+- Added the `GETHOMINFO_*` constants to be used for the `type` parameter of `gethominfo()`. (#3137, issue #3133)
+- Implemented Dynamic NPCs, allowing a script to summon an NPC, only visible to a certain player and automatically despawn it after a certain time.
+  - See the `dynamicnpc()` script command as well as the `dynamic_npc_timeout` and `dynamic_npc_range` settings in `conf/map/battle/misc.conf` for details.
+  - Example script is provided in the `doc/sample` folder.
+
+### Changed
+
+- Refactored `clif_soulball()` and `clif_spiritball()` into a single function. (#3128)
+- Updated handling of various packets (`PACKET_ZC_SPIRITS`, `ZC_SAY_DIALOG`, `ZC_WAIT_DIALOG`, `ZC_PLAY_NPC_BGM`, `CZ_MOVE_ITEM_FROM_BODY_TO_CART`, `ZC_SOUND`, `ZC_BROADCASTING_SPECIAL_ITEM_OBTAIN_item`, `ZC_BUYING_STORE_ENTRY`, `ZC_STORE_ENTRY`, `CZ_PC_PURCHASE_ITEMLIST_FROMMC`, `CZ_PC_PURCHASE_ITEMLIST_FROMMC2`, `ZC_DISAPPEAR_BUYING_STORE_ENTRY`) to use the struct format. (#3128, #3131, #3142)
+- Reimplemented the "HWSAPI" build bot functionality (automatic HPM hooks updates, SQL item/mob/mobskill database generation, constants documentation generation) as a GitHub Actions workflow, migrating away from a legacy self-hosted homebrewed buildbot. (#3144)
+- Updated CodeQL GitHub Action to v2. (part of #3144)
+- Extended the `playbgm()` command with a new `type` parameter providing looping control (supported by main clients starting from 20220504). Example scripts are provided in the `npc/custom` folder. (part of #3142)
+- Extended the `soundeffect()` command with a new `term` parameter providing more precise looping control (supported by main clients starting from 20220504). Example scripts are provided in the `npc/custom` folder. (part of #3142)
+- Updated packetver in the CI builds to the most recent one. (part of #3142)
+- Updated libbacktrace. (part of #3142)
+- Replaced clang-13 with clang-15 in the GitHub Actions CI builds. (part of #3142)
+- Suppressed some warnings in libconfig when compiling with clang-15. (part of #3142)
+- Renamed the `CZ_SEE_GUILD_MEMBERS` packet into its official name `CZ_APPROXIMATE_ACTOR`. (part of #3142)
+- Updated `clif->package_announce()` (and the `ZC_BROADCASTING_SPECIAL_ITEM_OBTAIN_item` packet) to include the item refine level when supported by the client. (part of #3142)
+- Improved type safety of `vending->purchase()`. (part of #3131)
+
+### Fixed
+
+- Fixed an issue where the item is changed/deleted before the status update is sent to the grade enchant UI, resulting in wrong or missing information. (#3140)
+- Fixed a missing include preventing compilation or loading of HPM plugins. (#3129)
+- Fixed mercenaries showing with the "Unknown" name when idling, spawning or walking. (#3143)
+- Fixed `clif->item_movefailed()` (and the `ZC_MOVE_ITEM_FAILED` packet) to send the correct item amount. (part of #3142)
+- Fixed `soundeffect()` and `soundeffectall()`'s `PLAY_SOUND_REPEAT` mode not working as intended. (part of #3142)
+- Changed many scripts that were incorrectly using the `PLAY_SOUND_REPEAT` mode of `soundeffect()` to `PLAY_SOUND_ONCE`, as their behavior was equivalent before. (part of #3142)
+- Fixed a missing linebreak in the nullpo callback console error message. (part of #3142)
+- Fixed some issues around instance destruction, causing visual glitches and assertion failures. (#3141)
+  - When characters were moved out of an instance at its expiration, they were receiving information that the instance went idle rather than destroyed.
+  - When a character had a Player type instance attached, it would still receive instance info on login even after the instance was destroyed.
+  - When reloading scripts after playing an instance, an assertion was failing.
+  - When shutting down the server after playing an instance, an assertion was failing.
+  - In some cases, the wrong reason code was provided on instance destruction.
+
+## [v2022.04.07] `April 07 2022`
+
+### Added
+
+- Added support for newer packetvers/encryption keys/client messages (up to 20220316). (#3123)
+- Added support for `REMOVE_MOUNT_WUG` in `PACKET_CZ_UNINSTALLATION`. (part of #3123)
+- Added the `openbank()` script command to open the Bank UI on packetver 20150128 and newer. (part of #3123)
+- Added support for the `Item` skill type to the skill database. (part of #3123)
+- Fixed `clif->wis_message()` for packetvers starting from 20131204. (part of #3123)
+- Fixed `clif->equipitemack()` for some 2010 and 2012 packetvers. (part of #3123)
+
+### Changed
+
+- Split the intif, inter and chrif packet lengths to separate files, removing the hand-written packet length arrays. (#3122)
+- Moved the packet related macros from `packetsstatic_len.h` to a dedicated header, `packetsmacro.h`. (part of #3122)
+- Updated handling of various packets (`CZ_CONTACTNPC`, `ZC_ATTACK_FAILURE_FOR_DISTANCE`, `ZC_START_CAPTURE`, `ZC_TRYCAPTURE_MONSTER`, `ZC_PROPERTY_PET`, `ZC_CHANGESTATE_PET`) to use the struct format. (#3126 and part of #2123)
+- Updated/added some packet and enum values. (part of #1234)
+  - Renamed:
+    - Many client message IDs were renamed in commit (too many to list them here, see commit 37771a82da).
+    - `ZC_USESKILL_ACK::unknown` -> `ZC_USESKILL_ACK::attackMT`
+    - `PACKET_CZ_UNINSTALLATION::packetType` -> `PACKET_CZ_UNINSTALLATION::PacketType`
+    - `PACKET_CZ_UNINSTALLATION::action` -> `PACKET_CZ_UNINSTALLATION::InstallationKind`
+    - `REMOVE_MOUNT_2` -> `REMOVE_MOUNT_WUG`
+    - `PACKET_ZC_WHISPER::name` -> `PACKET_ZC_WHISPER::sender`
+  - Added:
+    - Missing values in `enum useskill_fail_cause`
+    - Missing values in `enum map_type`
+    - `CZ_CONFIG_STORE_ASSISTANT_FEE` in `enum CZ_CONFIG`
+    - `CZ_BANK_UI` and `CZ_ZENY_LOTTO_UI` in `enum cz_ui_types`
+    - Missing values in `enum delitem_reason`
+    - `INF_ITEM_SKILL` and `INF_UNKNOWN` in `enum e_skill_inf`
+    - `OPT1_NONE` and `OPT2_NORMAL` as empty values for `enum e_opt1` and `enum e_opt2` respectively
+    - `INVTYPE_WORLD_STORAGE` in `enum inventory_type`
+    - `OPT3_ELEMENTAL_VEIL` in `enum e_opt3`
+    - Missing values in `enum emotion_type`
+    - `ACT_ATTACK_MULTIPLE_CRITICAL` and `ACT_SPLASH_NOMOTION` in `enum action_type`
+- Updated main Readme file. Replaced TravisCI build badge with GitHub Actions badge and added Discord invitation link. (#3124)
+
+### Fixed
+
+- Fixed the sample plugin failing to compile in Visual Studio. (part of #3123)
+- Added the SQL script checks to the GitHub actions CI (restored functionality previously present in TravisCI). Updated the SQL analyzer tool and switched to open composer. (part of #3123)
+
+## [v2022.03.02] `March 02 2022`
+
+### Added
+
+- Added support for custom compiler flags in each plugin individually, specified within the .c file and tagged with `#PLUGINFLAGS`. See the example in the sample plugin for more details. (#3110)
+- Added support for newer packetvers/encryption keys/client messages (up to 20220216). (#3112)
+  - Added packet `CZ_SEE_GUILD_MEMBERS`
+- Extended the itemdb2sql generator to include the `gradeable`, `keepafteruse`, `dropannounce`, `showdropeffect`, `dropeffectmode`, `ignorediscount`, `ignoreovercharge`, `rental_start_script`, `rental_end_script` columns (#3117)
+- Added GitHub CI builds with some old gcc and clang versions. (part of #3118)
+- Added support for loading maps with RSW format 2.6. (#3119)
+- Added several new maps to the index and mapcache. (part of #3119)
+- Added new NPC sprite and hat effect IDs to the constants database. (part of #3119)
+- Added `common/packet_struct.h` for inter-server packet definitions. (#3120)
+
+### Changed
+
+- Added a missing nullpo check in clif.c. (#3114)
+- Fixed some packet header and field names and added the struct definition for some missing ones. (#3107 and #3112)
+  - Symbol renames cheatsheet:
+    - `ZC_PAR_CHANGE1` -> `ZC_PAR_CHANGE`
+    - `ZC_LONGPAR_CHANGE` -> `ZC_LONGLONGPAR_CHANGE`
+    - `packet_npc_market_purchase` -> `PACKET_CZ_NPC_MARKET_PURCHASE`
+    - `ZC_OPEN_UI` -> `ZC_UI_OPEN`
+    - `clif->zc_say_dialog_zero1()` -> `clif->zc_quest_dialog()`
+    - `clif->zc_say_dialog_zero2()` -> `clif->zc_monolog_dialog()`
+    - `clif->zc_menu_list_zero()` -> `clif->zc_quest_dialog_menu_list()`
+    - `ZC_ACK_REQNAME_TITLE` -> `ZC_ACK_REQNAMEALL_NPC`
+    - `ZC_CAMERA_INFO` -> `ZC_VIEW_CAMERAINFO`
+    - `ZC_ITEM_PREVIEW` -> `ZC_CHANGE_ITEM_OPTION`
+    - `ZC_ENCHANT_EQUIPMENT` -> `ZC_UPDATE_CARDSLOT`
+    - `ZC_SERVICE_MESSAGE_COLOR` -> `ZC_DEBUGMSG`
+    - `CZ_START_USE_SKILL` -> `CZ_USE_SKILL_START`
+    - `CZ_STOP_USE_SKILL` -> `CZ_USE_SKILL_END`
+    - `ZC_INVENTORY_EXPANSION_INFO` -> `ZC_EXTEND_BODYITEM_SIZE`
+    - `ZC_ACK_INVENTORY_EXPAND` -> `ZC_ACK_OPEN_MSGBOX_EXTEND_BODYITEM_SIZE`
+    - `ZC_ACK_INVENTORY_EXPAND_RESULT` -> `ZC_ACK_EXTEND_BODYITEM_SIZE`
+    - `CZ_INVENTORY_EXPAND` -> `CZ_REQ_OPEN_MSGBOX_EXTEND_BODYITEM_SIZE`
+    - `CZ_INVENTORY_EXPAND_CONFIRMED` -> `CZ_REQ_EXTEND_BODYITEM_SIZE`
+    - `CZ_INVENTORY_EXPAND_REJECTED` -> `CZ_CLOSE_MSGBOX_EXTEND_BODYITEM_SIZE`
+    - `ZC_NPC_BARTER_OPEN` -> `ZC_NPC_BARTER_MARKET_ITEMINFO`
+    - `CZ_NPC_BARTER_CLOSE` -> `CZ_NPC_BARTER_MARKET_CLOSE`
+    - `CZ_NPC_BARTER_PURCHASE` -> `CZ_NPC_BARTER_MARKET_PURCHASE`
+    - `CZ_PING` -> `CZ_PING_LIVE`
+    - `CZ_COOLDOWN_RESET` -> `CZ_CMD_RESETCOOLTIME`
+    - `CZ_STYLE_CLOSE` -> `CZ_CLOSE_UI_STYLINGSHOP`
+    - `ZC_LOAD_CONFIRM` -> `ZC_NOTIFY_ACTORINIT`
+    - `ZC_REFINE_OPEN_WINDOW` -> `ZC_OPEN_REFINING_UI`
+    - `CZ_REFINE_ADD_ITEM` -> `CZ_REFINING_SELECT_ITEM`
+    - `ZC_REFINE_ADD_ITEM` -> `ZC_REFINING_MATERIAL_LIST`
+    - `CZ_REFINE_ITEM_REQUEST` -> `CZ_REQ_REFINING`
+    - `CZ_REFINE_WINDOW_CLOSE` -> `CZ_CLOSE_REFINING_UI`
+    - `ZC_REFINE_STATUS` -> `ZC_BROADCAST_ITEMREFINING_RESULT`
+    - `ZC_HAT_EFFECT` -> `ZC_EQUIPMENT_EFFECT`
+    - `ZC_GUILD_CASTLE_LIST` -> `ZC_GUILD_AGIT_INFO`
+    - `CZ_CASTLE_TELEPORT_REQUEST` -> `CZ_REQ_MOVE_GUILD_AGIT`
+    - `ZC_CASTLE_TELEPORT_RESPONSE` -> `ZC_REQ_ACK_MOVE_GUILD_AGIT`
+    - `ZC_CASTLE_INFO` -> `ZC_REQ_ACK_AGIT_INVESTMENT`
+    - `CZ_CASTLE_INFO_REQUEST` -> `CZ_REQ_AGIT_INVESTMENT`
+    - `ZC_LAPINEDDUKDDAK_OPEN` -> `ZC_RANDOM_COMBINE_ITEM_UI_OPEN`
+    - `CZ_LAPINEDDUKDDAK_CLOSE` -> `CZ_RANDOM_COMBINE_ITEM_UI_CLOSE`
+    - `CZ_LAPINEDDUKDDAK_ACK` -> `CZ_REQ_RANDOM_COMBINE_ITEM`
+    - `ZC_LAPINEDDUKDDAK_RESULT` -> `ZC_ACK_RANDOM_COMBINE_ITEM`
+    - `CZ_REQ_MOUNTOFF` -> `CZ_UNINSTALLATION`
+    - `CZ_SE_CASHSHOP_LIMITED_REQ` -> `CZ_GET_ACCOUNT_LIMTIED_SALE_LIST`
+    - `CZ_NPC_EXPANDED_BARTER_CLOSE` -> `CZ_NPC_EXPANDED_BARTER_MARKET_CLOSE`
+    - `ZC_NPC_EXPANDED_BARTER_OPEN` -> `ZC_NPC_EXPANDED_BARTER_MARKET_ITEMINFO`
+    - `CZ_NPC_EXPANDED_BARTER_PURCHASE` -> `CZ_NPC_EXPANDED_BARTER_MARKET_PURCHASE`
+    - `ZC_LAPINEUPGRADE_OPEN` -> `ZC_RANDOM_UPGRADE_ITEM_UI_OPEN`
+    - `ZC_LAPINEUPGRADE_RESULT` -> `ZC_ACK_RANDOM_UPGRADE_ITEM`
+    - `CZ_LAPINEUPGRADE_CLOSE` -> `CZ_RANDOM_UPGRADE_ITEM_UI_CLOSE`
+    - `CZ_LAPINEUPGRADE_MAKE_ITEM` -> `CZ_REQ_RANDOM_UPGRADE_ITEM`
+    - `CZ_CAPTCHA_REGISTER` -> `CZ_REQ_UPLOAD_MACRO_DETECTOR`
+    - `ZC_CAPTCHA_UPLOAD_REQUEST` -> `ZC_ACK_UPLOAD_MACRO_DETECTOR`
+    - `CZ_CAPTCHA_UPLOAD_REQUEST_ACK` -> `CZ_UPLOAD_MACRO_DETECTOR_CAPTCHA`
+    - `ZC_CAPTCHA_UPLOAD_REQUEST_STATUS` -> `ZC_COMPLETE_UPLOAD_MACRO_DETECTOR_CAPTCHA`
+    - `CZ_MACRO_REPORTER_ACK` -> `CZ_REQ_APPLY_MACRO_DETECTOR`
+    - `ZC_MACRO_REPORTER_STATUS` -> `ZC_ACK_APPLY_MACRO_DETECTOR`
+    - `ZC_MACRO_DETECTOR_REQUEST` -> `ZC_APPLY_MACRO_DETECTOR`
+    - `ZC_MACRO_DETECTOR_REQUEST_DOWNLOAD` -> `ZC_APPLY_MACRO_DETECTOR_CAPTCHA`
+    - `CZ_MACRO_DETECTOR_DOWNLOAD` -> `CZ_COMPLETE_APPLY_MACRO_DETECTOR_CAPTCHA`
+    - `ZC_MACRO_DETECTOR_SHOW` -> `ZC_REQ_ANSWER_MACRO_DETECTOR`
+    - `CZ_MACRO_DETECTOR_ANSWER` -> `CZ_ACK_ANSWER_MACRO_DETECTOR`
+    - `ZC_MACRO_DETECTOR_STATUS` -> `ZC_CLOSE_MACRO_DETECTOR`
+    - `CZ_CAPTCHA_PREVIEW_REQUEST` -> `CZ_REQ_PREVIEW_MACRO_DETECTOR`
+    - `ZC_CAPTCHA_PREVIEW_REQUEST` -> `ZC_ACK_PREVIEW_MACRO_DETECTOR`
+    - `ZC_CAPTCHA_PREVIEW_REQUEST_DOWNLOAD` -> `ZC_PREVIEW_MACRO_DETECTOR_CAPTCHA`
+    - `CZ_MACRO_REPORTER_SELECT` -> `CZ_REQ_PLAYER_AID_IN_RANGE`
+    - `ZC_MACRO_REPORTER_SELECT` -> `ZC_ACK_PLAYER_AID_IN_RANGE`
+    - `ZC_PARTY_MEMBER_JOB_LEVEL` -> `ZC_NOTIFY_MEMBERINFO_TO_GROUPM`
+    - `ZC_TAKEOFF_EQUIP_ALL_ACK` -> `ZC_ACK_TAKEOFF_EQUIP_ALL`
+    - `ZC_SAY_DIALOG_ZERO1` -> `ZC_QUEST_DIALOG`
+    - `ZC_SAY_DIALOG_ZERO2` -> `ZC_MONOLOG_DIALOG`
+    - `ZC_MENU_LIST_ZERO` -> `ZC_QUEST_DIALOG_MENU_LIST`
+    - `ZC_SAY_DIALOG_ALIGN` -> `ZC_DIALOG_TEXT_ALIGN`
+    - `CZ_GRADE_ENCHANT_ADD_ITEM` -> `CZ_GRADE_ENCHANT_SELECT_EQUIPMENT`
+    - `ZC_GRADE_ENCHANT_ADD_ITEM_RESULT` -> `ZC_GRADE_ENCHANT_MATERIAL_LIST`
+    - `CZ_GRADE_ENCHANT_START` -> `CZ_GRADE_ENCHANT_REQUEST`
+    - `CZ_GRADE_ENCHANT_CLOSE` -> `CZ_GRADE_ENCHANT_CLOSE_UI`
+    - `ZC_GRADE_ENCHANT_RESULT` -> `ZC_GRADE_ENCHANT_ACK`
+    - `ZC_GRADE_STATUS` -> `ZC_GRADE_ENCHANT_BROADCAST_RESULT`
+- Updated handling of various packets (`ZC_PC_PURCHASE_ITEMLIST_FROMMC`, `ZC_SHOW_IMAGE`, `PACKET_ZC_WHISPER`, `ZC_UPDATE_GDID`) to use the struct format. (part of #3112)
+- Improved support of the `ZC_SE_CASHSHOP_OPEN` for clients between 2014 and 2022. (part of #3112)
+- Improved handling of customized `MAX_MVP_DROP` and `MAX_MOB_DROP` values in the modbb2sql generator. (part of #3117)
+- Split the mapinit interface setup into a separate `mapit_defaults()` function. (part of #3118)
+- Renamed struct `irc_bot_interface` into `ircbot_interface` (part of #3118)
+- Improved the interface validation script to better detect errors and missing interface methods. (#3118)
+- Updated the inter-server packet `INTER_CREATE_PET` to use the struct format. (part of #3120)
+
+### Fixed
+
+- Updated the address sanitizer library version for gcc-snapshot ci builds. (#3113)
+- Fixed the item grade information lost from mail attachments when using the old mail system. (#3116)
+- Fixed an uninitialized send buffer in `PACKET_ZC_ADD_EXCHANGE_ITEM` causing memory garbage to be sent to the client. (part of #3116)
+- Limited the maximum string length in the script command `gettimestr()` to 1023 characters, preventing a rogue script from allocating gigabytes of memory with a single command. (part of #3116)
+- Fixed some missing methods from interfaces or direct calls that bypassed the interfaces. (part of #3118)
+- Fixed possible buffer overflows in clif.c and pc.c (part of #3118)
+- Fixed some visual options (such as `SC_BLIND`) not getting re-sent to the client after using `@refresh`. (#3121, issue #2706)
+
+## [v2022.01.05+2] `January 05 2022` `PATCH 2`
+
+### Fixed
+
+- Fixed a missing quantity in the cart item data sent to the client. (#3105)
+
+## [v2022.01.05+1] `January 05 2022` `PATCH 1`
+
+### Added
+
+- Added the `GCC10ATTR()` macro, to declare an `__attribute__` annotation only in GCC >= 10.0. (part of #3104)
+
+### Fixed
+
+- Fixed a missing header causing HPM compilation failures. (#3104)
+- Fixed warnings on GCC 9 and older versions. (part of #3104)
+
+## [v2022.01.05] `January 05 2022`
+
+### Added
+
+- Added the `PRAGMA_GCC7()` macro, to specify pragma instructions only active on GCC >= 7.0 (part of #3092)
+- Added the `GCCATTR()` macro, to declare an `__attribute__` annotation only in GCC and not in Clang. (part of #3092)
+- Added the `GCC11ATTR()` macro, to declare an `__attribute__` annotation only in GCC >= 11.0. (part of #3092)
+- Added `grfio_decode_filename()` to the grfio interface. (part of #3092)
+- Added configurable steps for the roulette system. See the serverside configuration in `conf/map/battle/roulette.conf` and the clientside patches at http://nemo.herc.ws/patches/ChangeRouletteBronzeLimit http://nemo.herc.ws/patches/ChangeRouletteGoldLimit and http://nemo.herc.ws/patches/ChangeRouletteSilverLimit for more details. (#3101)
+- Added support for newer 2021 packetvers/encryption keys/client messages (up to 20211229). (#3103)
+- Implemented the Grade Enchanter user interface: (#3100)
+  - A new configuration flag `features.grader_max_used` is added to feature.conf.
+  - The `map_log.enable` flag in logs.conf has been extended with a new value.
+  - The grade enchanting database has been implemented in `db/{pre-re,re}/grade_db.conf`.
+  - the `@gradeui` and `@reloadgradedb` atcommands have been added.
+  - The `opengradeui()` script command has been added.
+  - The Grade Enchanter NPC has been added (automatically loaded in Renewal mode on packetvers that support it) in `npc/re/other/grader.txt`.
+  - NOTE: The values in the database aren't currently official but guessed.
+  - NOTE: Item protection is not supporter on older clients.
+  - NOTE: This requires a database migration for the picklog and zenylog tables. The migration shouldn't cause a full table rebuild on recent versions of MySQL and MariaDB that allow appending new values to the end of enums.
+
+### Changed
+
+- Updated GitHub Actions: (#3092)
+  - Updated compilers (Clang 13 replaces Clang 10, the current GCC version and the current snapshot version replace respectively GCC 9 and GCC 10).
+  - Updated packetvers to the most recent ones.
+  - Updated database versions (MariaDB 10.2 is added alongside 'latest', while 10.1 and 10.5 are removed; MySQL 'latest' is added alongside 5.6 and 5.7).
+- Updated configure.ac to require at least Autoconf 2.69 (the current configure file is generated by Autoconf 2.71). This only affects developers who want to regenerate their configure script. (part of #3092)
+- Updated the warning flags in the configure script with new ones for recent versions of GCC and Clang. (part of #3092)
+- Added annotation attributes to the functions in memmgr and strlib and some other prtinf-like functions. (part of #3092)
+- Changed the memory allocation functions to never return a NULL pointer. (part of #3092)
+  - `iMalloc->malloc()` (and functions or macros that use it such as `aMalloc()`, `CREATE()`, `aCalloc()`, `aStrndup()`, etc) will abort completely instead of returning NULL if `malloc()` fails.
+  - `iMalloc->malloc()` (and functions or macros that use it) will allocate a 1-byte buffer if requested to allocate 0 bytes.
+- Improved several packet generation functions, removing an unnecessary memcpy. (#3102)
+
+### Fixed
+
+- Fixed an issue that caused the script conditional feature checks to always be true (i.e. make the setting to disable the GM management scripts ineffective). (#3096)
+- Fixed `MO_CALLSPIRITS` in `bAutoSpell` (such as the Greatest General card) to use the specified skill level instead of the currently learned level. (#3095)
+- Fixed an error when saving the homunculus exp when reaching the maximum level through `@homlevel`. (#3098, issue #3097)
+- Fixed various possible buffer overflows and other warnings reported by recent versions of GCC and Clang. (part of #3092)
+- Fixed a memory issue caused by reloading the git/svn information on non-windows platforms where it's generated at compile time. (part of #3092)
+- Fixed the SP bar not correctly updating for party and battleground team members in the 2021 clients that support it. (part of #3103)
+- Fixed the weight in the expanded barter shop for 2019 and older clients. (part of #3103)
+- Fixed the Doram skill Picky Peck `SU_PICKYPECK` to be affected by Spirit of Life `SU_SPIRITOFLIFE`. (#3018)
+- Fixed the double cast activation chance of the skills Picky Peck `SU_PICKYPECK` and Bite `SU_BITE`. (part of #3018)
+
+### Other
+
+- Updated copyright headers for year 2022.
+
+## [v2021.12.01] `December 01 2021`
+
+### Added
+
+- Added support for Visual Studio 2022 - the solution is called Hercules-17.sln (#3087)
+- Added error reporting to the console when Zlib fails to decompress data. (#3090)
+- Added detection of a mismatched Zlib dynamic library vs the header used when compiling and reporting of the current version on startup. (part of #3090)
+- Added support for a number of 2020 and 2021 packetvers/encryption keys/client messages, including several Zero clients (up to 20211118). (#3082)
+- Added support for the item grade feature: (part of #3082)
+  - Added support to the relevant packets in compatible packetvers (generally starting with RE 20200723 or main 20200916)
+  - Implemented saving into the database (database migration required)
+  - Added the `@grade` atcommand.
+  - Added the item DB flag `Gradable` to enable grading support for individual item IDs. and the `ITEMINFO_FLAG_NO_GRADE` to the `getiteminfo()` and `setiteminfo()` commands.
+  - Added the `MAX_ITEM_GRADE` constant to the script engine.
+  - Added the `@inventorylist_grade[]` output variable to `getinventorylist()`.
+  - Added the `@cartinventorylist_grade[]` output variable to `getcartinventorylist()`.
+  - Added the `setgrade()` script (item DB script) command.
+  - Added the `getequipisenablegrade()` and `getequipgrade()` general script commands.
+- Added the `@unequipall` atcommand and the corresponding client packet for 20210818 and newer clients. (part of #3082)
+- Added the `zmes1()`, `zmes1f()`, `zmes2()`, `zmes2f()`, `zmenu()`, `zselect()`, `zprompt()` commands as counterparts using the Zero UI to the respective commands without the z prefix. Demo scripts are provided to showcase the functionality. (part of #3082)
+- Added the `setdialogalign()` script command to specify the text alignment in NPC dialogs. (part of #3082)
+- Added an optional argument to display a light pillar visual effect on the item created through `makeitem()`. (#3065)
+- Added the `active_transform()` script command, behaving like `montransform()` but with a different, stackable SC. (#3073, issue #2035)
+
+### Changed
+
+- Improved detection of recent versions of Windows for the system information screen. (part of #3087)
+- Updated the documentation of the Item DB structure to include all the new fields. (#3085)
+- Updated handling of several packets (`ZC_EQUIPWIN_MICROSCOPE`, `ZC_NOTIFY_HP_TO_GROUPM`, `ZC_BATTLEFIELD_NOTIFY_HP`) to use the struct format. (part of #3082)
+- Refactored `clif_updatestatus()` and updated to use packet names instead of numeric IDs. (part of #3082)
+
+### Fixed
+
+- Fixed the `countnameditem()` command never matching any items and always returning 0. (#3088)
+- Fixed an issue causing a failure to compressing captcha images on non-Windows systems. (#3091)
+- Fixed issues with packet `ZC_EQUIPWIN_MICROSCOPE` for old clients. (part of #3082)
+- Fixed the use of integer variables (as opposed to integer literals) in the `rodex_sendmail()` script command. (#3067, issue #3027)
+
+### Removed
+
+- Removed Visual Studio 2015 (Hercules-14.sln) solution. Developers still using it are advised to upgrade to a newer version or to switch to GCC since backward compatibility won't be guaranteed. (part of #3087)
+
+### Other
+
+- The wiki page about supported platforms has been updated, as it had been neglected for a while. Notable changes:
+  - Debian 11 was added, kicking out Debian 9 (no policy changes)
+  - The CentOS/RHEL support policy was changed, since there no longer are matching CentOS and RHEL regular releases. This means that RHEL support cannot be guaranteed and the only CentOS version that is officially supported is CentOS Stream (and CentOS 8 until it will be EOL on December 31st)
+  - Ubuntu 21.10 was added and Ubuntu 18.04 was removed (no policy changes)
+  - FreeBSD 13.0 was added, kicking out FreeBSD 11.x; 12.x versions older than 12.2 are unsupported (no policy changes)
+  - macOS 10.15, 11 and 12 have been added, kicking out macOS 10.13 and 10.14. GCC (latest version installed through Homebrew) is also supported as an alternative to Clang shipped with XCode. The total amount of supported versions has been increased from 2 to 3.
+  - The currently supported OpenBSD version has been updated to 7.0 (no policy changes)
+  - The currently supported NetBSD version has been updated to 9.2 (no policy changes)
+  - The currently supported Raspberry Pi OS version has been updated to 11 (bullseye). The supported distribution is now labeled Raspberry Pi OS, rather than Raspbian, following the official naming.
+  - Windows 11 21H2, Windows 10 21H2, Windows Server 2019, Windows Server v.20H2 and Windows Server 2022 were added. No policy changes but a note was added to discourage running Hercules on Windows on production servers.
+  - Visual Studio 2022 17.0 was added, kicking out Visual Studio 2015. No policy changes.
+
 ## [v2021.11.03+1] `November 03 2021` `PATCH 1`
 
 ### Fixed
@@ -2127,6 +2463,13 @@ If you are reading this in a text editor, simply ignore this section
 - New versioning scheme and project changelogs/release notes (#1853)
 
 [Unreleased]: https://github.com/HerculesWS/Hercules/compare/stable...master
+[v2022.06.01]: https://github.com/HerculesWS/Hercules/compare/v2022.04.07...v2022.06.01
+[v2022.04.07]: https://github.com/HerculesWS/Hercules/compare/v2022.03.02...v2022.04.07
+[v2022.03.02]: https://github.com/HerculesWS/Hercules/compare/v2022.01.05+2...v2022.03.02
+[v2022.01.05+2]: https://github.com/HerculesWS/Hercules/compare/v2022.01.05+1...v2022.01.05+2
+[v2022.01.05+1]: https://github.com/HerculesWS/Hercules/compare/v2022.01.05...v2022.01.05+1
+[v2022.01.05]: https://github.com/HerculesWS/Hercules/compare/v2021.12.01...v2022.01.05
+[v2021.12.01]: https://github.com/HerculesWS/Hercules/compare/v2021.11.03+1...v2021.12.01
 [v2021.11.03+1]: https://github.com/HerculesWS/Hercules/compare/v2021.11.03...v2021.11.03+1
 [v2021.11.03]: https://github.com/HerculesWS/Hercules/compare/v2021.10.06+1...v2021.11.03
 [v2021.10.06+1]: https://github.com/HerculesWS/Hercules/compare/v2021.10.06...v2021.10.06+1

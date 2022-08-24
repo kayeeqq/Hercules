@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2021 Hercules Dev Team
+ * Copyright (C) 2012-2022 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -201,7 +201,7 @@ static int pc_spiritball_timer(int tid, int64 tick, int id, intptr_t data)
 		memmove(sd->spirit_timer+i, sd->spirit_timer+i+1, (sd->spiritball-i)*sizeof(int));
 	sd->spirit_timer[sd->spiritball] = INVALID_TIMER;
 
-	clif->spiritball(&sd->bl);
+	clif->spiritball(&sd->bl, BALL_TYPE_SPIRIT, AREA);
 
 	return 0;
 }
@@ -266,7 +266,7 @@ static int pc_addspiritball_sub(struct map_session_data *sd)
 	if ((sd->job & MAPID_THIRDMASK) == MAPID_ROYAL_GUARD)
 		clif->millenniumshield(&sd->bl,sd->spiritball);
 	else
-		clif->spiritball(&sd->bl);
+		clif->spiritball(&sd->bl, BALL_TYPE_SPIRIT, AREA);
 	return 0;
 }
 
@@ -312,7 +312,7 @@ static int pc_delspiritball_sub(struct map_session_data *sd)
 	if ((sd->job & MAPID_THIRDMASK) == MAPID_ROYAL_GUARD)
 		clif->millenniumshield(&sd->bl,sd->spiritball);
 	else
-		clif->spiritball(&sd->bl);
+		clif->spiritball(&sd->bl, BALL_TYPE_SPIRIT, AREA);
 	return 0;
 }
 
@@ -338,7 +338,7 @@ static void pc_addsoulball(struct map_session_data *sd, int max)
 
 	sd->soulball = cap_value(sd->soulball + 1, 0, max);
 	sc_start(&sd->bl, &sd->bl, SC_SOULENERGY, 100, sd->soulball, skill->get_time2(SP_SOULCOLLECT, 1));
-	clif->soulball(sd, NULL, AREA);
+	clif->spiritball(&sd->bl, BALL_TYPE_SOUL, AREA);
 }
 
 /**
@@ -368,7 +368,7 @@ static void pc_delsoulball(struct map_session_data *sd, int count, bool type)
 	}
 
 	if (type == 0)
-		clif->soulball(sd, NULL, AREA);
+		clif->spiritball(&sd->bl, BALL_TYPE_SOUL, AREA);
 }
 
 static int pc_check_banding(struct block_list *bl, va_list ap)
@@ -2365,71 +2365,67 @@ static int pc_endautobonus(int tid, int64 tick, int id, intptr_t data)
 	return 0;
 }
 
-static int pc_bonus_addele(struct map_session_data *sd, unsigned char ele, short rate, short flag)
+static void pc_bonus_addele(struct map_session_data *sd, unsigned char ele, short rate, short flag)
 {
 	int i;
-	struct weapon_data* wd;
+	struct weapon_data *wd;
 
-	nullpo_ret(sd);
+	nullpo_retv(sd);
 	wd = (sd->state.lr_flag ? &sd->left_weapon : &sd->right_weapon);
 
 	ARR_FIND(0, MAX_PC_BONUS, i, wd->addele2[i].rate == 0);
 
-	if (i == MAX_PC_BONUS)
-	{
+	if (i == MAX_PC_BONUS) {
 		ShowWarning("pc_addele: Reached max (%d) possible bonuses for this player.\n", MAX_PC_BONUS);
-		return 0;
+		return;
 	}
 
-	if (!(flag&BF_RANGEMASK))
-		flag |= BF_SHORT|BF_LONG;
-	if (!(flag&BF_WEAPONMASK))
+	if ((flag & BF_RANGEMASK) == 0)
+		flag |= BF_SHORT | BF_LONG;
+	if ((flag & BF_WEAPONMASK) == 0)
 		flag |= BF_WEAPON;
-	if (!(flag&BF_SKILLMASK))
-	{
-		if (flag&(BF_MAGIC|BF_MISC))
+	if ((flag & BF_SKILLMASK) == 0) {
+		if ((flag & (BF_MAGIC | BF_MISC)) != 0)
 			flag |= BF_SKILL;
-		if (flag&BF_WEAPON)
-			flag |= BF_NORMAL|BF_SKILL;
+		if ((flag & BF_WEAPON) != 0)
+			flag |= BF_NORMAL | BF_SKILL;
 	}
 
 	wd->addele2[i].ele = ele;
 	wd->addele2[i].rate = rate;
 	wd->addele2[i].flag = flag;
 
-	return 0;
+	return;
 }
 
-static int pc_bonus_subele(struct map_session_data *sd, unsigned char ele, short rate, short flag)
+static void pc_bonus_subele(struct map_session_data *sd, unsigned char ele, short rate, short flag)
 {
 	int i;
 
-	nullpo_ret(sd);
+	nullpo_retv(sd);
 	ARR_FIND(0, MAX_PC_BONUS, i, sd->subele2[i].rate == 0);
 
-	if (i == MAX_PC_BONUS)
-	{
+	if (i == MAX_PC_BONUS) {
 		ShowWarning("pc_subele: Reached max (%d) possible bonuses for this player.\n", MAX_PC_BONUS);
-		return 0;
+		return;
 	}
 
-	if (!(flag&BF_RANGEMASK))
-		flag |= BF_SHORT|BF_LONG;
-	if (!(flag&BF_WEAPONMASK))
+	if ((flag & BF_RANGEMASK) == 0)
+		flag |= BF_SHORT | BF_LONG;
+	if ((flag & BF_WEAPONMASK) == 0)
 		flag |= BF_WEAPON;
-	if (!(flag&BF_SKILLMASK))
-	{
-		if (flag&(BF_MAGIC|BF_MISC))
+	if ((flag & BF_SKILLMASK) == 0) {
+		if ((flag & (BF_MAGIC | BF_MISC)) != 0)
 			flag |= BF_SKILL;
-		if (flag&BF_WEAPON)
-			flag |= BF_NORMAL|BF_SKILL;
+		if ((flag & BF_WEAPON) != 0)
+			flag |= BF_NORMAL | BF_SKILL;
 	}
 
 	sd->subele2[i].ele = ele;
 	sd->subele2[i].rate = rate;
 	sd->subele2[i].flag = flag;
 
-	return 0;
+	return;
 }
 
 /**
@@ -4061,9 +4057,9 @@ static int pc_bonus3(struct map_session_data *sd, int type, int type2, int type3
 			if ( sd->state.lr_flag != 2 ) {
 				if ( type2 == ELE_ALL ) {
 					for ( i = ELE_NEUTRAL; i < ELE_MAX; i++ )
-						pc_bonus_addele(sd, (unsigned char)i, type3, val);
+						pc->bonus_addele(sd, (unsigned char)i, type3, val);
 				} else {
-					pc_bonus_addele(sd, (unsigned char)type2, type3, val);
+					pc->bonus_addele(sd, (unsigned char)type2, type3, val);
 				}
 			}
 			break;
@@ -4076,9 +4072,9 @@ static int pc_bonus3(struct map_session_data *sd, int type, int type2, int type3
 			if ( sd->state.lr_flag != 2 ) {
 				if ( type2 == ELE_ALL ) {
 					for ( i = ELE_NEUTRAL; i < ELE_MAX; i++ )
-						pc_bonus_subele(sd, (unsigned char)i, type3, val);
+						pc->bonus_subele(sd, (unsigned char)i, type3, val);
 				} else {
-					pc_bonus_subele(sd, (unsigned char)type2, type3, val);
+					pc->bonus_subele(sd, (unsigned char)type2, type3, val);
 				}
 			}
 			break;
@@ -4905,7 +4901,7 @@ static int pc_additem(struct map_session_data *sd, const struct item *item_data,
  *   0 = success
  *   1 = invalid itemid or negative amount
  *------------------------------------------*/
-static int pc_delitem(struct map_session_data *sd, int n, int amount, int type, short reason, e_log_pick_type log_type)
+static int pc_delitem(struct map_session_data *sd, int n, int amount, int type, enum delitem_reason reason, e_log_pick_type log_type)
 {
 	nullpo_retr(1, sd);
 	Assert_retr(1, n >= 0 && n < sd->status.inventorySize);
@@ -11991,7 +11987,7 @@ static int pc_read_attr_fix_db_entry(struct config_setting_t *def_attr, enum ele
 	int count = 0;
 	for (int i = 1; i <= 4; ++i) {
 		char name[5];
-		sprintf(name, "Lv%d", i);
+		safesnprintf(name, 5, "Lv%d", i);
 
 		struct config_setting_t *def_lv = libconfig->setting_lookup(def_attr, name);
 		if (def_lv != NULL) {
@@ -13053,6 +13049,9 @@ void pc_defaults(void)
 	pc->exeautobonus = pc_exeautobonus;
 	pc->endautobonus = pc_endautobonus;
 	pc->delautobonus = pc_delautobonus;
+
+	pc->bonus_addele = pc_bonus_addele;
+	pc->bonus_subele = pc_bonus_subele;
 
 	pc->bonus = pc_bonus;
 	pc->bonus2 = pc_bonus2;

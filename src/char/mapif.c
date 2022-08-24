@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2021 Hercules Dev Team
+ * Copyright (C) 2012-2022 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -42,6 +42,7 @@
 #include "common/memmgr.h"
 #include "common/mmo.h"
 #include "common/nullpo.h"
+#include "common/packets_struct.h"
 #include "common/random.h"
 #include "common/showmsg.h"
 #include "common/socket.h"
@@ -1472,27 +1473,24 @@ static int mapif_delete_pet(int fd, int pet_id)
 
 static int mapif_parse_CreatePet(int fd)
 {
-	int account_id;
-	struct s_pet *pet;
+	const struct PACKET_INTER_CREATE_PET *p = RP2PTR(fd);
 
-	RFIFOHEAD(fd);
-	account_id = RFIFOL(fd, 2);
-	pet = inter_pet->create(account_id,
-		RFIFOL(fd, 6),
-		RFIFOL(fd, 10),
-		RFIFOL(fd, 14),
-		RFIFOL(fd, 18),
-		RFIFOL(fd, 22),
-		RFIFOW(fd, 26),
-		RFIFOW(fd, 28),
-		RFIFOB(fd, 30),
-		RFIFOB(fd, 31),
-		RFIFOP(fd, 32));
+	struct s_pet *pet = inter_pet->create(p->account_id,
+		p->char_id,
+		p->pet_class,
+		p->pet_lv,
+		p->pet_egg_id,
+		p->pet_equip,
+		p->intimate,
+		p->hungry,
+		p->rename_flag,
+		p->incubate,
+		p->pet_name);
 
 	if (pet != NULL)
-		mapif->pet_created(fd, account_id, pet);
+		mapif->pet_created(fd, p->account_id, pet);
 	else
-		mapif->pet_created(fd, account_id, NULL);
+		mapif->pet_created(fd, p->account_id, NULL);
 
 	return 0;
 }
@@ -2531,6 +2529,9 @@ void mapif_defaults(void)
 	mapif->parse_ItemBoundRetrieve = mapif_parse_ItemBoundRetrieve;
 	mapif->parse_accinfo = mapif_parse_accinfo;
 	mapif->account_reg_reply = mapif_account_reg_reply;
+#if 0
+	mapif->account_reg = mapif_account_reg;
+#endif
 	mapif->disconnectplayer = mapif_disconnectplayer;
 	mapif->parse_Registry = mapif_parse_Registry;
 	mapif->parse_RegistryRequest = mapif_parse_RegistryRequest;

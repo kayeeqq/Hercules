@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2013-2021 Hercules Dev Team
+ * Copyright (C) 2013-2022 Hercules Dev Team
  *
  * Hercules is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -816,6 +816,8 @@ typedef int (*HPMHOOK_pre_chr_online_data_cleanup_sub) (union DBKey *key, struct
 typedef int (*HPMHOOK_post_chr_online_data_cleanup_sub) (int retVal___, union DBKey key, struct DBData *data, va_list ap);
 typedef int (*HPMHOOK_pre_chr_online_data_cleanup) (int *tid, int64 *tick, int *id, intptr_t *data);
 typedef int (*HPMHOOK_post_chr_online_data_cleanup) (int retVal___, int tid, int64 tick, int id, intptr_t data);
+typedef void (*HPMHOOK_pre_chr_change_sex_sub) (int *sex, int *acc, int *char_id, int *class, int *guild_id);
+typedef void (*HPMHOOK_post_chr_change_sex_sub) (int sex, int acc, int char_id, int class, int guild_id);
 typedef bool (*HPMHOOK_pre_chr_sql_config_read) (const char **filename, bool *imported);
 typedef bool (*HPMHOOK_post_chr_sql_config_read) (bool retVal___, const char *filename, bool imported);
 typedef bool (*HPMHOOK_pre_chr_sql_config_read_registry) (const char **filename, const struct config_t **config, bool *imported);
@@ -1120,12 +1122,12 @@ typedef void (*HPMHOOK_pre_clif_additem) (struct map_session_data **sd, int *n, 
 typedef void (*HPMHOOK_post_clif_additem) (struct map_session_data *sd, int n, int amount, int fail);
 typedef void (*HPMHOOK_pre_clif_dropitem) (struct map_session_data **sd, int *n, int *amount);
 typedef void (*HPMHOOK_post_clif_dropitem) (struct map_session_data *sd, int n, int amount);
-typedef void (*HPMHOOK_pre_clif_delitem) (struct map_session_data **sd, int *n, int *amount, short *reason);
-typedef void (*HPMHOOK_post_clif_delitem) (struct map_session_data *sd, int n, int amount, short reason);
+typedef void (*HPMHOOK_pre_clif_delitem) (struct map_session_data **sd, int *n, int *amount, enum delitem_reason *reason);
+typedef void (*HPMHOOK_post_clif_delitem) (struct map_session_data *sd, int n, int amount, enum delitem_reason reason);
 typedef void (*HPMHOOK_pre_clif_takeitem) (struct block_list **src, struct block_list **dst);
 typedef void (*HPMHOOK_post_clif_takeitem) (struct block_list *src, struct block_list *dst);
-typedef void (*HPMHOOK_pre_clif_item_movefailed) (struct map_session_data **sd, int *n);
-typedef void (*HPMHOOK_post_clif_item_movefailed) (struct map_session_data *sd, int n);
+typedef void (*HPMHOOK_pre_clif_item_movefailed) (struct map_session_data **sd, int *n, int *amount);
+typedef void (*HPMHOOK_post_clif_item_movefailed) (struct map_session_data *sd, int n, int amount);
 typedef void (*HPMHOOK_pre_clif_item_equip) (short *idx, struct EQUIPITEM_INFO **p, struct item **i, struct item_data **id, int *eqp_pos);
 typedef void (*HPMHOOK_post_clif_item_equip) (short idx, struct EQUIPITEM_INFO *p, struct item *i, struct item_data *id, int eqp_pos);
 typedef void (*HPMHOOK_pre_clif_item_normal) (short *idx, struct NORMALITEM_INFO **p, struct item **i, struct item_data **id);
@@ -1144,6 +1146,8 @@ typedef void (*HPMHOOK_pre_clif_equipitemack) (struct map_session_data **sd, int
 typedef void (*HPMHOOK_post_clif_equipitemack) (struct map_session_data *sd, int n, int pos, enum e_EQUIP_ITEM_ACK result);
 typedef void (*HPMHOOK_pre_clif_unequipitemack) (struct map_session_data **sd, int *n, int *pos, enum e_UNEQUIP_ITEM_ACK *result);
 typedef void (*HPMHOOK_post_clif_unequipitemack) (struct map_session_data *sd, int n, int pos, enum e_UNEQUIP_ITEM_ACK result);
+typedef void (*HPMHOOK_pre_clif_unequipAllItemsAck) (struct map_session_data **sd, enum unequip_all *result);
+typedef void (*HPMHOOK_post_clif_unequipAllItemsAck) (struct map_session_data *sd, enum unequip_all result);
 typedef void (*HPMHOOK_pre_clif_useitemack) (struct map_session_data **sd, int *index, int *amount, bool *ok);
 typedef void (*HPMHOOK_post_clif_useitemack) (struct map_session_data *sd, int index, int amount, bool ok);
 typedef void (*HPMHOOK_pre_clif_addcards) (struct EQUIPSLOTINFO **buf, struct item **item);
@@ -1158,8 +1162,8 @@ typedef void (*HPMHOOK_pre_clif_cashshop_load) (void);
 typedef void (*HPMHOOK_post_clif_cashshop_load) (void);
 typedef void (*HPMHOOK_pre_clif_cashShopSchedule) (int *fd, struct map_session_data **sd);
 typedef void (*HPMHOOK_post_clif_cashShopSchedule) (int fd, struct map_session_data *sd);
-typedef void (*HPMHOOK_pre_clif_package_announce) (struct map_session_data **sd, int *nameid, int *containerid);
-typedef void (*HPMHOOK_post_clif_package_announce) (struct map_session_data *sd, int nameid, int containerid);
+typedef void (*HPMHOOK_pre_clif_package_announce) (struct map_session_data **sd, int *nameid, int *containerid, int *refine_level);
+typedef void (*HPMHOOK_post_clif_package_announce) (struct map_session_data *sd, int nameid, int containerid, int refine_level);
 typedef void (*HPMHOOK_pre_clif_item_drop_announce) (struct map_session_data **sd, int *nameid, char **monsterName);
 typedef void (*HPMHOOK_post_clif_item_drop_announce) (struct map_session_data *sd, int nameid, char *monsterName);
 typedef void (*HPMHOOK_pre_clif_clearunit_single) (int *id, enum clr_type *type, int *fd);
@@ -1260,12 +1264,22 @@ typedef void (*HPMHOOK_pre_clif_cashshop_ack) (struct map_session_data **sd, int
 typedef void (*HPMHOOK_post_clif_cashshop_ack) (struct map_session_data *sd, int error);
 typedef void (*HPMHOOK_pre_clif_scriptmes) (struct map_session_data **sd, int *npcid, const char **mes);
 typedef void (*HPMHOOK_post_clif_scriptmes) (struct map_session_data *sd, int npcid, const char *mes);
+typedef void (*HPMHOOK_pre_clif_scriptmes2) (struct map_session_data **sd, int *npcid, const char **mes, int *type);
+typedef void (*HPMHOOK_post_clif_scriptmes2) (struct map_session_data *sd, int npcid, const char *mes, int type);
+typedef void (*HPMHOOK_pre_clif_zc_quest_dialog) (struct map_session_data **sd, int *npcid, const char **mes);
+typedef void (*HPMHOOK_post_clif_zc_quest_dialog) (struct map_session_data *sd, int npcid, const char *mes);
+typedef void (*HPMHOOK_pre_clif_zc_monolog_dialog) (struct map_session_data **sd, int *npcid, const char **mes);
+typedef void (*HPMHOOK_post_clif_zc_monolog_dialog) (struct map_session_data *sd, int npcid, const char *mes);
 typedef void (*HPMHOOK_pre_clif_scriptnext) (struct map_session_data **sd, int *npcid);
 typedef void (*HPMHOOK_post_clif_scriptnext) (struct map_session_data *sd, int npcid);
+typedef void (*HPMHOOK_pre_clif_scriptnext2) (struct map_session_data **sd, int *npcid, int *type);
+typedef void (*HPMHOOK_post_clif_scriptnext2) (struct map_session_data *sd, int npcid, int type);
 typedef void (*HPMHOOK_pre_clif_scriptclose) (struct map_session_data **sd, int *npcid);
 typedef void (*HPMHOOK_post_clif_scriptclose) (struct map_session_data *sd, int npcid);
 typedef void (*HPMHOOK_pre_clif_scriptmenu) (struct map_session_data **sd, int *npcid, const char **mes);
 typedef void (*HPMHOOK_post_clif_scriptmenu) (struct map_session_data *sd, int npcid, const char *mes);
+typedef void (*HPMHOOK_pre_clif_zc_quest_dialog_menu_list) (struct map_session_data **sd, int *npcid, const char **mes);
+typedef void (*HPMHOOK_post_clif_zc_quest_dialog_menu_list) (struct map_session_data *sd, int npcid, const char *mes);
 typedef void (*HPMHOOK_pre_clif_scriptinput) (struct map_session_data **sd, int *npcid);
 typedef void (*HPMHOOK_post_clif_scriptinput) (struct map_session_data *sd, int npcid);
 typedef void (*HPMHOOK_pre_clif_scriptinputstr) (struct map_session_data **sd, int *npcid);
@@ -1336,6 +1350,8 @@ typedef void (*HPMHOOK_pre_clif_status_change) (struct block_list **bl, int *rel
 typedef void (*HPMHOOK_post_clif_status_change) (struct block_list *bl, int relevant_bl, int type, int flag, int total_tick, int val1, int val2, int val3);
 typedef void (*HPMHOOK_pre_clif_status_change_sub) (struct block_list **bl, int *type, int *relevant_bl, int *flag, int *tick, int *total_tick, int *val1, int *val2, int *val3);
 typedef void (*HPMHOOK_post_clif_status_change_sub) (struct block_list *bl, int type, int relevant_bl, int flag, int tick, int total_tick, int val1, int val2, int val3);
+typedef void (*HPMHOOK_pre_clif_status_change_notick) (struct block_list **bl, int *type, int *relevant_bl, int *flag, int *tick, int *total_tick, int *val1, int *val2, int *val3);
+typedef void (*HPMHOOK_post_clif_status_change_notick) (struct block_list *bl, int type, int relevant_bl, int flag, int tick, int total_tick, int val1, int val2, int val3);
 typedef void (*HPMHOOK_pre_clif_insert_card) (struct map_session_data **sd, int *idx_equip, int *idx_card, int *flag);
 typedef void (*HPMHOOK_post_clif_insert_card) (struct map_session_data *sd, int idx_equip, int idx_card, int flag);
 typedef void (*HPMHOOK_pre_clif_inventoryList) (struct map_session_data **sd);
@@ -1424,8 +1440,8 @@ typedef bool (*HPMHOOK_pre_clif_show_monster_hp_bar) (struct block_list **bl);
 typedef bool (*HPMHOOK_post_clif_show_monster_hp_bar) (bool retVal___, struct block_list *bl);
 typedef int (*HPMHOOK_pre_clif_hpmeter) (struct map_session_data **sd);
 typedef int (*HPMHOOK_post_clif_hpmeter) (int retVal___, struct map_session_data *sd);
-typedef void (*HPMHOOK_pre_clif_hpmeter_single) (int *fd, int *id, unsigned int *hp, unsigned int *maxhp);
-typedef void (*HPMHOOK_post_clif_hpmeter_single) (int fd, int id, unsigned int hp, unsigned int maxhp);
+typedef void (*HPMHOOK_pre_clif_hpmeter_single) (int *fd, int *id, unsigned int *hp, unsigned int *maxhp, unsigned int *sp, unsigned int *maxsp);
+typedef void (*HPMHOOK_post_clif_hpmeter_single) (int fd, int id, unsigned int hp, unsigned int maxhp, unsigned int sp, unsigned int maxsp);
 typedef int (*HPMHOOK_pre_clif_hpmeter_sub) (struct block_list **bl, va_list ap);
 typedef int (*HPMHOOK_post_clif_hpmeter_sub) (int retVal___, struct block_list *bl, va_list ap);
 typedef void (*HPMHOOK_pre_clif_upgrademessage) (int *fd, int *result, int *item_id);
@@ -1526,8 +1542,8 @@ typedef void (*HPMHOOK_pre_clif_changeoption_target) (struct block_list **bl, st
 typedef void (*HPMHOOK_post_clif_changeoption_target) (struct block_list *bl, struct block_list *target_bl, enum send_target target);
 typedef void (*HPMHOOK_pre_clif_changeoption2) (struct block_list **bl);
 typedef void (*HPMHOOK_post_clif_changeoption2) (struct block_list *bl);
-typedef void (*HPMHOOK_pre_clif_emotion) (struct block_list **bl, int *type);
-typedef void (*HPMHOOK_post_clif_emotion) (struct block_list *bl, int type);
+typedef void (*HPMHOOK_pre_clif_emotion) (struct block_list **bl, enum emotion_type *type);
+typedef void (*HPMHOOK_post_clif_emotion) (struct block_list *bl, enum emotion_type type);
 typedef void (*HPMHOOK_pre_clif_talkiebox) (struct block_list **bl, const char **talkie);
 typedef void (*HPMHOOK_post_clif_talkiebox) (struct block_list *bl, const char *talkie);
 typedef void (*HPMHOOK_pre_clif_wedding_effect) (struct block_list **bl);
@@ -1552,12 +1568,10 @@ typedef void (*HPMHOOK_pre_clif_produce_effect) (struct map_session_data **sd, i
 typedef void (*HPMHOOK_post_clif_produce_effect) (struct map_session_data *sd, int flag, int nameid);
 typedef void (*HPMHOOK_pre_clif_devotion) (struct block_list **src, struct map_session_data **tsd);
 typedef void (*HPMHOOK_post_clif_devotion) (struct block_list *src, struct map_session_data *tsd);
-typedef void (*HPMHOOK_pre_clif_spiritball) (struct block_list **bl);
-typedef void (*HPMHOOK_post_clif_spiritball) (struct block_list *bl);
+typedef void (*HPMHOOK_pre_clif_spiritball) (struct block_list **bl, enum spirit_ball_types *spirit, enum send_target *target);
+typedef void (*HPMHOOK_post_clif_spiritball) (struct block_list *bl, enum spirit_ball_types spirit, enum send_target target);
 typedef void (*HPMHOOK_pre_clif_spiritball_single) (int *fd, struct map_session_data **sd);
 typedef void (*HPMHOOK_post_clif_spiritball_single) (int fd, struct map_session_data *sd);
-typedef void (*HPMHOOK_pre_clif_soulball) (struct map_session_data **sd, struct block_list **bl, enum send_target *target);
-typedef void (*HPMHOOK_post_clif_soulball) (struct map_session_data *sd, struct block_list *bl, enum send_target target);
 typedef void (*HPMHOOK_pre_clif_bladestop) (struct block_list **src, int *dst_id, int *active);
 typedef void (*HPMHOOK_post_clif_bladestop) (struct block_list *src, int dst_id, int active);
 typedef void (*HPMHOOK_pre_clif_mvp_effect) (struct map_session_data **sd);
@@ -1592,12 +1606,12 @@ typedef void (*HPMHOOK_pre_clif_snap) (struct block_list **bl, short *x, short *
 typedef void (*HPMHOOK_post_clif_snap) (struct block_list *bl, short x, short y);
 typedef void (*HPMHOOK_pre_clif_weather_check) (struct map_session_data **sd);
 typedef void (*HPMHOOK_post_clif_weather_check) (struct map_session_data *sd);
-typedef void (*HPMHOOK_pre_clif_playBGM) (struct map_session_data **sd, const char **name);
-typedef void (*HPMHOOK_post_clif_playBGM) (struct map_session_data *sd, const char *name);
-typedef void (*HPMHOOK_pre_clif_soundeffect) (struct map_session_data **sd, struct block_list **bl, const char **name, int *type);
-typedef void (*HPMHOOK_post_clif_soundeffect) (struct map_session_data *sd, struct block_list *bl, const char *name, int type);
-typedef void (*HPMHOOK_pre_clif_soundeffectall) (struct block_list **bl, const char **name, int *type, enum send_target *coverage);
-typedef void (*HPMHOOK_post_clif_soundeffectall) (struct block_list *bl, const char *name, int type, enum send_target coverage);
+typedef void (*HPMHOOK_pre_clif_playBGM) (struct map_session_data **sd, const char **name, enum play_npc_bgm *type);
+typedef void (*HPMHOOK_post_clif_playBGM) (struct map_session_data *sd, const char *name, enum play_npc_bgm type);
+typedef void (*HPMHOOK_pre_clif_soundeffect) (struct map_session_data **sd, struct block_list **bl, const char **name, enum play_sound_act *type, int *term);
+typedef void (*HPMHOOK_post_clif_soundeffect) (struct map_session_data *sd, struct block_list *bl, const char *name, enum play_sound_act type, int term);
+typedef void (*HPMHOOK_pre_clif_soundeffectall) (struct block_list **bl, const char **name, enum play_sound_act *type, int *term, enum send_target *coverage);
+typedef void (*HPMHOOK_post_clif_soundeffectall) (struct block_list *bl, const char *name, enum play_sound_act type, int term, enum send_target coverage);
 typedef void (*HPMHOOK_pre_clif_GlobalMessage) (struct block_list **bl, const char **message);
 typedef void (*HPMHOOK_post_clif_GlobalMessage) (struct block_list *bl, const char *message);
 typedef void (*HPMHOOK_pre_clif_createchat) (struct map_session_data **sd, int *flag);
@@ -1848,8 +1862,8 @@ typedef void (*HPMHOOK_pre_clif_sendbgemblem_area) (struct map_session_data **sd
 typedef void (*HPMHOOK_post_clif_sendbgemblem_area) (struct map_session_data *sd);
 typedef void (*HPMHOOK_pre_clif_sendbgemblem_single) (int *fd, struct map_session_data **sd);
 typedef void (*HPMHOOK_post_clif_sendbgemblem_single) (int fd, struct map_session_data *sd);
-typedef int (*HPMHOOK_pre_clif_instance) (int *instance_id, int *type, int *flag);
-typedef int (*HPMHOOK_post_clif_instance) (int retVal___, int instance_id, int type, int flag);
+typedef int (*HPMHOOK_pre_clif_instance) (int *instance_id, enum instance_window_info_type *type, int *flag);
+typedef int (*HPMHOOK_post_clif_instance) (int retVal___, int instance_id, enum instance_window_info_type type, int flag);
 typedef void (*HPMHOOK_pre_clif_instance_join) (int *fd, int *instance_id);
 typedef void (*HPMHOOK_post_clif_instance_join) (int fd, int instance_id);
 typedef void (*HPMHOOK_pre_clif_instance_leave) (int *fd);
@@ -1996,14 +2010,14 @@ typedef void (*HPMHOOK_pre_clif_buyingstore_open_failed) (struct map_session_dat
 typedef void (*HPMHOOK_post_clif_buyingstore_open_failed) (struct map_session_data *sd, unsigned short result, unsigned int weight);
 typedef void (*HPMHOOK_pre_clif_buyingstore_myitemlist) (struct map_session_data **sd);
 typedef void (*HPMHOOK_post_clif_buyingstore_myitemlist) (struct map_session_data *sd);
-typedef void (*HPMHOOK_pre_clif_buyingstore_entry) (struct map_session_data **sd);
-typedef void (*HPMHOOK_post_clif_buyingstore_entry) (struct map_session_data *sd);
-typedef void (*HPMHOOK_pre_clif_buyingstore_entry_single) (struct map_session_data **sd, struct map_session_data **pl_sd);
-typedef void (*HPMHOOK_post_clif_buyingstore_entry_single) (struct map_session_data *sd, struct map_session_data *pl_sd);
-typedef void (*HPMHOOK_pre_clif_buyingstore_disappear_entry) (struct map_session_data **sd);
-typedef void (*HPMHOOK_post_clif_buyingstore_disappear_entry) (struct map_session_data *sd);
-typedef void (*HPMHOOK_pre_clif_buyingstore_disappear_entry_single) (struct map_session_data **sd, struct map_session_data **pl_sd);
-typedef void (*HPMHOOK_post_clif_buyingstore_disappear_entry_single) (struct map_session_data *sd, struct map_session_data *pl_sd);
+typedef void (*HPMHOOK_pre_clif_buyingstore_entry) (struct block_list **bl, const char **message);
+typedef void (*HPMHOOK_post_clif_buyingstore_entry) (struct block_list *bl, const char *message);
+typedef void (*HPMHOOK_pre_clif_buyingstore_entry_single) (struct block_list **bl, const char **message, int *fd);
+typedef void (*HPMHOOK_post_clif_buyingstore_entry_single) (struct block_list *bl, const char *message, int fd);
+typedef void (*HPMHOOK_pre_clif_buyingstore_disappear_entry) (struct block_list **bl);
+typedef void (*HPMHOOK_post_clif_buyingstore_disappear_entry) (struct block_list *bl);
+typedef void (*HPMHOOK_pre_clif_buyingstore_disappear_entry_single) (struct block_list **bl, int *fd);
+typedef void (*HPMHOOK_post_clif_buyingstore_disappear_entry_single) (struct block_list *bl, int fd);
 typedef void (*HPMHOOK_pre_clif_buyingstore_itemlist) (struct map_session_data **sd, struct map_session_data **pl_sd);
 typedef void (*HPMHOOK_post_clif_buyingstore_itemlist) (struct map_session_data *sd, struct map_session_data *pl_sd);
 typedef void (*HPMHOOK_pre_clif_buyingstore_trade_failed_buyer) (struct map_session_data **sd, short *result);
@@ -2156,6 +2170,8 @@ typedef void (*HPMHOOK_pre_clif_pEquipItem) (int *fd, struct map_session_data **
 typedef void (*HPMHOOK_post_clif_pEquipItem) (int fd, struct map_session_data *sd);
 typedef void (*HPMHOOK_pre_clif_pUnequipItem) (int *fd, struct map_session_data **sd);
 typedef void (*HPMHOOK_post_clif_pUnequipItem) (int fd, struct map_session_data *sd);
+typedef void (*HPMHOOK_pre_clif_pUnequipAllItems) (int *fd, struct map_session_data **sd);
+typedef void (*HPMHOOK_post_clif_pUnequipAllItems) (int fd, struct map_session_data *sd);
 typedef void (*HPMHOOK_pre_clif_pNpcClicked) (int *fd, struct map_session_data **sd);
 typedef void (*HPMHOOK_post_clif_pNpcClicked) (int fd, struct map_session_data *sd);
 typedef void (*HPMHOOK_pre_clif_pNpcBuySellSelected) (int *fd, struct map_session_data **sd);
@@ -2232,12 +2248,16 @@ typedef void (*HPMHOOK_pre_clif_pProduceMix) (int *fd, struct map_session_data *
 typedef void (*HPMHOOK_post_clif_pProduceMix) (int fd, struct map_session_data *sd);
 typedef void (*HPMHOOK_pre_clif_pCooking) (int *fd, struct map_session_data **sd);
 typedef void (*HPMHOOK_post_clif_pCooking) (int fd, struct map_session_data *sd);
-typedef void (*HPMHOOK_pre_clif_pRepairItem) (int *fd, struct map_session_data **sd);
-typedef void (*HPMHOOK_post_clif_pRepairItem) (int fd, struct map_session_data *sd);
+typedef void (*HPMHOOK_pre_clif_pRepairItem1) (int *fd, struct map_session_data **sd);
+typedef void (*HPMHOOK_post_clif_pRepairItem1) (int fd, struct map_session_data *sd);
+typedef void (*HPMHOOK_pre_clif_pRepairItem2) (int *fd, struct map_session_data **sd);
+typedef void (*HPMHOOK_post_clif_pRepairItem2) (int fd, struct map_session_data *sd);
 typedef void (*HPMHOOK_pre_clif_pWeaponRefine) (int *fd, struct map_session_data **sd);
 typedef void (*HPMHOOK_post_clif_pWeaponRefine) (int fd, struct map_session_data *sd);
 typedef void (*HPMHOOK_pre_clif_pNpcSelectMenu) (int *fd, struct map_session_data **sd);
 typedef void (*HPMHOOK_post_clif_pNpcSelectMenu) (int fd, struct map_session_data *sd);
+typedef void (*HPMHOOK_pre_clif_pNpcSelectMenuZero) (int *fd, struct map_session_data **sd);
+typedef void (*HPMHOOK_post_clif_pNpcSelectMenuZero) (int fd, struct map_session_data *sd);
 typedef void (*HPMHOOK_pre_clif_pNpcNextClicked) (int *fd, struct map_session_data **sd);
 typedef void (*HPMHOOK_post_clif_pNpcNextClicked) (int fd, struct map_session_data *sd);
 typedef void (*HPMHOOK_pre_clif_pNpcAmountInput) (int *fd, struct map_session_data **sd);
@@ -2358,6 +2378,8 @@ typedef void (*HPMHOOK_pre_clif_pGuildOpposition) (int *fd, struct map_session_d
 typedef void (*HPMHOOK_post_clif_pGuildOpposition) (int fd, struct map_session_data *sd);
 typedef void (*HPMHOOK_pre_clif_pGuildBreak) (int *fd, struct map_session_data **sd);
 typedef void (*HPMHOOK_post_clif_pGuildBreak) (int fd, struct map_session_data *sd);
+typedef void (*HPMHOOK_pre_clif_pGuildMembersNear) (int *fd, struct map_session_data **sd);
+typedef void (*HPMHOOK_post_clif_pGuildMembersNear) (int fd, struct map_session_data *sd);
 typedef void (*HPMHOOK_pre_clif_pPetMenu) (int *fd, struct map_session_data **sd);
 typedef void (*HPMHOOK_post_clif_pPetMenu) (int fd, struct map_session_data *sd);
 typedef void (*HPMHOOK_pre_clif_pCatchPet) (int *fd, struct map_session_data **sd);
@@ -2630,8 +2652,10 @@ typedef void (*HPMHOOK_pre_clif_pRodexCancelWriteMail) (int *fd, struct map_sess
 typedef void (*HPMHOOK_post_clif_pRodexCancelWriteMail) (int fd, struct map_session_data *sd);
 typedef void (*HPMHOOK_pre_clif_pRodexOpenMailbox) (int *fd, struct map_session_data **sd);
 typedef void (*HPMHOOK_post_clif_pRodexOpenMailbox) (int fd, struct map_session_data *sd);
-typedef void (*HPMHOOK_pre_clif_pRodexCheckName) (int *fd, struct map_session_data **sd);
-typedef void (*HPMHOOK_post_clif_pRodexCheckName) (int fd, struct map_session_data *sd);
+typedef void (*HPMHOOK_pre_clif_pRodexCheckName1) (int *fd, struct map_session_data **sd);
+typedef void (*HPMHOOK_post_clif_pRodexCheckName1) (int fd, struct map_session_data *sd);
+typedef void (*HPMHOOK_pre_clif_pRodexCheckName2) (int *fd, struct map_session_data **sd);
+typedef void (*HPMHOOK_post_clif_pRodexCheckName2) (int fd, struct map_session_data *sd);
 typedef void (*HPMHOOK_pre_clif_rodex_checkname_result) (struct map_session_data **sd, int *char_id, int *class_, int *base_level, const char **name);
 typedef void (*HPMHOOK_post_clif_rodex_checkname_result) (struct map_session_data *sd, int char_id, int class_, int base_level, const char *name);
 typedef void (*HPMHOOK_pre_clif_pRodexDeleteMail) (int *fd, struct map_session_data **sd);
@@ -2680,6 +2704,10 @@ typedef time_t (*HPMHOOK_pre_clif_attendance_getendtime) (void);
 typedef time_t (*HPMHOOK_post_clif_attendance_getendtime) (time_t retVal___);
 typedef void (*HPMHOOK_pre_clif_pOpenUIRequest) (int *fd, struct map_session_data **sd);
 typedef void (*HPMHOOK_post_clif_pOpenUIRequest) (int fd, struct map_session_data *sd);
+typedef void (*HPMHOOK_pre_clif_open_ui_send1) (struct map_session_data **sd, enum zc_ui_types *ui_type);
+typedef void (*HPMHOOK_post_clif_open_ui_send1) (struct map_session_data *sd, enum zc_ui_types ui_type);
+typedef void (*HPMHOOK_pre_clif_open_ui_send2) (struct map_session_data **sd, enum zc_ui_types *ui_type, uint64 *data);
+typedef void (*HPMHOOK_post_clif_open_ui_send2) (struct map_session_data *sd, enum zc_ui_types ui_type, uint64 data);
 typedef void (*HPMHOOK_pre_clif_open_ui_send) (struct map_session_data **sd, enum zc_ui_types *ui_type);
 typedef void (*HPMHOOK_post_clif_open_ui_send) (struct map_session_data *sd, enum zc_ui_types ui_type);
 typedef void (*HPMHOOK_pre_clif_open_ui) (struct map_session_data **sd, enum cz_ui_types *uiType);
@@ -2818,6 +2846,42 @@ typedef void (*HPMHOOK_pre_clif_macro_reporter_select) (struct map_session_data 
 typedef void (*HPMHOOK_post_clif_macro_reporter_select) (struct map_session_data *sd, const struct macroaidlist *aid_list);
 typedef void (*HPMHOOK_pre_clif_macro_reporter_status) (struct map_session_data **sd, enum macro_report_status *stype);
 typedef void (*HPMHOOK_post_clif_macro_reporter_status) (struct map_session_data *sd, enum macro_report_status stype);
+typedef void (*HPMHOOK_pre_clif_sayDialogAlign) (struct map_session_data **sd, int *npcid, enum say_dialog_align *align);
+typedef void (*HPMHOOK_post_clif_sayDialogAlign) (struct map_session_data *sd, int npcid, enum say_dialog_align align);
+typedef void (*HPMHOOK_pre_clif_pGradeEnchantAddItem) (int *fd, struct map_session_data **sd);
+typedef void (*HPMHOOK_post_clif_pGradeEnchantAddItem) (int fd, struct map_session_data *sd);
+typedef void (*HPMHOOK_pre_clif_pGradeEnchantStart) (int *fd, struct map_session_data **sd);
+typedef void (*HPMHOOK_post_clif_pGradeEnchantStart) (int fd, struct map_session_data *sd);
+typedef void (*HPMHOOK_pre_clif_pGradeEnchantClose) (int *fd, struct map_session_data **sd);
+typedef void (*HPMHOOK_post_clif_pGradeEnchantClose) (int fd, struct map_session_data *sd);
+typedef void (*HPMHOOK_pre_clif_grade_enchant_add_item_result_success) (struct map_session_data **sd, int *idx, const struct s_grade_info **gi);
+typedef void (*HPMHOOK_post_clif_grade_enchant_add_item_result_success) (struct map_session_data *sd, int idx, const struct s_grade_info *gi);
+typedef void (*HPMHOOK_pre_clif_grade_enchant_add_item_result_fail) (struct map_session_data **sd);
+typedef void (*HPMHOOK_post_clif_grade_enchant_add_item_result_fail) (struct map_session_data *sd);
+typedef void (*HPMHOOK_pre_clif_grade_enchant_result) (struct map_session_data **sd, int16 *index, enum grade_level *gl, enum grade_ui_result *result);
+typedef void (*HPMHOOK_post_clif_grade_enchant_result) (struct map_session_data *sd, int16 index, enum grade_level gl, enum grade_ui_result result);
+typedef void (*HPMHOOK_pre_clif_announce_grade_status) (struct map_session_data **sd, int *item_id, enum grade_level *gl, bool *success, enum send_target *target);
+typedef void (*HPMHOOK_post_clif_announce_grade_status) (struct map_session_data *sd, int item_id, enum grade_level gl, bool success, enum send_target target);
+typedef int (*HPMHOOK_pre_clif_setlevel) (struct block_list **bl);
+typedef int (*HPMHOOK_post_clif_setlevel) (int retVal___, struct block_list *bl);
+typedef int (*HPMHOOK_pre_clif_setlevel_sub) (int *lv);
+typedef int (*HPMHOOK_post_clif_setlevel_sub) (int retVal___, int lv);
+typedef void (*HPMHOOK_pre_clif_load_end_ack_sub_messages) (struct map_session_data **sd, bool *connect_new, bool *change_map);
+typedef void (*HPMHOOK_post_clif_load_end_ack_sub_messages) (struct map_session_data *sd, bool connect_new, bool change_map);
+typedef bool (*HPMHOOK_pre_clif_sub_guild_invite) (int *fd, struct map_session_data **sd, struct map_session_data **t_sd);
+typedef bool (*HPMHOOK_post_clif_sub_guild_invite) (bool retVal___, int fd, struct map_session_data *sd, struct map_session_data *t_sd);
+typedef void (*HPMHOOK_pre_clif_set_npc_window_size) (struct map_session_data **sd, int *width, int *height);
+typedef void (*HPMHOOK_post_clif_set_npc_window_size) (struct map_session_data *sd, int width, int height);
+typedef void (*HPMHOOK_pre_clif_set_npc_window_pos) (struct map_session_data **sd, int *x, int *y);
+typedef void (*HPMHOOK_post_clif_set_npc_window_pos) (struct map_session_data *sd, int x, int y);
+typedef void (*HPMHOOK_pre_clif_set_npc_window_pos_percent) (struct map_session_data **sd, int *x, int *y);
+typedef void (*HPMHOOK_post_clif_set_npc_window_pos_percent) (struct map_session_data *sd, int x, int y);
+typedef unsigned short (*HPMHOOK_pre_clif_parse_cmd_normal) (int *fd, struct map_session_data **sd);
+typedef unsigned short (*HPMHOOK_post_clif_parse_cmd_normal) (unsigned short retVal___, int fd, struct map_session_data *sd);
+typedef unsigned short (*HPMHOOK_pre_clif_parse_cmd_decrypt) (int *fd, struct map_session_data **sd);
+typedef unsigned short (*HPMHOOK_post_clif_parse_cmd_decrypt) (unsigned short retVal___, int fd, struct map_session_data *sd);
+typedef unsigned short (*HPMHOOK_pre_clif_parse_cmd_optional) (int *fd, struct map_session_data **sd);
+typedef unsigned short (*HPMHOOK_post_clif_parse_cmd_optional) (unsigned short retVal___, int fd, struct map_session_data *sd);
 #endif // MAP_CLIF_H
 #ifdef COMMON_CORE_H /* cmdline */
 typedef void (*HPMHOOK_pre_cmdline_init) (void);
@@ -2987,6 +3051,34 @@ typedef void (*HPMHOOK_post_geoip_final) (bool shutdown);
 typedef void (*HPMHOOK_pre_geoip_init) (void);
 typedef void (*HPMHOOK_post_geoip_init) (void);
 #endif // CHAR_GEOIP_H
+#ifdef MAP_GRADER_H /* grader */
+typedef int (*HPMHOOK_pre_grader_init) (bool *minimal);
+typedef int (*HPMHOOK_post_grader_init) (int retVal___, bool minimal);
+typedef void (*HPMHOOK_pre_grader_final) (void);
+typedef void (*HPMHOOK_post_grader_final) (void);
+typedef void (*HPMHOOK_pre_grader_reload_db) (void);
+typedef void (*HPMHOOK_post_grader_reload_db) (void);
+typedef bool (*HPMHOOK_pre_grader_read_db_libconfig) (void);
+typedef bool (*HPMHOOK_post_grader_read_db_libconfig) (bool retVal___);
+typedef bool (*HPMHOOK_pre_grader_read_db_libconfig_sub) (const struct config_setting_t **it, int *n, const char **source);
+typedef bool (*HPMHOOK_post_grader_read_db_libconfig_sub) (bool retVal___, const struct config_setting_t *it, int n, const char *source);
+typedef bool (*HPMHOOK_pre_grader_read_db_libconfig_sub_materials) (const struct config_setting_t **it, enum grade_level *gl, int *n, const char **source);
+typedef bool (*HPMHOOK_post_grader_read_db_libconfig_sub_materials) (bool retVal___, const struct config_setting_t *it, enum grade_level gl, int n, const char *source);
+typedef bool (*HPMHOOK_pre_grader_read_db_libconfig_sub_material) (const struct config_setting_t **it, struct grade_material **gm, int *n, const char **source);
+typedef bool (*HPMHOOK_post_grader_read_db_libconfig_sub_material) (bool retVal___, const struct config_setting_t *it, struct grade_material *gm, int n, const char *source);
+typedef bool (*HPMHOOK_pre_grader_read_db_libconfig_sub_blessing) (const struct config_setting_t **it, enum grade_level *gl, int *n, const char **source);
+typedef bool (*HPMHOOK_post_grader_read_db_libconfig_sub_blessing) (bool retVal___, const struct config_setting_t *it, enum grade_level gl, int n, const char *source);
+typedef bool (*HPMHOOK_pre_grader_failure_behavior_string2enum) (const char **str, enum grade_ui_failure_behavior **result);
+typedef bool (*HPMHOOK_post_grader_failure_behavior_string2enum) (bool retVal___, const char *str, enum grade_ui_failure_behavior *result);
+typedef bool (*HPMHOOK_pre_grader_announce_behavior_string2enum) (const char **str, enum grade_announce_condition **result);
+typedef bool (*HPMHOOK_post_grader_announce_behavior_string2enum) (bool retVal___, const char *str, enum grade_announce_condition *result);
+typedef const struct s_grade_info* (*HPMHOOK_pre_grader_get_grade_info) (int *grade);
+typedef const struct s_grade_info* (*HPMHOOK_post_grader_get_grade_info) (const struct s_grade_info* retVal___, int grade);
+typedef void (*HPMHOOK_pre_grader_enchant_add_item) (struct map_session_data **sd, int *idx);
+typedef void (*HPMHOOK_post_grader_enchant_add_item) (struct map_session_data *sd, int idx);
+typedef void (*HPMHOOK_pre_grader_enchant_start) (struct map_session_data **sd, int *idx, int *mat_idx, bool *use_blessing, int *blessing_amount);
+typedef void (*HPMHOOK_post_grader_enchant_start) (struct map_session_data *sd, int idx, int mat_idx, bool use_blessing, int blessing_amount);
+#endif // MAP_GRADER_H
 #ifdef COMMON_GRFIO_H /* grfio */
 typedef void (*HPMHOOK_pre_grfio_init) (const char **fname);
 typedef void (*HPMHOOK_post_grfio_init) (const char *fname);
@@ -3002,6 +3094,10 @@ typedef int (*HPMHOOK_pre_grfio_decode_zip) (void **dest, unsigned long **dest_l
 typedef int (*HPMHOOK_post_grfio_decode_zip) (int retVal___, void *dest, unsigned long *dest_len, const void *source, unsigned long source_len);
 typedef int (*HPMHOOK_pre_grfio_encode_zip) (void **dest, unsigned long **dest_len, const void **source, unsigned long *source_len);
 typedef int (*HPMHOOK_post_grfio_encode_zip) (int retVal___, void *dest, unsigned long *dest_len, const void *source, unsigned long source_len);
+typedef void (*HPMHOOK_pre_grfio_report_error) (int *err);
+typedef void (*HPMHOOK_post_grfio_report_error) (int err);
+typedef char* (*HPMHOOK_pre_grfio_decode_filename) (unsigned char **buf, int *len);
+typedef char* (*HPMHOOK_post_grfio_decode_filename) (char* retVal___, unsigned char *buf, int len);
 #endif // COMMON_GRFIO_H
 #ifdef MAP_GUILD_H /* guild */
 typedef void (*HPMHOOK_pre_guild_init) (bool *minimal);
@@ -3322,8 +3418,8 @@ typedef int8 (*HPMHOOK_pre_homun_get_intimacy_grade) (struct homun_data **hd);
 typedef int8 (*HPMHOOK_post_homun_get_intimacy_grade) (int8 retVal___, struct homun_data *hd);
 typedef int (*HPMHOOK_pre_homun_get_max_level) (struct homun_data **hd);
 typedef int (*HPMHOOK_post_homun_get_max_level) (int retVal___, struct homun_data *hd);
-typedef uint64 (*HPMHOOK_pre_homun_get_exp) (struct homun_data **hd, int *idx);
-typedef uint64 (*HPMHOOK_post_homun_get_exp) (uint64 retVal___, struct homun_data *hd, int idx);
+typedef uint64 (*HPMHOOK_pre_homun_get_exp_next) (struct homun_data **hd);
+typedef uint64 (*HPMHOOK_post_homun_get_exp_next) (uint64 retVal___, struct homun_data *hd);
 #endif // MAP_HOMUNCULUS_H
 #ifdef MAP_INSTANCE_H /* instance */
 typedef void (*HPMHOOK_pre_instance_init) (bool *minimal);
@@ -4928,6 +5024,16 @@ typedef int (*HPMHOOK_pre_map_readallmaps) (void);
 typedef int (*HPMHOOK_post_map_readallmaps) (int retVal___);
 typedef bool (*HPMHOOK_pre_map_config_read) (const char **filename, bool *imported);
 typedef bool (*HPMHOOK_post_map_config_read) (bool retVal___, const char *filename, bool imported);
+typedef bool (*HPMHOOK_pre_map_config_read_console) (const char **filename, struct config_t **config, bool *imported);
+typedef bool (*HPMHOOK_post_map_config_read_console) (bool retVal___, const char *filename, struct config_t *config, bool imported);
+typedef bool (*HPMHOOK_pre_map_config_read_connection) (const char **filename, struct config_t **config, bool *imported);
+typedef bool (*HPMHOOK_post_map_config_read_connection) (bool retVal___, const char *filename, struct config_t *config, bool imported);
+typedef bool (*HPMHOOK_pre_map_config_read_inter) (const char **filename, struct config_t **config, bool *imported);
+typedef bool (*HPMHOOK_post_map_config_read_inter) (bool retVal___, const char *filename, struct config_t *config, bool imported);
+typedef bool (*HPMHOOK_pre_map_config_read_database) (const char **filename, struct config_t **config, bool *imported);
+typedef bool (*HPMHOOK_post_map_config_read_database) (bool retVal___, const char *filename, struct config_t *config, bool imported);
+typedef bool (*HPMHOOK_pre_map_config_read_map_list) (const char **filename, struct config_t **config, bool *imported);
+typedef bool (*HPMHOOK_post_map_config_read_map_list) (bool retVal___, const char *filename, struct config_t *config, bool imported);
 typedef bool (*HPMHOOK_pre_map_read_npclist) (const char **filename, bool *imported);
 typedef bool (*HPMHOOK_post_map_read_npclist) (bool retVal___, const char *filename, bool imported);
 typedef bool (*HPMHOOK_pre_map_inter_config_read) (const char **filename, bool *imported);
@@ -5972,6 +6078,12 @@ typedef void (*HPMHOOK_pre_npc_questinfo_clear) (struct npc_data **nd);
 typedef void (*HPMHOOK_post_npc_questinfo_clear) (struct npc_data *nd);
 typedef int (*HPMHOOK_pre_npc_secure_timeout_timer) (int *tid, int64 *tick, int *id, intptr_t *data);
 typedef int (*HPMHOOK_post_npc_secure_timeout_timer) (int retVal___, int tid, int64 tick, int id, intptr_t data);
+typedef void (*HPMHOOK_pre_npc_process_files) (int *npc_min);
+typedef void (*HPMHOOK_post_npc_process_files) (int npc_min);
+typedef int (*HPMHOOK_pre_npc_dynamic_npc_despawn) (int *tid, int64 *tick, int *id, intptr_t *data);
+typedef int (*HPMHOOK_post_npc_dynamic_npc_despawn) (int retVal___, int tid, int64 tick, int id, intptr_t data);
+typedef void (*HPMHOOK_pre_npc_update_interaction_tick) (struct npc_data **nd);
+typedef void (*HPMHOOK_post_npc_update_interaction_tick) (struct npc_data *nd);
 #endif // MAP_NPC_H
 #ifdef COMMON_NULLPO_H /* nullpo */
 typedef void (*HPMHOOK_pre_nullpo_init) (void);
@@ -5990,6 +6102,12 @@ typedef void (*HPMHOOK_pre_packets_addLens) (void);
 typedef void (*HPMHOOK_post_packets_addLens) (void);
 typedef void (*HPMHOOK_pre_packets_addLen) (int *id, int *len);
 typedef void (*HPMHOOK_post_packets_addLen) (int id, int len);
+typedef void (*HPMHOOK_pre_packets_addLenIntif) (int *id, int *len);
+typedef void (*HPMHOOK_post_packets_addLenIntif) (int id, int len);
+typedef void (*HPMHOOK_pre_packets_addLenInter) (int *id, int *len);
+typedef void (*HPMHOOK_post_packets_addLenInter) (int id, int len);
+typedef void (*HPMHOOK_pre_packets_addLenChrif) (int *id, int *len);
+typedef void (*HPMHOOK_post_packets_addLenChrif) (int id, int len);
 #endif // COMMON_PACKETS_H
 #ifdef MAP_PARTY_H /* party */
 typedef void (*HPMHOOK_pre_party_init) (bool *minimal);
@@ -6210,8 +6328,8 @@ typedef int (*HPMHOOK_pre_pc_additem) (struct map_session_data **sd, const struc
 typedef int (*HPMHOOK_post_pc_additem) (int retVal___, struct map_session_data *sd, const struct item *item_data, int amount, e_log_pick_type log_type);
 typedef int (*HPMHOOK_pre_pc_getzeny) (struct map_session_data **sd, int *zeny, enum e_log_pick_type *type, struct map_session_data **tsd);
 typedef int (*HPMHOOK_post_pc_getzeny) (int retVal___, struct map_session_data *sd, int zeny, enum e_log_pick_type type, struct map_session_data *tsd);
-typedef int (*HPMHOOK_pre_pc_delitem) (struct map_session_data **sd, int *n, int *amount, int *type, short *reason, e_log_pick_type *log_type);
-typedef int (*HPMHOOK_post_pc_delitem) (int retVal___, struct map_session_data *sd, int n, int amount, int type, short reason, e_log_pick_type log_type);
+typedef int (*HPMHOOK_pre_pc_delitem) (struct map_session_data **sd, int *n, int *amount, int *type, enum delitem_reason *reason, e_log_pick_type *log_type);
+typedef int (*HPMHOOK_post_pc_delitem) (int retVal___, struct map_session_data *sd, int n, int amount, int type, enum delitem_reason reason, e_log_pick_type log_type);
 typedef int (*HPMHOOK_pre_pc_paycash) (struct map_session_data **sd, int *price, int *points);
 typedef int (*HPMHOOK_post_pc_paycash) (int retVal___, struct map_session_data *sd, int price, int points);
 typedef int (*HPMHOOK_pre_pc_getcash) (struct map_session_data **sd, int *cash, int *points);
@@ -6246,6 +6364,10 @@ typedef int (*HPMHOOK_pre_pc_endautobonus) (int *tid, int64 *tick, int *id, intp
 typedef int (*HPMHOOK_post_pc_endautobonus) (int retVal___, int tid, int64 tick, int id, intptr_t data);
 typedef int (*HPMHOOK_pre_pc_delautobonus) (struct map_session_data **sd, struct s_autobonus **bonus, char *max, bool *restore);
 typedef int (*HPMHOOK_post_pc_delautobonus) (int retVal___, struct map_session_data *sd, struct s_autobonus *bonus, char max, bool restore);
+typedef void (*HPMHOOK_pre_pc_bonus_addele) (struct map_session_data **sd, unsigned char *ele, short *rate, short *flag);
+typedef void (*HPMHOOK_post_pc_bonus_addele) (struct map_session_data *sd, unsigned char ele, short rate, short flag);
+typedef void (*HPMHOOK_pre_pc_bonus_subele) (struct map_session_data **sd, unsigned char *ele, short *rate, short *flag);
+typedef void (*HPMHOOK_post_pc_bonus_subele) (struct map_session_data *sd, unsigned char ele, short rate, short flag);
 typedef int (*HPMHOOK_pre_pc_bonus) (struct map_session_data **sd, int *type, int *val);
 typedef int (*HPMHOOK_post_pc_bonus) (int retVal___, struct map_session_data *sd, int type, int val);
 typedef int (*HPMHOOK_pre_pc_bonus2) (struct map_session_data **sd, int *type, int *type2, int *val);
@@ -7356,8 +7478,8 @@ typedef bool (*HPMHOOK_pre_searchstore_queryremote) (struct map_session_data **s
 typedef bool (*HPMHOOK_post_searchstore_queryremote) (bool retVal___, struct map_session_data *sd, int account_id);
 typedef void (*HPMHOOK_pre_searchstore_clearremote) (struct map_session_data **sd);
 typedef void (*HPMHOOK_post_searchstore_clearremote) (struct map_session_data *sd);
-typedef bool (*HPMHOOK_pre_searchstore_result) (struct map_session_data **sd, unsigned int *store_id, int *account_id, const char **store_name, int *nameid, unsigned short *amount, unsigned int *price, const int **card, unsigned char *refine_level, const struct item_option **option);
-typedef bool (*HPMHOOK_post_searchstore_result) (bool retVal___, struct map_session_data *sd, unsigned int store_id, int account_id, const char *store_name, int nameid, unsigned short amount, unsigned int price, const int *card, unsigned char refine_level, const struct item_option *option);
+typedef bool (*HPMHOOK_pre_searchstore_result) (struct map_session_data **sd, unsigned int *store_id, int *account_id, const char **store_name, int *nameid, unsigned short *amount, unsigned int *price, const int **card, unsigned char *refine_level, unsigned char *grade_level, const struct item_option **option);
+typedef bool (*HPMHOOK_post_searchstore_result) (bool retVal___, struct map_session_data *sd, unsigned int store_id, int account_id, const char *store_name, int nameid, unsigned short amount, unsigned int price, const int *card, unsigned char refine_level, unsigned char grade_level, const struct item_option *option);
 #endif // MAP_SEARCHSTORE_H
 #ifdef COMMON_SHOWMSG_H /* showmsg */
 typedef void (*HPMHOOK_pre_showmsg_init) (void);
@@ -8542,6 +8664,8 @@ typedef void (*HPMHOOK_pre_sysinfo_vcsrevision_reload) (void);
 typedef void (*HPMHOOK_post_sysinfo_vcsrevision_reload) (void);
 typedef bool (*HPMHOOK_pre_sysinfo_is_superuser) (void);
 typedef bool (*HPMHOOK_post_sysinfo_is_superuser) (bool retVal___);
+typedef const char* (*HPMHOOK_pre_sysinfo_zlib) (void);
+typedef const char* (*HPMHOOK_post_sysinfo_zlib) (const char* retVal___);
 typedef void (*HPMHOOK_pre_sysinfo_init) (void);
 typedef void (*HPMHOOK_post_sysinfo_init) (void);
 typedef void (*HPMHOOK_pre_sysinfo_final) (void);
@@ -8740,8 +8864,8 @@ typedef void (*HPMHOOK_pre_vending_open) (struct map_session_data **sd, const ch
 typedef void (*HPMHOOK_post_vending_open) (struct map_session_data *sd, const char *message, const uint8 *data, int count);
 typedef void (*HPMHOOK_pre_vending_list) (struct map_session_data **sd, unsigned int *id);
 typedef void (*HPMHOOK_post_vending_list) (struct map_session_data *sd, unsigned int id);
-typedef void (*HPMHOOK_pre_vending_purchase) (struct map_session_data **sd, int *aid, unsigned int *uid, const uint8 **data, int *count);
-typedef void (*HPMHOOK_post_vending_purchase) (struct map_session_data *sd, int aid, unsigned int uid, const uint8 *data, int count);
+typedef void (*HPMHOOK_pre_vending_purchase) (struct map_session_data **sd, int *aid, unsigned int *uid, const struct CZ_PURCHASE_ITEM_FROMMC **data, int *count);
+typedef void (*HPMHOOK_post_vending_purchase) (struct map_session_data *sd, int aid, unsigned int uid, const struct CZ_PURCHASE_ITEM_FROMMC *data, int count);
 typedef bool (*HPMHOOK_pre_vending_search) (struct map_session_data **sd, int *nameid);
 typedef bool (*HPMHOOK_post_vending_search) (bool retVal___, struct map_session_data *sd, int nameid);
 typedef bool (*HPMHOOK_pre_vending_searchall) (struct map_session_data **sd, const struct s_search_store_search **s);

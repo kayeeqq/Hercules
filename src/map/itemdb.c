@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2021 Hercules Dev Team
+ * Copyright (C) 2012-2022 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -261,7 +261,7 @@ static void itemdb_package_item(struct map_session_data *sd, struct item_package
 		}
 
 		if( package->must_items[i].announce )
-			clif->package_announce(sd,package->must_items[i].id,package->id);
+			clif->package_announce(sd, package->must_items[i].id, package->id, it.refine);
 
 		if ( package->must_items[i].force_serial )
 			it.unique_id = itemdb->unique_id(sd);
@@ -305,7 +305,7 @@ static void itemdb_package_item(struct map_session_data *sd, struct item_package
 					}
 
 					if( entry->announce )
-						clif->package_announce(sd,entry->id,package->id);
+						clif->package_announce(sd, entry->id, package->id, it.refine);
 
 					get_count = itemdb->isstackable(entry->id) ? entry->qty : 1;
 
@@ -2186,6 +2186,9 @@ static int itemdb_readdb_libconfig_sub(struct config_setting_t *it, int n, const
 
 	if( (t = libconfig->setting_get_member(it, "Refine")) )
 		id.flag.no_refine = libconfig->setting_get_bool(t) ? 0 : 1;
+
+	if( (t = libconfig->setting_get_member(it, "Grade")) )
+		id.flag.no_grade = libconfig->setting_get_bool(t) ? 1 : 0;
 
 	if ((t = libconfig->setting_get_member(it, "DisableOptions")))
 		id.flag.no_options = libconfig->setting_get_bool(t) ? 1 : 0;

@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2021 Hercules Dev Team
+ * Copyright (C) 2021-2022 Hercules Dev Team
  *
  * Hercules is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -63,8 +63,8 @@ static void macro_captcha_register(struct map_session_data *sd, const int image_
 	safestrncpy(cd.captcha_answer, captcha_answer, sizeof(cd.captcha_answer));
 	memset(cd.image_data, 0, CAPTCHA_BMP_SIZE);
 
-	char captcha_key[4];
-	sprintf(captcha_key, "%03X", (unsigned int)VECTOR_CAPACITY(macro->captcha_registery));
+	char captcha_key[50];
+	safesnprintf(captcha_key, 50, "%X", (unsigned int)VECTOR_CAPACITY(macro->captcha_registery));
 	safestrncpy(cd.captcha_key, captcha_key, sizeof(cd.captcha_key));
 
 	VECTOR_PUSH(macro->captcha_registery, cd);
@@ -353,8 +353,8 @@ static bool macro_read_captcha_db_libconfig_sub(const struct config_setting_t *i
 	cd.upload_size = cd.image_size;
 	safestrncpy(cd.captcha_answer, answer, sizeof(cd.captcha_answer));
 
-	char captcha_key[4];
-	sprintf(captcha_key, "%03X", (unsigned int)VECTOR_CAPACITY(macro->captcha_registery));
+	char captcha_key[50];
+	safesnprintf(captcha_key, 50, "%X", (unsigned int)VECTOR_CAPACITY(macro->captcha_registery));
 	safestrncpy(cd.captcha_key, captcha_key, sizeof(cd.captcha_key));
 
 	VECTOR_PUSH(macro->captcha_registery, cd);
@@ -400,7 +400,9 @@ static bool macro_read_captcha_db_libconfig_sub_loadbmp(const char *filepath, st
 	memset(cd->image_data, 0, CAPTCHA_BMP_SIZE);
 
 	// Compress the data into the destination
-	grfio->encode_zip(cd->image_data, (unsigned long *)&cd->image_size, bmp_data, CAPTCHA_BMP_SIZE);
+	unsigned long com_size = 0;
+	grfio->encode_zip(cd->image_data, &com_size, bmp_data, CAPTCHA_BMP_SIZE);
+	cd->image_size = (int)com_size;
 
 	fclose(fp);
 	aFree(bmp_data);

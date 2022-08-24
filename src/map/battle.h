@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2021 Hercules Dev Team
+ * Copyright (C) 2012-2022 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -632,6 +632,13 @@ struct Battle_Config {
 
 	int macro_detect_retry;
 	int macro_detect_timeout;
+
+	int roulette_gold_step;
+	int roulette_silver_step;
+	int roulette_bronze_step;
+	int grader_max_used;
+	int dynamic_npc_timeout;
+	int dynamic_npc_range;
 };
 
 /* criteria for battle_config.idletime_criteria */

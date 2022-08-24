@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2013-2021 Hercules Dev Team
+ * Copyright (C) 2013-2022 Hercules Dev Team
  *
  * Hercules is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -346,6 +346,8 @@ struct {
 	struct HPMHookPoint *HP_chr_online_data_cleanup_sub_post;
 	struct HPMHookPoint *HP_chr_online_data_cleanup_pre;
 	struct HPMHookPoint *HP_chr_online_data_cleanup_post;
+	struct HPMHookPoint *HP_chr_change_sex_sub_pre;
+	struct HPMHookPoint *HP_chr_change_sex_sub_post;
 	struct HPMHookPoint *HP_chr_sql_config_read_pre;
 	struct HPMHookPoint *HP_chr_sql_config_read_post;
 	struct HPMHookPoint *HP_chr_sql_config_read_registry_pre;
@@ -1322,6 +1324,12 @@ struct {
 	struct HPMHookPoint *HP_packets_addLens_post;
 	struct HPMHookPoint *HP_packets_addLen_pre;
 	struct HPMHookPoint *HP_packets_addLen_post;
+	struct HPMHookPoint *HP_packets_addLenIntif_pre;
+	struct HPMHookPoint *HP_packets_addLenIntif_post;
+	struct HPMHookPoint *HP_packets_addLenInter_pre;
+	struct HPMHookPoint *HP_packets_addLenInter_post;
+	struct HPMHookPoint *HP_packets_addLenChrif_pre;
+	struct HPMHookPoint *HP_packets_addLenChrif_post;
 	struct HPMHookPoint *HP_pincode_handle_pre;
 	struct HPMHookPoint *HP_pincode_handle_post;
 	struct HPMHookPoint *HP_pincode_decrypt_pre;
@@ -1604,6 +1612,8 @@ struct {
 	struct HPMHookPoint *HP_sysinfo_vcsrevision_reload_post;
 	struct HPMHookPoint *HP_sysinfo_is_superuser_pre;
 	struct HPMHookPoint *HP_sysinfo_is_superuser_post;
+	struct HPMHookPoint *HP_sysinfo_zlib_pre;
+	struct HPMHookPoint *HP_sysinfo_zlib_post;
 	struct HPMHookPoint *HP_sysinfo_init_pre;
 	struct HPMHookPoint *HP_sysinfo_init_post;
 	struct HPMHookPoint *HP_sysinfo_final_pre;
@@ -1985,6 +1995,8 @@ struct {
 	int HP_chr_online_data_cleanup_sub_post;
 	int HP_chr_online_data_cleanup_pre;
 	int HP_chr_online_data_cleanup_post;
+	int HP_chr_change_sex_sub_pre;
+	int HP_chr_change_sex_sub_post;
 	int HP_chr_sql_config_read_pre;
 	int HP_chr_sql_config_read_post;
 	int HP_chr_sql_config_read_registry_pre;
@@ -2961,6 +2973,12 @@ struct {
 	int HP_packets_addLens_post;
 	int HP_packets_addLen_pre;
 	int HP_packets_addLen_post;
+	int HP_packets_addLenIntif_pre;
+	int HP_packets_addLenIntif_post;
+	int HP_packets_addLenInter_pre;
+	int HP_packets_addLenInter_post;
+	int HP_packets_addLenChrif_pre;
+	int HP_packets_addLenChrif_post;
 	int HP_pincode_handle_pre;
 	int HP_pincode_handle_post;
 	int HP_pincode_decrypt_pre;
@@ -3243,6 +3261,8 @@ struct {
 	int HP_sysinfo_vcsrevision_reload_post;
 	int HP_sysinfo_is_superuser_pre;
 	int HP_sysinfo_is_superuser_post;
+	int HP_sysinfo_zlib_pre;
+	int HP_sysinfo_zlib_post;
 	int HP_sysinfo_init_pre;
 	int HP_sysinfo_init_post;
 	int HP_sysinfo_final_pre;

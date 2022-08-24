@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2021 Hercules Dev Team
+ * Copyright (C) 2012-2022 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -5842,11 +5842,11 @@ static const char *status_get_name(const struct block_list *bl)
 		case BL_PET: return BL_UCCAST(BL_PET, bl)->pet.name;
 		case BL_HOM: return BL_UCCAST(BL_HOM, bl)->homunculus.name;
 		case BL_NPC: return BL_UCCAST(BL_NPC, bl)->name;
+		case BL_MER: return BL_UCCAST(BL_MER, bl)->db->name;
 		case BL_NUL:
 		case BL_SKILL:
 		case BL_CHAT:
 		case BL_ELEM:
-		case BL_MER:
 		case BL_ITEM:
 		case BL_ALL:
 			break;
@@ -9190,6 +9190,7 @@ static int status_change_start_sub(struct block_list *src, struct block_list *bl
 				val2 = 30 * val1;
 				break;
 			case SC_MONSTER_TRANSFORM:
+			case SC_ACTIVE_MONSTER_TRANSFORM:
 				if (!mob->db_checkid(val1))
 					val1 = MOBID_PORING;
 				break;
@@ -9773,6 +9774,7 @@ static int status_get_val_flag(enum sc_type type)
 		case SC_CASH_PLUSEXP:
 		case SC_CASH_PLUSONLYJOBEXP:
 		case SC_MONSTER_TRANSFORM:
+		case SC_ACTIVE_MONSTER_TRANSFORM:
 		case SC_CASH_RECEIVEITEM:
 		case SC_OVERLAPEXPUP:
 			val_flag |= 1;
@@ -11064,7 +11066,8 @@ static int status_change_end_(struct block_list *bl, enum sc_type type, int tid)
 			sc_start(bl,bl,SC_REBOUND,100,sce->val1,skill->get_time2(ALL_FULL_THROTTLE,sce->val1));
 			break;
 		case SC_MONSTER_TRANSFORM:
-			if( sce->val2 )
+		case SC_ACTIVE_MONSTER_TRANSFORM:
+			if (sce->val2)
 				status_change_end(bl, (sc_type)sce->val2, INVALID_TIMER);
 			break;
 		case SC_OVERED_BOOST:

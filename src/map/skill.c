@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2021 Hercules Dev Team
+ * Copyright (C) 2012-2022 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -2738,9 +2738,8 @@ static int skill_counter_additional_effect(struct block_list *src, struct block_
 			break;
 		case LG_HESPERUSLIT:
 			if ( sc && sc->data[SC_FORCEOFVANGUARD] && sc->data[SC_BANDING] && sc->data[SC_BANDING]->val2 > 6 ) {
-					char i;
-					for( i = 0; i < sc->data[SC_FORCEOFVANGUARD]->val3 && sc->fv_counter <= sc->data[SC_FORCEOFVANGUARD]->val3 ; i++)
-					clif->millenniumshield(bl, sc->fv_counter++);
+					for(int i = 0; i < sc->data[SC_FORCEOFVANGUARD]->val3 && sc->fv_counter <= sc->data[SC_FORCEOFVANGUARD]->val3 ; i++)
+						clif->millenniumshield(bl, sc->fv_counter++);
 				}
 				break;
 		case SP_SPA:
@@ -5054,7 +5053,7 @@ static int skill_castend_damage_id(struct block_list *src, struct block_list *bl
 					}
 					clif->slide(src, src->x, src->y);
 					clif->fixpos(src);
-					clif->spiritball(src);
+					clif->spiritball(src, BALL_TYPE_SPIRIT, AREA);
 				}
 			}
 			break;
@@ -5064,14 +5063,13 @@ static int skill_castend_damage_id(struct block_list *src, struct block_list *bl
 				skill->attack(BF_WEAPON,src,src,bl,skill_id,skill_lv,tick,flag);
 			break;
 
-		case SU_BITE:
-			skill->attack(BF_WEAPON, src, src, bl, skill_id, skill_lv, tick, flag);
-			if (status->get_lv(src) >= 30 && (rnd() % 100 < (int)(status->get_lv(src) / 30) + 10)) // TODO: Need activation chance.
-				skill->addtimerskill(src, tick + skill->get_delay(skill_id, skill_lv), bl->id, 0, 0, skill_id, skill_lv, BF_WEAPON, flag);
-			break;
-
 		case SU_PICKYPECK:
 			clif->skill_nodamage(src, bl, skill_id, skill_lv, 1);
+			FALLTHROUGH
+		case SU_BITE:
+			skill->attack(BF_WEAPON, src, src, bl, skill_id, skill_lv, tick, flag);
+			if (status->get_lv(src) >= 30 && (rnd() % 100 < (int)(status->get_lv(src) / 30) * 10 + 10))
+				skill->addtimerskill(src, tick + skill->get_delay(skill_id, skill_lv), bl->id, 0, 0, skill_id, skill_lv, BF_WEAPON, flag);
 			break;
 
 		// Splash attack skills.
@@ -5233,7 +5231,7 @@ static int skill_castend_damage_id(struct block_list *src, struct block_list *bl
 					short item_idx = pc->search_inventory(sd, ITEMID_CARROT);
 
 					if (item_idx >= 0) {
-						pc->delitem(sd, item_idx, 1, 0, 1, LOG_TYPE_CONSUME);
+						pc->delitem(sd, item_idx, 1, 0, DELITEM_SKILLUSE, LOG_TYPE_CONSUME);
 						skill->area_temp[3] = 1;
 					}
 				}
@@ -6583,7 +6581,7 @@ static int skill_castend_id(int tid, int64 tick, int id, intptr_t data)
 			if (unit->move_pos(src, src->x + x, src->y + y, 1, true) == 0) {
 				//Display movement + animation.
 				clif->slide(src, src->x, src->y);
-				clif->spiritball(src);
+				clif->spiritball(src, BALL_TYPE_SPIRIT, AREA);
 			}
 			// "Skill Failed" message was already shown when checking that target is invalid
 			//clif->skill_fail(sd, ud->skill_id, USESKILL_FAIL_LEVEL, 0, 0);
@@ -7659,9 +7657,9 @@ static int skill_castend_nodamage_id(struct block_list *src, struct block_list *
 			break;
 		
 		case MO_CALLSPIRITS:
-			if(sd) {
-				clif->skill_nodamage(src,bl,skill_id,skill_lv,1);
-				pc->addspiritball(sd, skill->get_time(skill_id, skill_lv), pc->getmaxspiritball(sd, 0));
+			if (sd != NULL) {
+				clif->skill_nodamage(src, bl, skill_id, skill_lv, 1);
+				pc->addspiritball(sd, skill->get_time(skill_id, skill_lv), pc->getmaxspiritball(sd, skill_lv));
 			}
 			break;
 
@@ -12354,7 +12352,7 @@ static int skill_castend_pos2(struct block_list *src, int x, int y, uint16 skill
 				if (sd && skill_id == SU_CN_METEOR) {
 					short item_idx = pc->search_inventory(sd, ITEMID_CATNIP_FRUIT);
 					if (item_idx >= 0) {
-						pc->delitem(sd, item_idx, 1, 0, 1, LOG_TYPE_SKILL);
+						pc->delitem(sd, item_idx, 1, 0, DELITEM_SKILLUSE, LOG_TYPE_SKILL);
 						flag |= 1;
 					}
 				}
@@ -20865,7 +20863,7 @@ static void skill_init_unit_layout(void)
 	// afterwards add special ones
 	pos = i;
 	for (i=0;i<MAX_SKILL_DB;i++) {
-		if (!skill->dbs->db[i].unit_id[0] || skill->dbs->db[i].unit_layout_type[0] != -1)
+		if (skill->dbs->db[i].unit_layout_type[0] != -1)
 			continue;
 
 		switch (skill->dbs->db[i].nameid) {
@@ -21824,6 +21822,11 @@ static void skill_validate_skilltype(struct config_setting_t *conf, struct s_ski
 					sk->inf |= INF_TARGET_TRAP;
 				else
 					sk->inf &= ~INF_TARGET_TRAP;
+			} else if (strcmpi(skill_type, "Item") == 0) {
+				if (on)
+					sk->inf |= INF_ITEM_SKILL;
+				else
+					sk->inf &= ~INF_ITEM_SKILL;
 			} else if (strcmpi(skill_type, "Passive") != 0) {
 				ShowWarning("%s: Invalid skill type %s specified for skill ID %d in %s! Skipping type...\n",
 					    __func__, skill_type, sk->nameid, conf->file);

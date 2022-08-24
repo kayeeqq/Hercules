@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2021 Hercules Dev Team
+ * Copyright (C) 2012-2022 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -231,9 +231,7 @@ static void mvptomb_destroy(struct mob_data *md)
 
 	nullpo_retv(md);
 	if ( (nd = map->id2nd(md->tomb_nid)) ) {
-		int16 m, i;
-
-		m = nd->bl.m;
+		int16 m = nd->bl.m;
 
 		struct s_mapiterator *iter = mapit_geteachpc();
 		for (struct map_session_data *sd = BL_UCAST(BL_PC, mapit->first(iter)); mapit->exists(iter); sd = BL_UCAST(BL_PC, mapit->next(iter))) {
@@ -247,6 +245,7 @@ static void mvptomb_destroy(struct mob_data *md)
 
 		map->delblock(&nd->bl);
 
+		int i = 0;
 		ARR_FIND( 0, map->list[m].npc_num, i, map->list[m].npc[i] == nd );
 		if( !(i == map->list[m].npc_num) ) {
 			map->list[m].npc_num--;

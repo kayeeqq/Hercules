@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2021 Hercules Dev Team
+ * Copyright (C) 2012-2022 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -45,8 +45,6 @@ struct rodex_message;
 #define intif_rename_pc(sd, name)  (intif->rename((sd), 0, (name)))
 #define intif_rename_pet(sd, name) (intif->rename((sd), 1, (name)))
 #define intif_rename_hom(sd, name) (intif->rename((sd), 2, (name)))
-#define INTIF_PACKET_LEN_TABLE_SIZE 161
-
 
 /*=====================================
 * Interface : intif.h
@@ -54,8 +52,6 @@ struct rodex_message;
 * created by Susu
 *-------------------------------------*/
 struct intif_interface {
-	/* */
-	int packet_len_table[INTIF_PACKET_LEN_TABLE_SIZE];
 	/* funcs */
 	int (*parse) (int fd);
 	int (*create_pet)(int account_id, int char_id, int pet_type, int pet_lv, int pet_egg_id,

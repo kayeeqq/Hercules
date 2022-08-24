@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2021 Hercules Dev Team
+ * Copyright (C) 2012-2022 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -45,10 +45,12 @@
 
 #include "common/memmgr.h"
 #include "common/nullpo.h"
+#include "common/packets_struct.h"
 #include "common/showmsg.h"
 #include "common/socket.h"
 #include "common/strlib.h"
 #include "common/timer.h"
+#include "common/packets.h"
 
 #include <fcntl.h>
 #include <signal.h>
@@ -77,21 +79,22 @@ static int intif_create_pet(int account_id, int char_id, int pet_class, int pet_
 	if (intif->CheckForCharServer())
 		return 0;
 	nullpo_ret(pet_name);
-	WFIFOHEAD(inter_fd, 32 + NAME_LENGTH);
-	WFIFOW(inter_fd, 0) = 0x3080;
-	WFIFOL(inter_fd, 2) = account_id;
-	WFIFOL(inter_fd, 6) = char_id;
-	WFIFOL(inter_fd, 10) = pet_class;
-	WFIFOL(inter_fd, 14) = pet_lv;
-	WFIFOL(inter_fd, 18) = pet_egg_id;
-	WFIFOL(inter_fd, 22) = pet_equip;
-	WFIFOW(inter_fd, 26) = intimate;
-	WFIFOW(inter_fd, 28) = hungry;
-	WFIFOB(inter_fd, 30) = rename_flag;
-	WFIFOB(inter_fd, 31) = incubate;
-	memcpy(WFIFOP(inter_fd, 32), pet_name, NAME_LENGTH);
-	WFIFOSET(inter_fd, 32 + NAME_LENGTH);
 
+	WFIFOHEAD(inter_fd, sizeof(struct PACKET_INTER_CREATE_PET));
+	struct PACKET_INTER_CREATE_PET *p = WFIFOP(inter_fd, 0);
+	p->packet_id = HEADER_INTER_CREATE_PET;
+	p->account_id = account_id;
+	p->char_id = char_id;
+	p->pet_class = pet_class;
+	p->pet_lv = pet_lv;
+	p->pet_egg_id = pet_egg_id;
+	p->pet_equip = pet_equip;
+	p->intimate = intimate;
+	p->hungry = hungry;
+	p->rename_flag = rename_flag;
+	p->incubate = incubate;
+	safestrncpy(p->pet_name, pet_name, NAME_LENGTH);
+	WFIFOSET(inter_fd, sizeof(struct PACKET_INTER_CREATE_PET));
 	return 0;
 }
 
@@ -2684,13 +2687,11 @@ static int intif_parse(int fd)
 	int packet_len, cmd;
 	cmd = RFIFOW(fd,0);
 	// Verify ID of the packet
-	if (cmd < 0x3800 || cmd >= 0x3800+(sizeof(intif->packet_len_table)/sizeof(intif->packet_len_table[0]))
-	 || intif->packet_len_table[cmd-0x3800] == 0
-	) {
+	if (cmd < MIN_INTIF_PACKET_DB || cmd >= MAX_INTIF_PACKET_DB || packets->intif_db[cmd - MIN_INTIF_PACKET_DB] == 0) {
 		return 0;
 	}
 	// Check the length of the packet
-	packet_len = intif->packet_len_table[cmd-0x3800];
+	packet_len = packets->intif_db[cmd - MIN_INTIF_PACKET_DB];
 	if(packet_len==-1){
 		if(RFIFOREST(fd)<4)
 			return 2;
@@ -2802,23 +2803,7 @@ static int intif_parse(int fd)
  *-------------------------------------*/
 void intif_defaults(void)
 {
-	const int packet_len_table [INTIF_PACKET_LEN_TABLE_SIZE] = {
-		 0, 0, 0, 0, -1,-1,37,-1,  7, 0, 0, 0,  0, 0,  0, 0, //0x3800-0x380f
-		-1, 0, 0, 0,  0, 0, 0, 0, -1,11, 0, 0,  0, 0,  0, 0, //0x3810 Achievements [Smokexyz/Hercules]
-		39,-1,15,15, 14,19, 7, 0,  0, 0, 0, 0,  0, 0,  0, 0, //0x3820
-		10,-1,15, 0, 79,25, 7, 0,  0,-1,-1,-1, 14,67,186,-1, //0x3830
-		-1, 0, 0,14,  0, 0, 0, 0, -1,74,-1,11, 11,-1,  0, 0, //0x3840
-		-1,-1, 7, 7,  7,11, 8, 0, 10, 0, 0, 0,  0, 0,  0, 0, //0x3850  Auctions [Zephyrus] itembound[Akinari] Clan System[Murilo BiO]
-		-1, 7, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  0, 0,  0, 0, //0x3860  Quests [Kevin] [Inkfish]
-		-1, 3, 3, 0,  0, 0, 0, 0,  0, 0, 0, 0, -1, 3,  3, 0, //0x3870  Mercenaries [Zephyrus] / Elemental [pakpil]
-		14,-1, 7, 3,  0, 0, 0, 0,  0, 0, 0, 0,  0, 0,  0, 0, //0x3880
-		-1,-1, 7, 3,  0,-1, 7, 15,18 + NAME_LENGTH, 23, 16 + sizeof(struct rodex_item) * RODEX_MAX_ITEM, 0, 0, 0, 0, 0, //0x3890  Homunculus [albator] / RoDEX [KirieZ]
-	};
-
 	intif = &intif_s;
-
-	/* */
-	memcpy(intif->packet_len_table,&packet_len_table,sizeof(intif->packet_len_table));
 
 	/* funcs */
 	intif->parse = intif_parse;
