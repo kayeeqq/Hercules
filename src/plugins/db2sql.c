@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2013-2022 Hercules Dev Team
+ * Copyright (C) 2013-2023 Hercules Dev Team
  *
  * Hercules is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -69,7 +69,7 @@ bool mobdb2sql_torun = false;
 static struct Sql *sql_handle = NULL;
 
 /// Backup of the original item_db parser function pointer.
-int (*itemdb_readdb_libconfig_sub) (struct config_setting_t *it, int n, const char *source);
+int (*itemdb_readdb_libconfig_sub) (struct config_setting_t *it, int n, const char *source, struct DBMap *itemconst_db);
 /// Backup of the original mob_db parser function pointer.
 int (*mob_read_db_sub) (struct config_setting_t *it, int n, const char *source);
 bool (*mob_skill_db_libconfig_sub_skill) (struct config_setting_t *it, int n, int mob_id);
@@ -232,11 +232,11 @@ uint64 itemdb2sql_readdb_job_sub(struct config_setting_t *t)
  *
  * @see itemdb_readdb_libconfig_sub.
  */
-int itemdb2sql_sub(struct config_setting_t *entry, int n, const char *source)
+int itemdb2sql_sub(struct config_setting_t *entry, int n, const char *source, struct DBMap *itemconst_db)
 {
 	struct item_data *it = NULL;
 
-	if ((it = itemdb->exists(itemdb_readdb_libconfig_sub(entry,n,source)))) {
+	if ((it = itemdb->exists(itemdb_readdb_libconfig_sub(entry, n, source, itemconst_db)))) {
 		char e_name[ITEM_NAME_LENGTH*2+1];
 		const char *bonus = NULL;
 		char *str;
@@ -295,7 +295,7 @@ int itemdb2sql_sub(struct config_setting_t *entry, int n, const char *source)
 		if ((t = libconfig->setting_get_member(entry, "Job")) != NULL) {
 			if (config_setting_is_group(t)) {
 				ui64 = itemdb2sql_readdb_job_sub(t);
-			} else if (itemdb->lookup_const(entry, "Job", &i32)) { // This is an unsigned value, do not check for >= 0
+			} else if (map->setting_lookup_const(entry, "Job", &i32)) { // This is an unsigned value, do not check for >= 0
 				ui64 = (uint64)i32;
 			} else {
 				ui64 = UINT64_MAX;
@@ -306,7 +306,7 @@ int itemdb2sql_sub(struct config_setting_t *entry, int n, const char *source)
 		StrBuf->Printf(&buf, "'%"PRIu64"',", ui64);
 
 		// equip_upper
-		if (itemdb->lookup_const_mask(entry, "Upper", &i32) && i32 >= 0)
+		if (map->setting_lookup_const_mask(entry, "Upper", &i32) && i32 >= 0)
 			ui32 = (uint32)i32;
 		else
 			ui32 = ITEMUPPER_ALL;
@@ -470,7 +470,7 @@ int itemdb2sql_sub(struct config_setting_t *entry, int n, const char *source)
 		} else {
 			StrBuf->AppendStr(&buf, "'',");
 		}
-		
+
 		// rental_unequip_script
 		if (it->rental_end_script && libconfig->setting_lookup_string(entry, "OnRentalEndScript", &bonus)) {
 			hstr(bonus);
@@ -582,6 +582,8 @@ void do_itemdb2sql(void)
 	memset(&tosql.buf, 0, sizeof(tosql.buf));
 	itemdb->clear(false);
 
+	struct DBMap *itemconst_db = strdb_alloc(DB_OPT_BASE, ITEM_NAME_LENGTH);
+
 	for (i = 0; i < ARRAYLENGTH(files); i++) {
 		if ((tosql.fp = fopen(files[i].destination, "wt+")) == NULL) {
 			ShowError("itemdb_tosql: File not found \"%s\".\n", files[i].destination);
@@ -591,10 +593,12 @@ void do_itemdb2sql(void)
 		tosql.db_name = files[i].name;
 		itemdb2sql_tableheader();
 
-		itemdb->readdb_libconfig(files[i].source);
+		itemdb->readdb_libconfig(files[i].source, itemconst_db);
 
 		fclose(tosql.fp);
 	}
+
+	db_destroy(itemconst_db);
 
 	/* unlink */
 	itemdb->readdb_libconfig_sub = itemdb_readdb_libconfig_sub;
@@ -1026,7 +1030,7 @@ bool mobskilldb2sql_sub(struct config_setting_t *it, int n, int mob_id)
 	SQL->EscapeString(sql_handle, e_name, md->name);
 	StrBuf->Printf(&buf, "'%s@%s',", e_name, name);
 
-	if (mob->lookup_const(it, "SkillState", &i32) && (i32 < MSS_ANY || i32 > MSS_ANYTARGET)) {
+	if (map->setting_lookup_const(it, "SkillState", &i32) && (i32 < MSS_ANY || i32 > MSS_ANYTARGET)) {
 		ShowWarning("mob_skill_db_libconfig_sub_skill: Invalid skill state %d for skill '%s' in monster %d, defaulting to MSS_ANY.\n", i32, name, mob_id);
 		i32 = MSS_ANY;
 	}
@@ -1068,20 +1072,20 @@ bool mobskilldb2sql_sub(struct config_setting_t *it, int n, int mob_id)
 	}
 
 	// Target
-	if (mob->lookup_const(it, "SkillTarget", &i32) && (i32 < MST_TARGET || i32 > MST_AROUND)) {
+	if (map->setting_lookup_const(it, "SkillTarget", &i32) && (i32 < MST_TARGET || i32 > MST_AROUND)) {
 		i32 = MST_TARGET;
 	}
 	StrBuf->Printf(&buf, "'%s',", mob_skill_target_tostring(i32));
 
 	// Condition
-	if (mob->lookup_const(it, "CastCondition", &i32) && (i32 < MSC_ALWAYS || i32 > MSC_SPAWN)) {
+	if (map->setting_lookup_const(it, "CastCondition", &i32) && (i32 < MSC_ALWAYS || i32 > MSC_SPAWN)) {
 		i32 = MSC_ALWAYS;
 	}
 	StrBuf->Printf(&buf, "'%s',", mob_skill_condition_tostring(i32));
 
 	// ConditionValue
 	i32 = 0;
-	if (mob->lookup_const(it, "ConditionData", &i32)) {
+	if (map->setting_lookup_const(it, "ConditionData", &i32)) {
 		StrBuf->Printf(&buf, "'%d',", i32);
 	} else {
 		StrBuf->Printf(&buf, "NULL,");

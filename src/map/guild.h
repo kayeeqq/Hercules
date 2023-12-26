@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -26,6 +26,7 @@
 #include "common/db.h"
 #include "common/mmo.h"
 
+struct fifo_chunk_buf;
 struct map_session_data;
 
 /**
@@ -107,7 +108,7 @@ struct guild_interface {
 	int (*created) (int account_id,int guild_id);
 	int (*request_info) (int guild_id);
 	int (*recv_noinfo) (int guild_id);
-	int (*recv_info) (const struct guild *sg);
+	int (*recv_info) (const struct guild *sg, struct fifo_chunk_buf *emblem_buf);
 	int (*npc_request_info) (int guild_id,const char *ev);
 	int (*invite) (struct map_session_data *sd,struct map_session_data *tsd);
 	int (*reply_invite) (struct map_session_data *sd,int guild_id,int flag);
@@ -174,6 +175,7 @@ struct guild_interface {
 	int (*eventlist_db_final) (union DBKey key, struct DBData *data, va_list ap);
 	int (*expcache_db_final) (union DBKey key, struct DBData *data, va_list ap);
 	int (*castle_db_final) (union DBKey key, struct DBData *data, va_list ap);
+	int (*guild_db_final) (union DBKey key, struct DBData *data, va_list ap);
 	int (*broken_sub) (union DBKey key, struct DBData *data, va_list ap);
 	int (*castle_broken_sub) (union DBKey key, struct DBData *data, va_list ap);
 	void (*makemember) (struct guild_member *m,struct map_session_data *sd);

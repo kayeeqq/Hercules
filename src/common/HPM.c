@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2013-2022 Hercules Dev Team
+ * Copyright (C) 2013-2023 Hercules Dev Team
  *
  * Hercules is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include "config/core.h" // CONSOLE_INPUT
 #include "HPM.h"
 
+#include "common/base62.h"
 #include "common/cbasetypes.h"
 #include "common/conf.h"
 #include "common/console.h"
@@ -235,6 +236,7 @@ static bool hplugin_data_store_validate(enum HPluginDataTypes type, struct hplug
 		case HPDT_BGDATA:
 		case HPDT_AUTOTRADE_VEND:
 		case HPDT_CLAN:
+		case HPDT_UNIT_PARAMETER:
 		default:
 			if (HPM->data_store_validate_sub == NULL) {
 				ShowError("HPM:validateHPData failed, type %u needs sub-handler!\n", type);
@@ -682,6 +684,10 @@ static void hplugins_config_read(void)
 			plugin_name_suffix = "_char";
 		else if (SERVER_TYPE == SERVER_TYPE_MAP)
 			plugin_name_suffix = "_map";
+		else if (SERVER_TYPE == SERVER_TYPE_API)
+			plugin_name_suffix = "_api";
+		else
+			ShowError("Unsupported server type in hplugins_config_read");
 		snprintf(hooking_plugin_name, sizeof(hooking_plugin_name), "HPMHooking%s", plugin_name_suffix);
 
 		for (i = 0; i < length; i++) {

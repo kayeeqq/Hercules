@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -657,6 +657,8 @@ static int party_member_withdraw(int party_id, int account_id, int char_id)
 					intif->party_leaderchange(p->party.party_id, p->party.member[k].account_id, p->party.member[k].char_id);
 					clif->party_info(p, NULL);
 				}
+				if (sd != NULL)
+					VECTOR_CLEAR(sd->agency_requests);
 			}
 		}
 	}
@@ -803,6 +805,7 @@ static bool party_changeleader(struct map_session_data *sd, struct map_session_d
 	//Update info.
 	intif->party_leaderchange(p->party.party_id,p->party.member[tmi].account_id,p->party.member[tmi].char_id);
 	clif->party_info(p,NULL);
+	VECTOR_CLEAR(sd->agency_requests);
 	return true;
 }
 
@@ -965,7 +968,7 @@ static int party_skill_check(struct map_session_data *sd, int party_id, uint16 s
 				if ((p_sd->job & MAPID_UPPERMASK) == MAPID_MONK && pc->checkskill(p_sd, MO_TRIPLEATTACK)) {
 					sc_start4(&p_sd->bl,&p_sd->bl,SC_SKILLRATE_UP,100,MO_TRIPLEATTACK,
 						50+50*skill_lv, //+100/150/200% rate
-						0,0,skill->get_time(SG_FRIEND, 1));
+						0, 0, skill->get_time(SG_FRIEND, 1), skill_id);
 				}
 				break;
 			case MO_COMBOFINISH: //Increase Counter rate of Star Gladiators
@@ -974,7 +977,7 @@ static int party_skill_check(struct map_session_data *sd, int party_id, uint16 s
 					&& pc->checkskill(p_sd,SG_FRIEND)) {
 					sc_start4(&p_sd->bl,&p_sd->bl,SC_SKILLRATE_UP,100,TK_COUNTER,
 						50+50*pc->checkskill(p_sd,SG_FRIEND), //+100/150/200% rate
-						0,0,skill->get_time(SG_FRIEND, 1));
+						0, 0, skill->get_time(SG_FRIEND, 1), skill_id);
 				}
 				break;
 		}
@@ -1156,8 +1159,7 @@ static int party_send_dot_remove(struct map_session_data *sd)
 }
 
 // To use for Taekwon's "Fighting Chant"
-// int c = 0;
-// party_foreachsamemap(party->sub_count, sd, 0, &c);
+// party_foreachsamemap(party->sub_count, sd, 0, except_char_id);
 static int party_sub_count(struct block_list *bl, va_list ap)
 {
 	const struct map_session_data *sd = NULL;
@@ -1166,6 +1168,10 @@ static int party_sub_count(struct block_list *bl, va_list ap)
 	Assert_ret(bl->type == BL_PC);
 	sd = BL_UCCAST(BL_PC, bl);
 	nullpo_ret(sd);
+
+	int taekwon_charid = va_arg(ap, int);
+	if (sd->status.char_id == taekwon_charid)
+		return 0; // Don't count the Taekwon himself for Kihop.
 
 	if (sd->state.autotrade)
 		return 0;
@@ -1488,6 +1494,64 @@ static bool party_booking_delete(struct map_session_data *sd)
 	}
 	return true;
 }
+
+static bool party_is_leader(struct map_session_data *sd, const struct party_data *p)
+{
+	nullpo_retr(false, sd);
+	nullpo_retr(false, p);
+
+	int i;
+	ARR_FIND(0, MAX_PARTY, i, p->data[i].sd == sd);
+
+	if (i == MAX_PARTY || p->party.member[i].leader == 0)
+		return false;
+
+	return true;
+}
+
+void party_agency_request_join(struct map_session_data *sd, struct map_session_data *tsd)
+{
+	nullpo_retv(sd);
+
+	if (sd->status.party_id != 0) {
+		clif->adventurerAgencyResult(sd, AGENCY_PLAYER_ALREADY_IN_PARTY, sd->status.name, "");
+		return;
+	}
+
+	if (sd->party_invite_account != 0) {
+		clif->adventurerAgencyResult(sd, AGENCY_UNKNOWN_ERROR, "", "");
+		return;
+	}
+
+	if (tsd == NULL) {
+		clif->adventurerAgencyResult(sd, AGENCY_MASTER_UNABLE_ACCEPT_REQUEST, "", "");
+		return;
+	}
+
+	const struct party_data *p = party->search(tsd->status.party_id);
+	if (p == NULL) {
+		clif->adventurerAgencyResult(sd, AGENCY_PARTY_NOT_FOUND, "", "");
+		return;
+	}
+
+	// party is full: AGENCY_PARTY_NUMBER_EXCEEDED
+
+	if (!party->is_leader(tsd, p)) {
+		clif->adventurerAgencyResult(sd, AGENCY_CANT_FIND_PARTY_LEADER_DELAYED, "", "");
+		return;
+	}
+
+	int i;
+	ARR_FIND(0, VECTOR_LENGTH(tsd->agency_requests), i, VECTOR_INDEX(tsd->agency_requests, i) == sd->bl.id);
+	if (i != VECTOR_LENGTH(tsd->agency_requests)) {
+		return;
+	}
+
+	VECTOR_ENSURE(tsd->agency_requests, 1, 1);
+	VECTOR_PUSH(tsd->agency_requests, sd->bl.id);
+	clif->adventurerAgencyJoinReq(sd, tsd);
+}
+
 static void do_final_party(void)
 {
 	party->db->destroy(party->db,party->db_final);
@@ -1570,4 +1634,6 @@ void party_defaults(void)
 	party->check_state = party_check_state;
 	party->create_booking_data = create_party_booking_data;
 	party->db_final = party_db_final;
+	party->is_leader = party_is_leader;
+	party->agency_request_join = party_agency_request_join;
 }

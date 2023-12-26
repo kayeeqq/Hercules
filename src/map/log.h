@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -90,6 +90,7 @@ typedef enum e_log_pick_type {
 	LOG_TYPE_LOOT             = 0x10000000,
 	LOG_TYPE_ACHIEVEMENT      = 0x20000000,
 	LOG_TYPE_GRADE            = 0x40000000,
+	LOG_TYPE_STYLIST          = 0x80000000,
 
 	// all
 	LOG_TYPE_ALL              = 0xFFFFFFFF,

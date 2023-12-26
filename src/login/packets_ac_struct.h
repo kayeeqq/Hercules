@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2016-2022 Hercules Dev Team
+ * Copyright (C) 2016-2023 Hercules Dev Team
  *
  * Hercules is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -68,6 +68,8 @@ struct PACKET_AC_REFUSE_LOGIN_R2 {
 	char block_date[20]; ///< Ban expiration date
 } __attribute__((packed));
 
+#define AUTH_TOKEN_SIZE 16
+
 /**
  * Packet structure for AC_ACCEPT_LOGIN.
  *
@@ -83,13 +85,13 @@ struct PACKET_AC_ACCEPT_LOGIN {
 	char last_login_time[26]; ///< Last login timestamp
 	uint8 sex;                ///< Account sex
 #if PACKETVER >= 20170315
-	char twitter_auth_token[16];
+	unsigned char auth_token[AUTH_TOKEN_SIZE];
 	uint8 twitter_flag;
 #endif
 	struct {
 		uint32 ip;        ///< Server IP address
 		int16 port;       ///< Server port
-		char name[20];    ///< Server name
+		char name[MAX_CHARSERVER_NAME_SIZE];  ///< Server name
 		uint16 usercount; ///< Online users
 		uint16 state;     ///< Server state
 		uint16 property;  ///< Server property

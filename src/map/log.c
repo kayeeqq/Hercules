@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -77,6 +77,7 @@ static char log_picktype2char(e_log_pick_type type)
 		case LOG_TYPE_OTHER:            return 'X';  // Other
 		case LOG_TYPE_ACHIEVEMENT:      return '3';  // Achievement
 		case LOG_TYPE_GRADE:            return '4';  // Grade Enchant
+		case LOG_TYPE_STYLIST:          return '5';  // Stylist UI
 		case LOG_TYPE_NONE:             break;
 		case LOG_TYPE_ALL:              break;
 	}

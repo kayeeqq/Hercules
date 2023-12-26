@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2014-2022 Hercules Dev Team
+ * Copyright (C) 2014-2023 Hercules Dev Team
  *
  * Hercules is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,12 +36,76 @@
 #endif // HPM_SYMBOL
 
 HPExport const struct s_HPMDataCheck HPMDataCheck[] = {
+	#ifdef API_ACLIF_H
+		{ "aclif_interface", sizeof(struct aclif_interface), SERVER_TYPE_UNKNOWN },
+		{ "char_server_data", sizeof(struct char_server_data), SERVER_TYPE_UNKNOWN },
+		{ "online_api_login_data", sizeof(struct online_api_login_data), SERVER_TYPE_UNKNOWN },
+	#else
+		#define API_ACLIF_H
+	#endif // API_ACLIF_H
+	#ifdef API_ALOGINIF_H
+		{ "aloginif_interface", sizeof(struct aloginif_interface), SERVER_TYPE_UNKNOWN },
+	#else
+		#define API_ALOGINIF_H
+	#endif // API_ALOGINIF_H
+	#ifdef API_APISESSIONDATA_H
+		{ "api_session_data", sizeof(struct api_session_data), SERVER_TYPE_UNKNOWN },
+	#else
+		#define API_APISESSIONDATA_H
+	#endif // API_APISESSIONDATA_H
+	#ifdef API_API_H
+		{ "api_interface", sizeof(struct api_interface), SERVER_TYPE_UNKNOWN },
+	#else
+		#define API_API_H
+	#endif // API_API_H
+	#ifdef API_HTTPHANDLER_H
+		{ "HttpHandler", sizeof(struct HttpHandler), SERVER_TYPE_UNKNOWN },
+	#else
+		#define API_HTTPHANDLER_H
+	#endif // API_HTTPHANDLER_H
+	#ifdef API_HTTPPARSER_H
+		{ "httpparser_interface", sizeof(struct httpparser_interface), SERVER_TYPE_UNKNOWN },
+	#else
+		#define API_HTTPPARSER_H
+	#endif // API_HTTPPARSER_H
+	#ifdef API_HTTPSENDER_H
+		{ "httpsender_interface", sizeof(struct httpsender_interface), SERVER_TYPE_UNKNOWN },
+	#else
+		#define API_HTTPSENDER_H
+	#endif // API_HTTPSENDER_H
+	#ifdef API_IMAGEPARSER_H
+		{ "gif_user_data", sizeof(struct gif_user_data), SERVER_TYPE_UNKNOWN },
+		{ "imageparser_interface", sizeof(struct imageparser_interface), SERVER_TYPE_UNKNOWN },
+	#else
+		#define API_IMAGEPARSER_H
+	#endif // API_IMAGEPARSER_H
+	#ifdef API_JSONPARSER_H
+		{ "jsonparser_interface", sizeof(struct jsonparser_interface), SERVER_TYPE_UNKNOWN },
+	#else
+		#define API_JSONPARSER_H
+	#endif // API_JSONPARSER_H
+	#ifdef API_JSONWRITER_H
+		{ "jsonwriter_interface", sizeof(struct jsonwriter_interface), SERVER_TYPE_UNKNOWN },
+	#else
+		#define API_JSONWRITER_H
+	#endif // API_JSONWRITER_H
+	#ifdef API_MIMEPART_H
+		{ "MimePart", sizeof(struct MimePart), SERVER_TYPE_UNKNOWN },
+	#else
+		#define API_MIMEPART_H
+	#endif // API_MIMEPART_H
+	#ifdef CHAR_CAPIIF_H
+		{ "capiif_interface", sizeof(struct capiif_interface), SERVER_TYPE_CHAR },
+	#else
+		#define CHAR_CAPIIF_H
+	#endif // CHAR_CAPIIF_H
 	#ifdef CHAR_CHAR_H
 		{ "char_auth_node", sizeof(struct char_auth_node), SERVER_TYPE_CHAR },
 		{ "char_interface", sizeof(struct char_interface), SERVER_TYPE_CHAR },
 		{ "char_session_data", sizeof(struct char_session_data), SERVER_TYPE_CHAR },
 		{ "mmo_map_server", sizeof(struct mmo_map_server), SERVER_TYPE_CHAR },
 		{ "online_char_data", sizeof(struct online_char_data), SERVER_TYPE_CHAR },
+		{ "online_char_data2", sizeof(struct online_char_data2), SERVER_TYPE_CHAR },
 	#else
 		#define CHAR_CHAR_H
 	#endif // CHAR_CHAR_H
@@ -61,6 +125,11 @@ HPExport const struct s_HPMDataCheck HPMDataCheck[] = {
 	#else
 		#define CHAR_INT_ACHIEVEMENT_H
 	#endif // CHAR_INT_ACHIEVEMENT_H
+	#ifdef CHAR_INT_ADVENTURER_AGENCY_H
+		{ "inter_adventurer_agency_interface", sizeof(struct inter_adventurer_agency_interface), SERVER_TYPE_CHAR },
+	#else
+		#define CHAR_INT_ADVENTURER_AGENCY_H
+	#endif // CHAR_INT_ADVENTURER_AGENCY_H
 	#ifdef CHAR_INT_AUCTION_H
 		{ "inter_auction_interface", sizeof(struct inter_auction_interface), SERVER_TYPE_CHAR },
 	#else
@@ -121,6 +190,12 @@ HPExport const struct s_HPMDataCheck HPMDataCheck[] = {
 	#else
 		#define CHAR_INT_STORAGE_H
 	#endif // CHAR_INT_STORAGE_H
+	#ifdef CHAR_INT_USERCONFIG_H
+		{ "inter_userconfig_dbs", sizeof(struct inter_userconfig_dbs), SERVER_TYPE_CHAR },
+		{ "inter_userconfig_interface", sizeof(struct inter_userconfig_interface), SERVER_TYPE_CHAR },
+	#else
+		#define CHAR_INT_USERCONFIG_H
+	#endif // CHAR_INT_USERCONFIG_H
 	#ifdef CHAR_LOGINIF_H
 		{ "loginif_interface", sizeof(struct loginif_interface), SERVER_TYPE_CHAR },
 	#else
@@ -136,6 +211,56 @@ HPExport const struct s_HPMDataCheck HPMDataCheck[] = {
 	#else
 		#define CHAR_PINCODE_H
 	#endif // CHAR_PINCODE_H
+	#ifdef COMMON_APIPACKETS_H
+		{ "PACKET_API_PROXY", sizeof(struct PACKET_API_PROXY), SERVER_TYPE_ALL },
+		{ "PACKET_API_PROXY0", sizeof(struct PACKET_API_PROXY0), SERVER_TYPE_ALL },
+		{ "PACKET_API_PROXY_CHUNKED", sizeof(struct PACKET_API_PROXY_CHUNKED), SERVER_TYPE_ALL },
+		{ "PACKET_API_REPLY_emblem_download", sizeof(struct PACKET_API_REPLY_emblem_download), SERVER_TYPE_ALL },
+		{ "PACKET_API_REPLY_emblem_upload", sizeof(struct PACKET_API_REPLY_emblem_upload), SERVER_TYPE_ALL },
+		{ "PACKET_API_REPLY_party_add", sizeof(struct PACKET_API_REPLY_party_add), SERVER_TYPE_ALL },
+		{ "PACKET_API_REPLY_party_del", sizeof(struct PACKET_API_REPLY_party_del), SERVER_TYPE_ALL },
+		{ "PACKET_API_REPLY_party_get", sizeof(struct PACKET_API_REPLY_party_get), SERVER_TYPE_ALL },
+		{ "PACKET_API_REPLY_party_info", sizeof(struct PACKET_API_REPLY_party_info), SERVER_TYPE_ALL },
+		{ "PACKET_API_REPLY_party_list", sizeof(struct PACKET_API_REPLY_party_list), SERVER_TYPE_ALL },
+		{ "PACKET_API_REPLY_userconfig_load_emotes", sizeof(struct PACKET_API_REPLY_userconfig_load_emotes), SERVER_TYPE_ALL },
+		{ "PACKET_API_REPLY_userconfig_load_hotkeys_tab", sizeof(struct PACKET_API_REPLY_userconfig_load_hotkeys_tab), SERVER_TYPE_ALL },
+		{ "PACKET_API_emblem_download", sizeof(struct PACKET_API_emblem_download), SERVER_TYPE_ALL },
+		{ "PACKET_API_emblem_download_data", sizeof(struct PACKET_API_emblem_download_data), SERVER_TYPE_ALL },
+		{ "PACKET_API_emblem_upload_guild_id", sizeof(struct PACKET_API_emblem_upload_guild_id), SERVER_TYPE_ALL },
+		{ "PACKET_API_emblem_upload_guild_id_data", sizeof(struct PACKET_API_emblem_upload_guild_id_data), SERVER_TYPE_ALL },
+		{ "PACKET_API_party_add", sizeof(struct PACKET_API_party_add), SERVER_TYPE_ALL },
+		{ "PACKET_API_party_add_data", sizeof(struct PACKET_API_party_add_data), SERVER_TYPE_ALL },
+		{ "PACKET_API_party_del", sizeof(struct PACKET_API_party_del), SERVER_TYPE_ALL },
+		{ "PACKET_API_party_del_data", sizeof(struct PACKET_API_party_del_data), SERVER_TYPE_ALL },
+		{ "PACKET_API_party_info", sizeof(struct PACKET_API_party_info), SERVER_TYPE_ALL },
+		{ "PACKET_API_party_info_data", sizeof(struct PACKET_API_party_info_data), SERVER_TYPE_ALL },
+		{ "PACKET_API_party_list", sizeof(struct PACKET_API_party_list), SERVER_TYPE_ALL },
+		{ "PACKET_API_party_list_data", sizeof(struct PACKET_API_party_list_data), SERVER_TYPE_ALL },
+		{ "PACKET_API_userconfig_save_emotes", sizeof(struct PACKET_API_userconfig_save_emotes), SERVER_TYPE_ALL },
+		{ "PACKET_API_userconfig_save_emotes_data", sizeof(struct PACKET_API_userconfig_save_emotes_data), SERVER_TYPE_ALL },
+		{ "PACKET_API_userconfig_save_userhotkey_v2", sizeof(struct PACKET_API_userconfig_save_userhotkey_v2), SERVER_TYPE_ALL },
+		{ "PACKET_API_userconfig_save_userhotkey_v2_data", sizeof(struct PACKET_API_userconfig_save_userhotkey_v2_data), SERVER_TYPE_ALL },
+		{ "adventuter_agency_entry", sizeof(struct adventuter_agency_entry), SERVER_TYPE_ALL },
+		{ "adventuter_agency_page", sizeof(struct adventuter_agency_page), SERVER_TYPE_ALL },
+		{ "party_add_data", sizeof(struct party_add_data), SERVER_TYPE_ALL },
+		{ "userconfig_emotes", sizeof(struct userconfig_emotes), SERVER_TYPE_ALL },
+		{ "userconfig_save_userhotkey_key", sizeof(struct userconfig_save_userhotkey_key), SERVER_TYPE_ALL },
+		{ "userconfig_userhotkeys_v2", sizeof(struct userconfig_userhotkeys_v2), SERVER_TYPE_ALL },
+	#else
+		#define COMMON_APIPACKETS_H
+	#endif // COMMON_APIPACKETS_H
+	#ifdef COMMON_BASE62_H
+		{ "base62_interface", sizeof(struct base62_interface), SERVER_TYPE_ALL },
+	#else
+		#define COMMON_BASE62_H
+	#endif // COMMON_BASE62_H
+	#ifdef COMMON_CHARMAPPACKETS_H
+		{ "PACKET_CHARMAP_AGENCY_JOIN_PARTY", sizeof(struct PACKET_CHARMAP_AGENCY_JOIN_PARTY), SERVER_TYPE_ALL },
+		{ "PACKET_CHARMAP_GUILD_EMBLEM", sizeof(struct PACKET_CHARMAP_GUILD_EMBLEM), SERVER_TYPE_ALL },
+		{ "PACKET_CHARMAP_GUILD_INFO", sizeof(struct PACKET_CHARMAP_GUILD_INFO), SERVER_TYPE_ALL },
+	#else
+		#define COMMON_CHARMAPPACKETS_H
+	#endif // COMMON_CHARMAPPACKETS_H
 	#ifdef COMMON_CONF_H
 		{ "libconfig_interface", sizeof(struct libconfig_interface), SERVER_TYPE_ALL },
 	#else
@@ -175,6 +300,14 @@ HPExport const struct s_HPMDataCheck HPMDataCheck[] = {
 	#else
 		#define COMMON_ERS_H
 	#endif // COMMON_ERS_H
+	#ifdef COMMON_EXTRACONF_H
+		{ "config_data", sizeof(struct config_data), SERVER_TYPE_ALL },
+		{ "config_data_old", sizeof(struct config_data_old), SERVER_TYPE_ALL },
+		{ "emblems_config", sizeof(struct emblems_config), SERVER_TYPE_ALL },
+		{ "extraconf_interface", sizeof(struct extraconf_interface), SERVER_TYPE_ALL },
+	#else
+		#define COMMON_EXTRACONF_H
+	#endif // COMMON_EXTRACONF_H
 	#ifdef COMMON_GRFIO_H
 		{ "grfio_interface", sizeof(struct grfio_interface), SERVER_TYPE_MAP },
 	#else
@@ -187,6 +320,12 @@ HPExport const struct s_HPMDataCheck HPMDataCheck[] = {
 	#else
 		#define COMMON_HPMI_H
 	#endif // COMMON_HPMI_H
+	#ifdef COMMON_MAPCHARPACKETS_H
+		{ "PACKET_MAPCHAR_AGENCY_JOIN_PARTY_REQ", sizeof(struct PACKET_MAPCHAR_AGENCY_JOIN_PARTY_REQ), SERVER_TYPE_ALL },
+		{ "PACKET_MAPCHAR_GUILD_EMBLEM", sizeof(struct PACKET_MAPCHAR_GUILD_EMBLEM), SERVER_TYPE_ALL },
+	#else
+		#define COMMON_MAPCHARPACKETS_H
+	#endif // COMMON_MAPCHARPACKETS_H
 	#ifdef COMMON_MAPINDEX_H
 		{ "mapindex_interface", sizeof(struct mapindex_interface), SERVER_TYPE_CHAR|SERVER_TYPE_MAP },
 	#else
@@ -342,6 +481,11 @@ HPExport const struct s_HPMDataCheck HPMDataCheck[] = {
 	#else
 		#define LOGIN_IPBAN_H
 	#endif // LOGIN_IPBAN_H
+	#ifdef LOGIN_LAPIIF_H
+		{ "lapiif_interface", sizeof(struct lapiif_interface), SERVER_TYPE_LOGIN },
+	#else
+		#define LOGIN_LAPIIF_H
+	#endif // LOGIN_LAPIIF_H
 	#ifdef LOGIN_LCLIF_H
 		{ "lclif_interface", sizeof(struct lclif_interface), SERVER_TYPE_LOGIN },
 		{ "login_packet_db", sizeof(struct login_packet_db), SERVER_TYPE_LOGIN },
@@ -367,6 +511,7 @@ HPExport const struct s_HPMDataCheck HPMDataCheck[] = {
 		{ "login_auth_node", sizeof(struct login_auth_node), SERVER_TYPE_LOGIN },
 		{ "login_interface", sizeof(struct login_interface), SERVER_TYPE_LOGIN },
 		{ "login_session_data", sizeof(struct login_session_data), SERVER_TYPE_LOGIN },
+		{ "mmo_api_server", sizeof(struct mmo_api_server), SERVER_TYPE_LOGIN },
 		{ "mmo_char_server", sizeof(struct mmo_char_server), SERVER_TYPE_LOGIN },
 		{ "online_login_data", sizeof(struct online_login_data), SERVER_TYPE_LOGIN },
 		{ "s_login_dbs", sizeof(struct s_login_dbs), SERVER_TYPE_LOGIN },
@@ -382,6 +527,7 @@ HPExport const struct s_HPMDataCheck HPMDataCheck[] = {
 		#define LOGIN_PACKETS_AC_STRUCT_H
 	#endif // LOGIN_PACKETS_AC_STRUCT_H
 	#ifdef LOGIN_PACKETS_CA_STRUCT_H
+		{ "PACKET_CA_APISERVERCONNECT", sizeof(struct PACKET_CA_APISERVERCONNECT), SERVER_TYPE_LOGIN },
 		{ "PACKET_CA_CHARSERVERCONNECT", sizeof(struct PACKET_CA_CHARSERVERCONNECT), SERVER_TYPE_LOGIN },
 		{ "PACKET_CA_CONNECT_INFO_CHANGED", sizeof(struct PACKET_CA_CONNECT_INFO_CHANGED), SERVER_TYPE_LOGIN },
 		{ "PACKET_CA_EXE_HASHCHECK", sizeof(struct PACKET_CA_EXE_HASHCHECK), SERVER_TYPE_LOGIN },
@@ -487,6 +633,27 @@ HPExport const struct s_HPMDataCheck HPMDataCheck[] = {
 	#else
 		#define MAP_ELEMENTAL_H
 	#endif // MAP_ELEMENTAL_H
+	#ifdef MAP_ENCHANTUI_H
+		{ "enchant_info", sizeof(struct enchant_info), SERVER_TYPE_MAP },
+		{ "enchant_info_normal", sizeof(struct enchant_info_normal), SERVER_TYPE_MAP },
+		{ "enchant_info_perfect", sizeof(struct enchant_info_perfect), SERVER_TYPE_MAP },
+		{ "enchant_info_perfect_entry", sizeof(struct enchant_info_perfect_entry), SERVER_TYPE_MAP },
+		{ "enchant_info_reset", sizeof(struct enchant_info_reset), SERVER_TYPE_MAP },
+		{ "enchant_info_upgrade", sizeof(struct enchant_info_upgrade), SERVER_TYPE_MAP },
+		{ "enchant_info_upgrade_entry", sizeof(struct enchant_info_upgrade_entry), SERVER_TYPE_MAP },
+		{ "enchant_item_list", sizeof(struct enchant_item_list), SERVER_TYPE_MAP },
+		{ "enchant_item_rate_entry", sizeof(struct enchant_item_rate_entry), SERVER_TYPE_MAP },
+		{ "enchant_slot_info", sizeof(struct enchant_slot_info), SERVER_TYPE_MAP },
+		{ "enchantui_interface", sizeof(struct enchantui_interface), SERVER_TYPE_MAP },
+	#else
+		#define MAP_ENCHANTUI_H
+	#endif // MAP_ENCHANTUI_H
+	#ifdef MAP_GOLDPC_H
+		{ "goldpc_interface", sizeof(struct goldpc_interface), SERVER_TYPE_MAP },
+		{ "goldpc_mode", sizeof(struct goldpc_mode), SERVER_TYPE_MAP },
+	#else
+		#define MAP_GOLDPC_H
+	#endif // MAP_GOLDPC_H
 	#ifdef MAP_GRADER_H
 		{ "grade_blessing", sizeof(struct grade_blessing), SERVER_TYPE_MAP },
 		{ "grade_interface_dbs", sizeof(struct grade_interface_dbs), SERVER_TYPE_MAP },
@@ -545,6 +712,7 @@ HPExport const struct s_HPMDataCheck HPMDataCheck[] = {
 		{ "item_package_must_entry", sizeof(struct item_package_must_entry), SERVER_TYPE_MAP },
 		{ "item_package_rand_entry", sizeof(struct item_package_rand_entry), SERVER_TYPE_MAP },
 		{ "item_package_rand_group", sizeof(struct item_package_rand_group), SERVER_TYPE_MAP },
+		{ "item_reform", sizeof(struct item_reform), SERVER_TYPE_MAP },
 		{ "itemdb_interface", sizeof(struct itemdb_interface), SERVER_TYPE_MAP },
 		{ "itemdb_option", sizeof(struct itemdb_option), SERVER_TYPE_MAP },
 		{ "itemlist", sizeof(struct itemlist), SERVER_TYPE_MAP },
@@ -570,6 +738,11 @@ HPExport const struct s_HPMDataCheck HPMDataCheck[] = {
 	#else
 		#define MAP_MAIL_H
 	#endif // MAP_MAIL_H
+	#ifdef MAP_MAPIIF_H
+		{ "mapiif_interface", sizeof(struct mapiif_interface), SERVER_TYPE_MAP },
+	#else
+		#define MAP_MAPIIF_H
+	#endif // MAP_MAPIIF_H
 	#ifdef MAP_MAPREG_H
 		{ "mapreg_interface", sizeof(struct mapreg_interface), SERVER_TYPE_MAP },
 		{ "mapreg_save", sizeof(struct mapreg_save), SERVER_TYPE_MAP },
@@ -584,7 +757,6 @@ HPExport const struct s_HPMDataCheck HPMDataCheck[] = {
 		{ "iwall_data", sizeof(struct iwall_data), SERVER_TYPE_MAP },
 		{ "map_cache_header", sizeof(struct map_cache_header), SERVER_TYPE_MAP },
 		{ "map_data", sizeof(struct map_data), SERVER_TYPE_MAP },
-		{ "map_data_other_server", sizeof(struct map_data_other_server), SERVER_TYPE_MAP },
 		{ "map_drop_list", sizeof(struct map_drop_list), SERVER_TYPE_MAP },
 		{ "map_interface", sizeof(struct map_interface), SERVER_TYPE_MAP },
 		{ "map_zone_data", sizeof(struct map_zone_data), SERVER_TYPE_MAP },
@@ -664,6 +836,7 @@ HPExport const struct s_HPMDataCheck HPMDataCheck[] = {
 		{ "PACKET_CZ_PET_EVOLUTION", sizeof(struct PACKET_CZ_PET_EVOLUTION), SERVER_TYPE_MAP },
 		{ "PACKET_CZ_PRIVATE_AIRSHIP_REQUEST", sizeof(struct PACKET_CZ_PRIVATE_AIRSHIP_REQUEST), SERVER_TYPE_MAP },
 		{ "PACKET_CZ_REQ_DELETE_MAIL", sizeof(struct PACKET_CZ_REQ_DELETE_MAIL), SERVER_TYPE_MAP },
+		{ "PACKET_CZ_REQ_GUILD_EMBLEM_IMG1", sizeof(struct PACKET_CZ_REQ_GUILD_EMBLEM_IMG1), SERVER_TYPE_MAP },
 		{ "PACKET_CZ_REQ_ITEM_FROM_MAIL", sizeof(struct PACKET_CZ_REQ_ITEM_FROM_MAIL), SERVER_TYPE_MAP },
 		{ "PACKET_CZ_REQ_ITEMREPAIR1", sizeof(struct PACKET_CZ_REQ_ITEMREPAIR1), SERVER_TYPE_MAP },
 		{ "PACKET_CZ_REQ_MAKINGITEM", sizeof(struct PACKET_CZ_REQ_MAKINGITEM), SERVER_TYPE_MAP },
@@ -723,6 +896,7 @@ HPExport const struct s_HPMDataCheck HPMDataCheck[] = {
 		{ "PACKET_ZC_BAN_LIST_sub", sizeof(struct PACKET_ZC_BAN_LIST_sub), SERVER_TYPE_MAP },
 		{ "PACKET_ZC_CASH_ITEM_DELETE", sizeof(struct PACKET_ZC_CASH_ITEM_DELETE), SERVER_TYPE_MAP },
 		{ "PACKET_ZC_CASH_TIME_COUNTER", sizeof(struct PACKET_ZC_CASH_TIME_COUNTER), SERVER_TYPE_MAP },
+		{ "PACKET_ZC_CHANGE_GUILD", sizeof(struct PACKET_ZC_CHANGE_GUILD), SERVER_TYPE_MAP },
 		{ "PACKET_ZC_CHANGESTATE_PET", sizeof(struct PACKET_ZC_CHANGESTATE_PET), SERVER_TYPE_MAP },
 		{ "PACKET_ZC_COUPLESTATUS", sizeof(struct PACKET_ZC_COUPLESTATUS), SERVER_TYPE_MAP },
 		{ "PACKET_ZC_DELETE_MEMBER_FROM_GROUP", sizeof(struct PACKET_ZC_DELETE_MEMBER_FROM_GROUP), SERVER_TYPE_MAP },
@@ -734,6 +908,7 @@ HPExport const struct s_HPMDataCheck HPMDataCheck[] = {
 		{ "PACKET_ZC_GROUP_ISALIVE", sizeof(struct PACKET_ZC_GROUP_ISALIVE), SERVER_TYPE_MAP },
 		{ "PACKET_ZC_GROUP_LIST", sizeof(struct PACKET_ZC_GROUP_LIST), SERVER_TYPE_MAP },
 		{ "PACKET_ZC_GROUP_LIST_SUB", sizeof(struct PACKET_ZC_GROUP_LIST_SUB), SERVER_TYPE_MAP },
+		{ "PACKET_ZC_GUILD_EMBLEM_IMG", sizeof(struct PACKET_ZC_GUILD_EMBLEM_IMG), SERVER_TYPE_MAP },
 		{ "PACKET_ZC_GUILD_INFO", sizeof(struct PACKET_ZC_GUILD_INFO), SERVER_TYPE_MAP },
 		{ "PACKET_ZC_GUILD_POSITION", sizeof(struct PACKET_ZC_GUILD_POSITION), SERVER_TYPE_MAP },
 		{ "PACKET_ZC_GUILD_SKILLINFO", sizeof(struct PACKET_ZC_GUILD_SKILLINFO), SERVER_TYPE_MAP },
@@ -1010,6 +1185,7 @@ HPExport const struct s_HPMDataCheck HPMDataCheck[] = {
 		#define MAP_SEARCHSTORE_H
 	#endif // MAP_SEARCHSTORE_H
 	#ifdef MAP_SKILL_H
+		{ "s_autospell_db", sizeof(struct s_autospell_db), SERVER_TYPE_MAP },
 		{ "s_skill_abra_db", sizeof(struct s_skill_abra_db), SERVER_TYPE_MAP },
 		{ "s_skill_arrow_db", sizeof(struct s_skill_arrow_db), SERVER_TYPE_MAP },
 		{ "s_skill_changematerial_db", sizeof(struct s_skill_changematerial_db), SERVER_TYPE_MAP },
@@ -1036,7 +1212,9 @@ HPExport const struct s_HPMDataCheck HPMDataCheck[] = {
 	#ifdef MAP_STATUS_H
 		{ "regen_data", sizeof(struct regen_data), SERVER_TYPE_MAP },
 		{ "regen_data_sub", sizeof(struct regen_data_sub), SERVER_TYPE_MAP },
+		{ "s_maxhp_entry", sizeof(struct s_maxhp_entry), SERVER_TYPE_MAP },
 		{ "s_status_dbs", sizeof(struct s_status_dbs), SERVER_TYPE_MAP },
+		{ "s_unit_params", sizeof(struct s_unit_params), SERVER_TYPE_MAP },
 		{ "sc_display_entry", sizeof(struct sc_display_entry), SERVER_TYPE_MAP },
 		{ "status_change", sizeof(struct status_change), SERVER_TYPE_MAP },
 		{ "status_change_entry", sizeof(struct status_change_entry), SERVER_TYPE_MAP },

@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -34,6 +34,8 @@
 #include "map/clif.h"
 #include "map/duel.h"
 #include "map/elemental.h"
+#include "map/enchantui.h"
+#include "map/goldpc.h"
 #include "map/grader.h"
 #include "map/guild.h"
 #include "map/homunculus.h"
@@ -43,6 +45,7 @@
 #include "map/itemdb.h"
 #include "map/log.h"
 #include "map/macro.h"
+#include "map/mapiif.h"
 #include "map/mail.h"
 #include "map/mapreg.h"
 #include "map/mercenary.h"
@@ -69,6 +72,7 @@
 #include "common/console.h"
 #include "common/core.h"
 #include "common/ers.h"
+#include "common/extraconf.h"
 #include "common/grfio.h"
 #include "common/md5calc.h"
 #include "common/memmgr.h"
@@ -1745,7 +1749,7 @@ static int map_search_free_cell(struct block_list *src, int16 m, int16 *x, int16
  *------------------------------------------*/
 static bool map_closest_freecell(int16 m, const struct block_list *bl, int16 *x, int16 *y, int type, int flag)
 {
-	enum unit_dir dir = UNIT_DIR_EAST;
+	enum unit_dir dir = battle_config.keep_dir_free_cell ? unit->getdir(bl) : UNIT_DIR_EAST;
 	int16 tx;
 	int16 ty;
 	int costrange = 10;
@@ -2070,6 +2074,7 @@ static int map_quit(struct map_session_data *sd)
 
 	npc->script_event(sd, NPCE_LOGOUT);
 	rodex->clean(sd, 0);
+	goldpc->stop(sd);
 
 	//Unit_free handles clearing the player related data,
 	//map->quit handles extra specific data which is related to quitting normally
@@ -2914,23 +2919,6 @@ static int16 map_mapindex2mapid(unsigned short map_index)
 	return map->index2mapid[map_index];
 }
 
-/*==========================================
- * Switching Ip, port ? (like changing map_server) get ip/port from map_name
- *------------------------------------------*/
-static int map_mapname2ipport(unsigned short name, uint32 *ip, uint16 *port)
-{
-	struct map_data_other_server *mdos;
-
-	nullpo_retr(-1, ip);
-	nullpo_retr(-1, port);
-	mdos = (struct map_data_other_server*)uidb_get(map->map_db,(unsigned int)name);
-	if(mdos==NULL || mdos->cell) //If gat isn't null, this is a local map.
-		return -1;
-	*ip=mdos->ip;
-	*port=mdos->port;
-	return 0;
-}
-
 /**
  * Checks if both dirs point in the same direction.
  * @param s_dir: direction source is facing
@@ -3254,14 +3242,18 @@ static int map_getcellp(struct map_data *m, const struct block_list *bl, int16 x
 		// special checks
 	case CELL_CHKPASS:
 #ifdef CELL_NOSTACK
-		if (cell.cell_bl >= battle_config.custom_cell_stack_limit) return 0;
+		if (cell.cell_bl >= battle_config.custom_cell_stack_limit)
+			return 0;
+		FALLTHROUGH
 #endif
 	case CELL_CHKREACH:
 		return (cell.walkable);
 
 	case CELL_CHKNOPASS:
 #ifdef CELL_NOSTACK
-		if (cell.cell_bl >= battle_config.custom_cell_stack_limit) return 1;
+		if (cell.cell_bl >= battle_config.custom_cell_stack_limit)
+			return 1;
+		FALLTHROUGH
 #endif
 	case CELL_CHKNOREACH:
 		return (!cell.walkable);
@@ -3459,80 +3451,6 @@ static bool map_iwall_remove(const char *wall_name)
 	map->list[iwall->m].iwall_num--;
 	strdb_remove(map->iwall_db, iwall->wall_name);
 	return true;
-}
-
-/**
- * @see DBCreateData
- */
-static struct DBData create_map_data_other_server(union DBKey key, va_list args)
-{
-	struct map_data_other_server *mdos;
-	unsigned short map_index = (unsigned short)key.ui;
-	mdos=(struct map_data_other_server *)aCalloc(1,sizeof(struct map_data_other_server));
-	mdos->index = map_index;
-	memcpy(mdos->name, mapindex_id2name(map_index), MAP_NAME_LENGTH);
-	return DB->ptr2data(mdos);
-}
-
-/*==========================================
- * Add mapindex to db of another map server
- *------------------------------------------*/
-static int map_setipport(unsigned short map_index, uint32 ip, uint16 port)
-{
-	struct map_data_other_server *mdos;
-
-	mdos= uidb_ensure(map->map_db,(unsigned int)map_index, map->create_map_data_other_server);
-
-	if(mdos->cell) //Local map,Do nothing. Give priority to our own local maps over ones from another server. [Skotlex]
-		return 0;
-	if(ip == clif->map_ip && port == clif->map_port) {
-		//That's odd, we received info that we are the ones with this map, but... we don't have it.
-		ShowFatalError("map_setipport : received info that this map-server SHOULD have map '%s', but it is not loaded.\n",mapindex_id2name(map_index));
-		exit(EXIT_FAILURE);
-	}
-	mdos->ip   = ip;
-	mdos->port = port;
-	return 1;
-}
-
-/**
- * Delete all the other maps server management
- * @see DBApply
- */
-static int map_eraseallipport_sub(union DBKey key, struct DBData *data, va_list va)
-{
-	struct map_data_other_server *mdos = DB->data2ptr(data);
-	nullpo_ret(mdos);
-	if(mdos->cell == NULL) {
-		db_remove(map->map_db,key);
-		aFree(mdos);
-	}
-	return 0;
-}
-
-static int map_eraseallipport(void)
-{
-	map->map_db->foreach(map->map_db,map->eraseallipport_sub);
-	return 1;
-}
-
-/*==========================================
- * Delete mapindex from db of another map server
- *------------------------------------------*/
-static int map_eraseipport(unsigned short map_index, uint32 ip, uint16 port)
-{
-	struct map_data_other_server *mdos;
-
-	mdos = (struct map_data_other_server*)uidb_get(map->map_db,(unsigned int)map_index);
-	if(!mdos || mdos->cell) //Map either does not exists or is a local map.
-		return 0;
-
-	if(mdos->ip==ip && mdos->port == port) {
-		uidb_remove(map->map_db,(unsigned int)map_index);
-		aFree(mdos);
-		return 1;
-	}
-	return 0;
 }
 
 /**
@@ -4278,7 +4196,7 @@ static bool map_config_read_database(const char *filename, struct config_t *conf
 
 	if (libconfig->setting_lookup_int(setting, "autosave_time", &map->autosave_interval) == CONFIG_TRUE) {
 		if (map->autosave_interval < 1) // Revert to default saving
-			map->autosave_interval = DEFAULT_AUTOSAVE_INTERVAL;
+			map->autosave_interval = DEFAULT_MAP_AUTOSAVE_INTERVAL;
 		else
 			map->autosave_interval *= 1000; // Pass from s to ms
 	}
@@ -4662,6 +4580,109 @@ static bool inter_config_read_database_names(const char *filename, const struct 
 }
 
 /*=======================================
+ *  Config reading utilities
+ *---------------------------------------*/
+
+/**
+ * Looks up configuration "name" which is expect to have a final value of int, but may be specified by a string constant.
+ * 
+ * If the config is a string, it will be looked up using script->get_constant function to find the actual integer value.
+ *
+ * @param[in]  setting        The setting to read.
+ * @param[in]  name           The setting name to lookup.
+ * @param[out] value          Where to output the read value (after constant resolving, if necessary)
+ *
+ * @retval true if it was read successfully or false if it could not read or resolve it.
+ */
+static bool map_setting_lookup_const(const struct config_setting_t *setting, const char *name, int *value)
+{
+	const char *str = NULL;
+
+	nullpo_retr(false, name);
+	nullpo_retr(false, value);
+
+	if (libconfig->setting_lookup_int(setting, name, value)) {
+		return true;
+	}
+
+	if (libconfig->setting_lookup_string(setting, name, &str)) {
+		if (*str && script->get_constant(str, value))
+			return true;
+	}
+
+	return false;
+}
+
+/**
+ * Looks up configuration "name" which is expect to have a final value of int,
+ * but may be specified by a string constant or an array of bitflag constants.
+ * 
+ * If the config is a string, it will be looked up using script->get_constant function to find the actual integer value.
+ * If the config is an array, each value will be read and added to the final bitmask.
+ *
+ * @param[in]  setting        The setting to read.
+ * @param[in]  name           The setting name to lookup.
+ * @param[out] value          Where to output the read value (after constant resolving, if necessary)
+ *
+ * @retval true if it was read successfully or false if it could not read or resolve it.
+ */
+static bool map_setting_lookup_const_mask(const struct config_setting_t *setting, const char *name, int *value)
+{
+	const struct config_setting_t *t = NULL;
+
+	nullpo_retr(false, setting);
+	nullpo_retr(false, name);
+	nullpo_retr(false, value);
+
+	if ((t = libconfig->setting_get_member(setting, name)) == NULL) {
+		return false;
+	}
+
+	if (config_setting_is_scalar(t)) {
+		const char *str = NULL;
+
+		if (config_setting_is_number(t)) {
+			*value = libconfig->setting_get_int(t);
+			return true;
+		}
+
+		if ((str = libconfig->setting_get_string(t)) != NULL) {
+			int i32 = -1;
+			if (script->get_constant(str, &i32) && i32 >= 0) {
+				*value = i32;
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	if (config_setting_is_aggregate(t) && libconfig->setting_length(t) >= 1) {
+		const struct config_setting_t *elem = NULL;
+		int i = 0;
+
+		*value = 0;
+
+		while ((elem = libconfig->setting_get_elem(t, i++)) != NULL) {
+			const char *str = libconfig->setting_get_string(elem);
+			int i32 = -1;
+
+			if (str == NULL)
+				return false;
+
+			if (!script->get_constant(str, &i32) || i32 < 0)
+				return false;
+
+			*value |= i32;
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+/*=======================================
  *  MySQL Init
  *---------------------------------------*/
 static int map_sql_init(void)
@@ -4701,14 +4722,27 @@ static int map_sql_close(void)
  **/
 static struct map_zone_data *map_merge_zone(struct map_zone_data *main, struct map_zone_data *other)
 {
-	char newzone[MAP_ZONE_NAME_LENGTH];
+	char newzone[MAP_ZONE_NAME_LENGTH * 2];
 	struct map_zone_data *zone = NULL;
 	int cursor, i, j;
 
 	nullpo_retr(NULL, main);
 	nullpo_retr(NULL, other);
 
-	safesnprintf(newzone, MAP_ZONE_NAME_LENGTH, "%s+%s", main->name, other->name);
+	if (snprintf(newzone, MAP_ZONE_NAME_LENGTH * 2, "%s+%s", main->name, other->name) >= MAP_ZONE_NAME_LENGTH) {
+		// In the unlikely case the name is too long and won't fit, there's a chance two different zones might be truncated to the same name.
+		// Hash the concatenation of the two names if that happens, to minimize the chance of collisions.
+		char newzone_temp[33];
+		md5->string(newzone, newzone_temp);
+		STATIC_ASSERT(MAP_ZONE_NAME_LENGTH > 32 + 12 + 12 + 2, "The next lines needs to be adjusted if MAP_ZONE_NAME_LENGTH is changed");
+		snprintf(newzone, MAP_ZONE_NAME_LENGTH, "%s_", newzone_temp);
+		size_t len = strlen(newzone);
+		safestrncpy(newzone + len, main->name, len + 12);
+		len = strlen(newzone);
+		newzone[len++] = '+';
+		newzone[len] = '\0';
+		safestrncpy(newzone + len, main->name, len + 12);
+	}
 
 	if( (zone = strdb_get(map->zone_db, newzone)) )
 		return zone;/* this zone has already been merged */
@@ -5271,7 +5305,7 @@ static bool map_zone_mf_cache(int m, char *flag, char *params)
 	} else if (strcmpi(flag, "bexp") == 0) {
 		if (state == 0) {
 			if (map->list[m].bexp != 100) {
-				sprintf(rflag, "bexp\t%d", map->list[m].jexp);
+				sprintf(rflag, "bexp\t%d", map->list[m].bexp);
 				map_zone_mf_cache_add(m, rflag);
 			}
 		}
@@ -5280,6 +5314,17 @@ static bool map_zone_mf_cache(int m, char *flag, char *params)
 				sprintf(rflag, "bexp\t%s", params);
 				map_zone_mf_cache_add(m, rflag);
 			}
+		}
+	} else if (strcmpi(flag, "specialpopup") == 0) {
+		if (state != 0) {
+			if (sscanf(params, "%d", &state) == 1) {
+				if (state != map->list[m].flag.specialpopup) {
+					sprintf(rflag, "specialpopup\t%s", params);
+					map_zone_mf_cache_add(m, rflag);
+				}
+			}
+		} else {
+			map_zone_mf_cache_add(m, "specialpopup\toff");
 		}
 	} else if (strcmpi(flag, "novending") == 0) {
 		if (state != 0 && map->list[m].flag.novending != 0)
@@ -5540,6 +5585,15 @@ static bool map_zone_mf_cache(int m, char *flag, char *params)
 				map_zone_mf_cache_add(m, "noloot\toff");
 			else if (map->list[m].flag.nomobloot != 0)
 				map_zone_mf_cache_add(m, "noloot");
+		}
+	} else if (strcmpi(flag, "nosendmail") == 0) {
+		if (state != 0 && map->list[m].flag.nosendmail != 0)
+			;/* nothing to do */
+		else {
+			if (state != 0)
+				map_zone_mf_cache_add(m, "nosendmail\toff");
+			else if (map->list[m].flag.nosendmail != 0)
+				map_zone_mf_cache_add(m, "nosendmail");
 		}
 	}
 
@@ -6343,19 +6397,6 @@ static bool map_remove_questinfo(int m, struct npc_data *nd)
 /**
  * @see DBApply
  */
-static int map_db_final(union DBKey key, struct DBData *data, va_list ap)
-{
-	struct map_data_other_server *mdos = DB->data2ptr(data);
-
-	if(mdos && iMalloc->verify_ptr(mdos) && mdos->cell == NULL)
-		aFree(mdos);
-
-	return 0;
-}
-
-/**
- * @see DBApply
- */
 static int nick_db_final(union DBKey key, struct DBData *data, va_list args)
 {
 	struct charid2nick* p = DB->data2ptr(data);
@@ -6507,10 +6548,13 @@ int do_final(void)
 	rodex->final();
 	achievement->final();
 	stylist->final();
+	enchantui->final();
+	goldpc->final();
+	mapiif->final();
+	intif->final();
+	extraconf->final();
 
 	HPM_map_do_final();
-
-	map->map_db->destroy(map->map_db, map->db_final);
 
 	mapindex->final();
 	if (map->enable_grf)
@@ -6677,6 +6721,7 @@ static void map_cp_defaults(void)
 
 static void map_load_defaults(void)
 {
+	extraconf_defaults();
 	mapindex_defaults();
 	map_defaults();
 	mapit_defaults();
@@ -6726,6 +6771,9 @@ static void map_load_defaults(void)
 	stylist_defaults();
 	refine_defaults();
 	grader_defaults();
+	enchantui_defaults();
+	goldpc_defaults();
+	mapiif_defaults();
 }
 /**
  * --run-once handler
@@ -6888,6 +6936,7 @@ int do_init(int argc, char *argv[])
 #endif
 
 	map_load_defaults();
+	extraconf->init();
 
 	map->INTER_CONF_NAME         = aStrdup("conf/common/inter-server.conf");
 	map->LOG_CONF_NAME           = aStrdup("conf/map/logs.conf");
@@ -6958,6 +7007,7 @@ int do_init(int argc, char *argv[])
 				chrif->setip(ip_str);
 		}
 
+		extraconf->read_emblems();
 		battle->config_read(map->BATTLE_CONF_FILENAME, false);
 		atcommand->msg_read(map->MSG_CONF_NAME, false);
 		map->inter_config_read(map->INTER_CONF_NAME, false);
@@ -6971,7 +7021,6 @@ int do_init(int argc, char *argv[])
 	map->pc_db     = idb_alloc(DB_OPT_BASE); //Added for reliable map->id2sd() use. [Skotlex]
 	map->mobid_db  = idb_alloc(DB_OPT_BASE); //Added to lower the load of the lazy mob AI. [Skotlex]
 	map->bossid_db = idb_alloc(DB_OPT_BASE); // Used for Convex Mirror quick MVP search
-	map->map_db    = uidb_alloc(DB_OPT_BASE);
 	map->nick_db   = idb_alloc(DB_OPT_BASE);
 	map->charid_db = idb_alloc(DB_OPT_BASE);
 	map->regen_db  = idb_alloc(DB_OPT_BASE); // efficient status_natural_heal processing
@@ -7046,12 +7095,15 @@ int do_init(int argc, char *argv[])
 	achievement->init(minimal);
 	stylist->init(minimal);
 	macro->init(minimal);
+	enchantui->init(minimal);
+	goldpc->init(minimal);
 	npc->init(minimal);
 	unit->init(minimal);
 	bg->init(minimal);
 	duel->init(minimal);
 	vending->init(minimal);
 	rodex->init(minimal);
+	mapiif->init(minimal);
 
 	if (map->scriptcheck) {
 		bool failed = map->extra_scripts_count > 0 ? false : true;
@@ -7128,7 +7180,7 @@ void map_defaults(void)
 
 	sprintf(map->wisp_server_name ,"Server"); // can be modified in char-server configuration file
 
-	map->autosave_interval = DEFAULT_AUTOSAVE_INTERVAL;
+	map->autosave_interval = DEFAULT_MAP_AUTOSAVE_INTERVAL;
 	map->minsave_interval = 100;
 	map->save_settings = 0xFFFF;
 	map->agit_flag = 0;
@@ -7168,7 +7220,6 @@ void map_defaults(void)
 	map->pc_db = NULL;
 	map->mobid_db = NULL;
 	map->bossid_db = NULL;
-	map->map_db = NULL;
 	map->nick_db = NULL;
 	map->charid_db = NULL;
 	map->regen_db = NULL;
@@ -7295,10 +7346,6 @@ PRAGMA_GCC9(GCC diagnostic pop)
 	map->blid_exists = map_blid_exists;
 	map->mapindex2mapid = map_mapindex2mapid;
 	map->mapname2mapid = map_mapname2mapid;
-	map->mapname2ipport = map_mapname2ipport;
-	map->setipport = map_setipport;
-	map->eraseipport = map_eraseipport;
-	map->eraseallipport = map_eraseallipport;
 	map->addiddb = map_addiddb;
 	map->deliddb = map_deliddb;
 	/* */
@@ -7345,8 +7392,6 @@ PRAGMA_GCC9(GCC diagnostic pop)
 	map->sub_getcellp = map_sub_getcellp;
 	map->sub_setcell = map_sub_setcell;
 	map->iwall_nextxy = map_iwall_nextxy;
-	map->create_map_data_other_server = create_map_data_other_server;
-	map->eraseallipport_sub = map_eraseallipport_sub;
 	map->readfromcache = map_readfromcache;
 	map->readfromcache_v1 = map_readfromcache_v1;
 	map->addmap = map_addmap;
@@ -7368,6 +7413,8 @@ PRAGMA_GCC9(GCC diagnostic pop)
 	map->inter_config_read = inter_config_read;
 	map->inter_config_read_database_names = inter_config_read_database_names;
 	map->inter_config_read_connection = inter_config_read_connection;
+	map->setting_lookup_const = map_setting_lookup_const;
+	map->setting_lookup_const_mask = map_setting_lookup_const_mask;
 	map->sql_init = map_sql_init;
 	map->sql_close = map_sql_close;
 	map->zone_mf_cache = map_zone_mf_cache;
@@ -7375,7 +7422,6 @@ PRAGMA_GCC9(GCC diagnostic pop)
 	map->zone_str2skillid = map_zone_str2skillid;
 	map->zone_bl_type = map_zone_bl_type;
 	map->read_zone_db = read_map_zone_db;
-	map->db_final = map_db_final;
 	map->nick_db_final = nick_db_final;
 	map->cleanup_db_sub = cleanup_db_sub;
 	map->abort_sub = map_abort_sub;

@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  *
  * Hercules is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,23 +22,27 @@
 
 #include "common/hercules.h"
 #include "common/mmo.h"
+#include "common/chunked/rfifo.h"
 
 struct rodex_item;
+enum adventurer_agency_result;
+
+typedef int (*SendAll_func)(int fd, va_list args);
 
 /**
  * mapif interface
  **/
 struct mapif_interface {
+	struct fifo_chunk_buf emblem_tmp;
+	void (*final) (void);
 	void (*ban) (int id, unsigned int flag, int status);
-	void (*server_init) (int id);
-	void (*server_destroy) (int id);
-	void (*server_reset) (int id);
-	void (*on_disconnect) (int id);
+	void (*server_init) (void);
+	void (*server_destroy) (void);
+	void (*server_reset) (void);
+	void (*on_disconnect) (void);
 	void (*on_parse_accinfo) (int account_id, int u_fd, int u_aid, int u_group, int map_fd);
 	void (*char_ban) (int char_id, time_t timestamp);
-	int (*sendall) (const unsigned char *buf, unsigned int len);
-	int (*sendallwos) (int sfd, unsigned char *buf, unsigned int len);
-	int (*send) (int fd, unsigned char *buf, unsigned int len);
+	int (*send) (const unsigned char *buf, unsigned int len);
 	void (*send_users_count) (int users);
 	void (*pLoadAchievements) (int fd);
 	void (*sAchievementsToMap) (int fd, int char_id, const struct char_achievements *p);
@@ -64,9 +68,11 @@ struct mapif_interface {
 	void (*elemental_saved) (int fd, unsigned char flag);
 	void (*parse_elemental_save) (int fd, const struct s_elemental *ele);
 	int (*guild_created) (int fd, int account_id, struct guild *g);
-	int (*guild_noinfo) (int fd, int guild_id);
-	int (*guild_info) (int fd, struct guild *g);
-	int (*guild_memberadded) (int fd, int guild_id, int account_id, int char_id, int flag);
+	int (*guild_noinfo) (int guild_id);
+	int (*guild_info) (const struct guild *g);
+	int (*guild_info_basic) (const struct guild *g);
+	int (*guild_info_emblem) (const struct guild *g);
+	int (*guild_memberadded) (int guild_id, int account_id, int char_id, int flag);
 	int (*guild_withdraw) (int guild_id, int account_id, int char_id, int flag, const char *name, const char *mes);
 	int (*guild_memberinfoshort) (struct guild *g, int idx);
 	int (*guild_broken) (int guild_id, int flag);
@@ -91,7 +97,7 @@ struct mapif_interface {
 	int (*parse_GuildSkillUp) (int fd, int guild_id, uint16 skill_id, int account_id, int max);
 	int (*parse_GuildAlliance) (int fd, int guild_id1, int guild_id2, int account_id1, int account_id2, int flag);
 	int (*parse_GuildNotice) (int fd, int guild_id, const char *mes1, const char *mes2);
-	int (*parse_GuildEmblem) (int fd, int len, int guild_id, int dummy, const char *data);
+	int (*parse_GuildEmblem) (int fd);
 	int (*parse_GuildCastleDataLoad) (int fd, int len, const int *castle_ids);
 	int (*parse_GuildCastleDataSave) (int fd, int castle_id, int index, int value);
 	int (*parse_GuildMasterChange) (int fd, int guild_id, const char* name, int len);
@@ -126,9 +132,9 @@ struct mapif_interface {
 	void (*parse_mercenary_save) (int fd, const struct s_mercenary *merc);
 	int (*party_created) (int fd, int account_id, int char_id, struct party *p);
 	void (*party_noinfo) (int fd, int party_id, int char_id);
-	void (*party_info) (int fd, struct party* p, int char_id);
+	void (*party_info) (const struct party *p, int char_id);
 	int (*party_memberadded) (int fd, int party_id, int account_id, int char_id, int flag);
-	int (*party_optionchanged) (int fd, struct party *p, int account_id, int flag);
+	int (*party_optionchanged) (const struct party *p, int account_id, int flag);
 	int (*party_withdraw) (int party_id,int account_id, int char_id);
 	int (*party_membermoved) (struct party *p, int idx);
 	int (*party_broken) (int party_id, int flag);
@@ -164,8 +170,8 @@ struct mapif_interface {
 	void (*rodex_send) (int fd, int sender_id, int receiver_id, int receiver_accountid, bool result);
 	void (*parse_rodex_checkname) (int fd);
 	void (*rodex_checkname) (int fd, int reqchar_id, int target_char_id, int target_class, int target_level, char *name);
-	void (*rodex_getzenyack) (int fd, int char_id, int64 mail_id, uint8 opentype, int64 zeny);
-	void (*rodex_getitemsack) (int fd, int char_id, int64 mail_id, uint8 opentype, int count, const struct rodex_item *items);
+	void (*rodex_getzenyack) (int char_id, int64 mail_id, uint8 opentype, int64 zeny);
+	void (*rodex_getitemsack) (int char_id, int64 mail_id, uint8 opentype, int count, const struct rodex_item *items);
 	int (*load_guild_storage) (int fd, int account_id, int guild_id, char flag);
 	int (*save_guild_storage_ack) (int fd, int account_id, int guild_id, int fail);
 	int (*parse_LoadGuildStorage) (int fd);
@@ -178,10 +184,7 @@ struct mapif_interface {
 	void (*parse_ItemBoundRetrieve) (int fd);
 	void (*parse_accinfo) (int fd);
 	int (*account_reg_reply) (int fd,int account_id,int char_id, int type);
-#if 0
-	void (*account_reg) (int fd, unsigned char *src);
-#endif
-	int (*disconnectplayer) (int fd, int account_id, int char_id, int reason);
+	int (*disconnectplayer) (int account_id, int char_id, int reason);
 	int (*parse_Registry) (int fd);
 	int (*parse_RegistryRequest) (int fd);
 	void (*namechange_ack) (int fd, int account_id, int char_id, int type, int flag, const char *name);
@@ -189,6 +192,7 @@ struct mapif_interface {
 	// Clan System
 	int (*parse_ClanMemberKick) (int fd, int clan_id, int kick_interval);
 	int (*parse_ClanMemberCount) (int fd, int clan_id, int kick_interval);
+	void (*agency_joinPartyResult) (int fd, int char_id, enum adventurer_agency_result result);
 };
 
 #ifdef HERCULES_CORE

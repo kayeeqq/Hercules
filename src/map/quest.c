@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -149,6 +149,7 @@ static int quest_add(struct map_session_data *sd, int quest_id, unsigned int tim
 	sd->quest_log[n].state = Q_ACTIVE;
 
 	sd->save_quest = true;
+	sd->last_added_quest_id = qi->id;
 
 	clif->quest_add(sd, &sd->quest_log[n]);
 #if PACKETVER >= 20150513
@@ -612,15 +613,15 @@ static struct quest_db *quest_read_db_sub(struct config_setting_t *cs, int n, co
 					continue;
 				}
 
-				if (mob->lookup_const(mobt, "Size", &i32)) {
+				if (map->setting_lookup_const(mobt, "Size", &i32)) {
 					entry->objectives[entry->objectives_count - 1].mobtype.size = (uint8)i32;
 					entry->objectives[entry->objectives_count - 1].mobtype.size_enabled = true;
 				}
-				if (mob->lookup_const(mobt, "Race", &i32)) {
+				if (map->setting_lookup_const(mobt, "Race", &i32)) {
 					entry->objectives[entry->objectives_count - 1].mobtype.race = (uint8)i32;
 					entry->objectives[entry->objectives_count - 1].mobtype.race_enabled = true;
 				}
-				if (mob->lookup_const(mobt, "Element", &i32)) {
+				if (map->setting_lookup_const(mobt, "Element", &i32)) {
 					entry->objectives[entry->objectives_count - 1].mobtype.ele = (uint8)i32;
 					entry->objectives[entry->objectives_count - 1].mobtype.ele_enabled = true;
 				}
@@ -670,13 +671,13 @@ static struct quest_db *quest_read_db_sub(struct config_setting_t *cs, int n, co
  */
 static int quest_read_db(void)
 {
-	char filepath[256];
+	char filepath[512];
 	struct config_t quest_db_conf;
 	struct config_setting_t *qdb = NULL, *q = NULL;
 	int i = 0, count = 0;
 	const char *filename = "quest_db.conf";
 
-	safesnprintf(filepath, 256, "%s/%s", map->db_path, filename);
+	snprintf(filepath, sizeof(filepath), "%s/%s", map->db_path, filename);
 	if (!libconfig->load_file(&quest_db_conf, filepath))
 		return -1;
 
@@ -1005,7 +1006,7 @@ static bool quest_questinfo_validate_quests(struct map_session_data *sd, struct 
 
 	nullpo_retr(false, sd);
 	nullpo_retr(false, qi);
-	
+
 	for (i = 0; i < VECTOR_LENGTH(qi->quest_requirement); i++) {
 		struct questinfo_qreq *quest_requirement = &VECTOR_INDEX(qi->quest_requirement, i);
 		int quest_progress = quest->check(sd, quest_requirement->id, HAVEQUEST);
@@ -1043,6 +1044,23 @@ static bool quest_questinfo_validate_mercenary_class(struct map_session_data *sd
 		return false;
 
 	return true;
+}
+
+static enum quest_mobtype quest_mobsize2client(uint8 size)
+{
+	switch (size) {
+	case SZ_SMALL:
+		return QMT_SZ_SMALL;
+
+	case SZ_MEDIUM:
+		return QMT_SZ_MEDIUM;
+
+	case SZ_BIG:
+		return QMT_SZ_LARGE;
+
+	default:
+		return 0;
+	}
 }
 
 static enum quest_mobtype quest_mobele2client(uint8 type)
@@ -1176,6 +1194,7 @@ void quest_defaults(void)
 	quest->questinfo_validate_homunculus_type = quest_questinfo_validate_homunculus_type;
 	quest->questinfo_validate_quests = quest_questinfo_validate_quests;
 	quest->questinfo_validate_mercenary_class = quest_questinfo_validate_mercenary_class;
+	quest->mobsize2client = quest_mobsize2client;
 	quest->mobele2client = quest_mobele2client;
 	quest->mobrace2client = quest_mobrace2client;
 }

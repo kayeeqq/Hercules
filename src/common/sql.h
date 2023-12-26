@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -125,6 +125,12 @@ struct sql_interface {
 	///
 	/// @return SQL_SUCCESS or SQL_ERROR
 	int (*QueryStr) (struct Sql *self, const char *query);
+	/// Executes a query and fetch row.
+	/// Any previous result is freed.
+	/// The query is used directly.
+	///
+	/// @return SQL_SUCCESS or SQL_ERROR
+	int (*QueryStrFetch) (struct Sql *self, const char *query);
 	/// Returns the number of the AUTO_INCREMENT column of the last INSERT/UPDATE query.
 	///
 	/// @return Value of the auto-increment column

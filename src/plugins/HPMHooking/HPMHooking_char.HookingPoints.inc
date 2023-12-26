@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2013-2022 Hercules Dev Team
+ * Copyright (C) 2013-2023 Hercules Dev Team
  *
  * Hercules is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,6 +30,28 @@ struct HookingPointData HookingPoints[] = {
 	{ HP_POP(HCache->init, HP_HCache_init) },
 	{ HP_POP(HCache->check, HP_HCache_check) },
 	{ HP_POP(HCache->open, HP_HCache_open) },
+/* base62_interface */
+	{ HP_POP(base62->encode_int_padded, HP_base62_encode_int_padded) },
+/* capiif_interface */
+	{ HP_POP(capiif->init, HP_capiif_init) },
+	{ HP_POP(capiif->final, HP_capiif_final) },
+	{ HP_POP(capiif->get_online_character, HP_capiif_get_online_character) },
+	{ HP_POP(capiif->emblem_download, HP_capiif_emblem_download) },
+	{ HP_POP(capiif->parse_userconfig_load_emotes, HP_capiif_parse_userconfig_load_emotes) },
+	{ HP_POP(capiif->parse_userconfig_save_emotes, HP_capiif_parse_userconfig_save_emotes) },
+	{ HP_POP(capiif->parse_charconfig_load, HP_capiif_parse_charconfig_load) },
+	{ HP_POP(capiif->parse_emblem_upload, HP_capiif_parse_emblem_upload) },
+	{ HP_POP(capiif->parse_emblem_upload_guild_id, HP_capiif_parse_emblem_upload_guild_id) },
+	{ HP_POP(capiif->parse_emblem_download, HP_capiif_parse_emblem_download) },
+	{ HP_POP(capiif->parse_userconfig_save_userhotkey_v2, HP_capiif_parse_userconfig_save_userhotkey_v2) },
+	{ HP_POP(capiif->parse_userconfig_load_hotkeys, HP_capiif_parse_userconfig_load_hotkeys) },
+	{ HP_POP(capiif->parse_party_add, HP_capiif_parse_party_add) },
+	{ HP_POP(capiif->parse_party_list, HP_capiif_parse_party_list) },
+	{ HP_POP(capiif->parse_party_get, HP_capiif_parse_party_get) },
+	{ HP_POP(capiif->parse_party_del, HP_capiif_parse_party_del) },
+	{ HP_POP(capiif->parse_fromlogin_api_proxy, HP_capiif_parse_fromlogin_api_proxy) },
+	{ HP_POP(capiif->parse_proxy_api_from_map, HP_capiif_parse_proxy_api_from_map) },
+	{ HP_POP(capiif->send_emblem_upload_result, HP_capiif_send_emblem_upload_result) },
 /* char_interface */
 	{ HP_POP(chr->waiting_disconnect, HP_chr_waiting_disconnect) },
 	{ HP_POP(chr->delete_char_sql, HP_chr_delete_char_sql) },
@@ -99,7 +121,6 @@ struct HookingPointData HookingPoints[] = {
 	{ HP_POP(chr->parse_frommap_datasync, HP_chr_parse_frommap_datasync) },
 	{ HP_POP(chr->parse_frommap_skillid2idx, HP_chr_parse_frommap_skillid2idx) },
 	{ HP_POP(chr->map_received_ok, HP_chr_map_received_ok) },
-	{ HP_POP(chr->send_maps, HP_chr_send_maps) },
 	{ HP_POP(chr->parse_frommap_map_names, HP_chr_parse_frommap_map_names) },
 	{ HP_POP(chr->send_scdata, HP_chr_send_scdata) },
 	{ HP_POP(chr->parse_frommap_request_scdata, HP_chr_parse_frommap_request_scdata) },
@@ -109,8 +130,6 @@ struct HookingPointData HookingPoints[] = {
 	{ HP_POP(chr->parse_frommap_save_character, HP_chr_parse_frommap_save_character) },
 	{ HP_POP(chr->select_ack, HP_chr_select_ack) },
 	{ HP_POP(chr->parse_frommap_char_select_req, HP_chr_parse_frommap_char_select_req) },
-	{ HP_POP(chr->change_map_server_ack, HP_chr_change_map_server_ack) },
-	{ HP_POP(chr->parse_frommap_change_map_server, HP_chr_parse_frommap_change_map_server) },
 	{ HP_POP(chr->parse_frommap_remove_friend, HP_chr_parse_frommap_remove_friend) },
 	{ HP_POP(chr->char_name_ack, HP_chr_char_name_ack) },
 	{ HP_POP(chr->parse_frommap_char_name_request, HP_chr_parse_frommap_char_name_request) },
@@ -137,7 +156,7 @@ struct HookingPointData HookingPoints[] = {
 	{ HP_POP(chr->parse_frommap_scdata_update, HP_chr_parse_frommap_scdata_update) },
 	{ HP_POP(chr->parse_frommap_scdata_delete, HP_chr_parse_frommap_scdata_delete) },
 	{ HP_POP(chr->parse_frommap, HP_chr_parse_frommap) },
-	{ HP_POP(chr->search_mapserver, HP_chr_search_mapserver) },
+	{ HP_POP(chr->mapserver_has_map, HP_chr_mapserver_has_map) },
 	{ HP_POP(chr->mapif_init, HP_chr_mapif_init) },
 	{ HP_POP(chr->lan_subnet_check, HP_chr_lan_subnet_check) },
 	{ HP_POP(chr->delete2_ack, HP_chr_delete2_ack) },
@@ -151,7 +170,7 @@ struct HookingPointData HookingPoints[] = {
 	{ HP_POP(chr->parse_char_connect, HP_chr_parse_char_connect) },
 	{ HP_POP(chr->send_map_info, HP_chr_send_map_info) },
 	{ HP_POP(chr->send_wait_char_server, HP_chr_send_wait_char_server) },
-	{ HP_POP(chr->search_default_maps_mapserver, HP_chr_search_default_maps_mapserver) },
+	{ HP_POP(chr->find_available_map_fallback, HP_chr_find_available_map_fallback) },
 	{ HP_POP(chr->parse_char_select, HP_chr_parse_char_select) },
 	{ HP_POP(chr->creation_failed, HP_chr_creation_failed) },
 	{ HP_POP(chr->creation_ok, HP_chr_creation_ok) },
@@ -189,6 +208,10 @@ struct HookingPointData HookingPoints[] = {
 	{ HP_POP(chr->online_data_cleanup_sub, HP_chr_online_data_cleanup_sub) },
 	{ HP_POP(chr->online_data_cleanup, HP_chr_online_data_cleanup) },
 	{ HP_POP(chr->change_sex_sub, HP_chr_change_sex_sub) },
+	{ HP_POP(chr->online_char_destroy, HP_chr_online_char_destroy) },
+	{ HP_POP(chr->online_char_destroy_sub, HP_chr_online_char_destroy_sub) },
+	{ HP_POP(chr->ensure_online_char_data, HP_chr_ensure_online_char_data) },
+	{ HP_POP(chr->clean_online_char_emblem_data, HP_chr_clean_online_char_emblem_data) },
 	{ HP_POP(chr->sql_config_read, HP_chr_sql_config_read) },
 	{ HP_POP(chr->sql_config_read_registry, HP_chr_sql_config_read_registry) },
 	{ HP_POP(chr->sql_config_read_pc, HP_chr_sql_config_read_pc) },
@@ -243,6 +266,15 @@ struct HookingPointData HookingPoints[] = {
 /* des_interface */
 	{ HP_POP(des->decrypt_block, HP_des_decrypt_block) },
 	{ HP_POP(des->decrypt, HP_des_decrypt) },
+/* extraconf_interface */
+	{ HP_POP(extraconf->init, HP_extraconf_init) },
+	{ HP_POP(extraconf->final, HP_extraconf_final) },
+	{ HP_POP(extraconf->read_conf_file, HP_extraconf_read_conf_file) },
+	{ HP_POP(extraconf->read_conf, HP_extraconf_read_conf) },
+	{ HP_POP(extraconf->read_vars, HP_extraconf_read_vars) },
+	{ HP_POP(extraconf->set_var, HP_extraconf_set_var) },
+	{ HP_POP(extraconf->set_var_str, HP_extraconf_set_var_str) },
+	{ HP_POP(extraconf->read_emblems, HP_extraconf_read_emblems) },
 /* geoip_interface */
 	{ HP_POP(geoip->getcountry, HP_geoip_getcountry) },
 	{ HP_POP(geoip->final, HP_geoip_final) },
@@ -255,6 +287,18 @@ struct HookingPointData HookingPoints[] = {
 	{ HP_POP(inter_achievement->ensure_char_achievements, HP_inter_achievement_ensure_char_achievements) },
 	{ HP_POP(inter_achievement->char_achievements_clear, HP_inter_achievement_char_achievements_clear) },
 	{ HP_POP(inter_achievement->parse_frommap, HP_inter_achievement_parse_frommap) },
+/* inter_adventurer_agency_interface */
+	{ HP_POP(inter_adventurer_agency->parse_frommap, HP_inter_adventurer_agency_parse_frommap) },
+	{ HP_POP(inter_adventurer_agency->pJoinParty, HP_inter_adventurer_agency_pJoinParty) },
+	{ HP_POP(inter_adventurer_agency->entry_add, HP_inter_adventurer_agency_entry_add) },
+	{ HP_POP(inter_adventurer_agency->entry_check_existing, HP_inter_adventurer_agency_entry_check_existing) },
+	{ HP_POP(inter_adventurer_agency->entry_delete_existing, HP_inter_adventurer_agency_entry_delete_existing) },
+	{ HP_POP(inter_adventurer_agency->entry_tosql, HP_inter_adventurer_agency_entry_tosql) },
+	{ HP_POP(inter_adventurer_agency->entry_delete, HP_inter_adventurer_agency_entry_delete) },
+	{ HP_POP(inter_adventurer_agency->get_page, HP_inter_adventurer_agency_get_page) },
+	{ HP_POP(inter_adventurer_agency->entry_to_flags, HP_inter_adventurer_agency_entry_to_flags) },
+	{ HP_POP(inter_adventurer_agency->get_pages_count, HP_inter_adventurer_agency_get_pages_count) },
+	{ HP_POP(inter_adventurer_agency->get_player_request, HP_inter_adventurer_agency_get_player_request) },
 /* inter_auction_interface */
 	{ HP_POP(inter_auction->count, HP_inter_auction_count) },
 	{ HP_POP(inter_auction->save, HP_inter_auction_save) },
@@ -314,6 +358,7 @@ struct HookingPointData HookingPoints[] = {
 	{ HP_POP(inter_guild->update_emblem, HP_inter_guild_update_emblem) },
 	{ HP_POP(inter_guild->update_castle_data, HP_inter_guild_update_castle_data) },
 	{ HP_POP(inter_guild->change_leader, HP_inter_guild_change_leader) },
+	{ HP_POP(inter_guild->is_guild_master, HP_inter_guild_is_guild_master) },
 /* inter_homunculus_interface */
 	{ HP_POP(inter_homunculus->sql_init, HP_inter_homunculus_sql_init) },
 	{ HP_POP(inter_homunculus->sql_final, HP_inter_homunculus_sql_final) },
@@ -389,6 +434,7 @@ struct HookingPointData HookingPoints[] = {
 	{ HP_POP(inter_party->change_map, HP_inter_party_change_map) },
 	{ HP_POP(inter_party->disband, HP_inter_party_disband) },
 	{ HP_POP(inter_party->change_leader, HP_inter_party_change_leader) },
+	{ HP_POP(inter_party->is_leader, HP_inter_party_is_leader) },
 /* inter_pet_interface */
 	{ HP_POP(inter_pet->tosql, HP_inter_pet_tosql) },
 	{ HP_POP(inter_pet->fromsql, HP_inter_pet_fromsql) },
@@ -427,6 +473,17 @@ struct HookingPointData HookingPoints[] = {
 	{ HP_POP(inter_storage->guild_storage_delete, HP_inter_storage_guild_storage_delete) },
 	{ HP_POP(inter_storage->parse_frommap, HP_inter_storage_parse_frommap) },
 	{ HP_POP(inter_storage->retrieve_bound_items, HP_inter_storage_retrieve_bound_items) },
+/* inter_userconfig_interface */
+	{ HP_POP(inter_userconfig->init, HP_inter_userconfig_init) },
+	{ HP_POP(inter_userconfig->config_read, HP_inter_userconfig_config_read) },
+	{ HP_POP(inter_userconfig->load_emotes, HP_inter_userconfig_load_emotes) },
+	{ HP_POP(inter_userconfig->save_emotes, HP_inter_userconfig_save_emotes) },
+	{ HP_POP(inter_userconfig->use_default_emotes, HP_inter_userconfig_use_default_emotes) },
+	{ HP_POP(inter_userconfig->emotes_from_sql, HP_inter_userconfig_emotes_from_sql) },
+	{ HP_POP(inter_userconfig->emotes_to_sql, HP_inter_userconfig_emotes_to_sql) },
+	{ HP_POP(inter_userconfig->hotkey_tab_tosql, HP_inter_userconfig_hotkey_tab_tosql) },
+	{ HP_POP(inter_userconfig->hotkey_tab_clear, HP_inter_userconfig_hotkey_tab_clear) },
+	{ HP_POP(inter_userconfig->hotkey_tab_fromsql, HP_inter_userconfig_hotkey_tab_fromsql) },
 /* libconfig_interface */
 	{ HP_POP(libconfig->set_db_path, HP_libconfig_set_db_path) },
 	{ HP_POP(libconfig->format_db_path, HP_libconfig_format_db_path) },
@@ -512,7 +569,9 @@ struct HookingPointData HookingPoints[] = {
 	{ HP_POP(loginif->auth, HP_loginif_auth) },
 	{ HP_POP(loginif->send_users_count, HP_loginif_send_users_count) },
 	{ HP_POP(loginif->connect_to_server, HP_loginif_connect_to_server) },
+	{ HP_POP(loginif->set_char_online, HP_loginif_set_char_online) },
 /* mapif_interface */
+	{ HP_POP(mapif->final, HP_mapif_final) },
 	{ HP_POP(mapif->ban, HP_mapif_ban) },
 	{ HP_POP(mapif->server_init, HP_mapif_server_init) },
 	{ HP_POP(mapif->server_destroy, HP_mapif_server_destroy) },
@@ -520,8 +579,6 @@ struct HookingPointData HookingPoints[] = {
 	{ HP_POP(mapif->on_disconnect, HP_mapif_on_disconnect) },
 	{ HP_POP(mapif->on_parse_accinfo, HP_mapif_on_parse_accinfo) },
 	{ HP_POP(mapif->char_ban, HP_mapif_char_ban) },
-	{ HP_POP(mapif->sendall, HP_mapif_sendall) },
-	{ HP_POP(mapif->sendallwos, HP_mapif_sendallwos) },
 	{ HP_POP(mapif->send, HP_mapif_send) },
 	{ HP_POP(mapif->send_users_count, HP_mapif_send_users_count) },
 	{ HP_POP(mapif->pLoadAchievements, HP_mapif_pLoadAchievements) },
@@ -550,6 +607,8 @@ struct HookingPointData HookingPoints[] = {
 	{ HP_POP(mapif->guild_created, HP_mapif_guild_created) },
 	{ HP_POP(mapif->guild_noinfo, HP_mapif_guild_noinfo) },
 	{ HP_POP(mapif->guild_info, HP_mapif_guild_info) },
+	{ HP_POP(mapif->guild_info_basic, HP_mapif_guild_info_basic) },
+	{ HP_POP(mapif->guild_info_emblem, HP_mapif_guild_info_emblem) },
 	{ HP_POP(mapif->guild_memberadded, HP_mapif_guild_memberadded) },
 	{ HP_POP(mapif->guild_withdraw, HP_mapif_guild_withdraw) },
 	{ HP_POP(mapif->guild_memberinfoshort, HP_mapif_guild_memberinfoshort) },
@@ -669,6 +728,7 @@ struct HookingPointData HookingPoints[] = {
 	{ HP_POP(mapif->parse_NameChangeRequest, HP_mapif_parse_NameChangeRequest) },
 	{ HP_POP(mapif->parse_ClanMemberKick, HP_mapif_parse_ClanMemberKick) },
 	{ HP_POP(mapif->parse_ClanMemberCount, HP_mapif_parse_ClanMemberCount) },
+	{ HP_POP(mapif->agency_joinPartyResult, HP_mapif_agency_joinPartyResult) },
 /* mapindex_interface */
 	{ HP_POP(mapindex->config_read_dbpath, HP_mapindex_config_read_dbpath) },
 	{ HP_POP(mapindex->config_read, HP_mapindex_config_read) },
@@ -739,6 +799,7 @@ struct HookingPointData HookingPoints[] = {
 	{ HP_POP(showmsg->final, HP_showmsg_final) },
 	{ HP_POP(showmsg->clearScreen, HP_showmsg_clearScreen) },
 	{ HP_POP(showmsg->showMessageV, HP_showmsg_showMessageV) },
+	{ HP_POP(showmsg->getLogFileName, HP_showmsg_getLogFileName) },
 /* socket_interface */
 	{ HP_POP(sockt->init, HP_sockt_init) },
 	{ HP_POP(sockt->final, HP_sockt_final) },
@@ -755,11 +816,15 @@ struct HookingPointData HookingPoints[] = {
 	{ HP_POP(sockt->validateWfifo, HP_sockt_validateWfifo) },
 	{ HP_POP(sockt->session_is_valid, HP_sockt_session_is_valid) },
 	{ HP_POP(sockt->session_is_active, HP_sockt_session_is_active) },
+	{ HP_POP(sockt->create_session, HP_sockt_create_session) },
+	{ HP_POP(sockt->delete_session, HP_sockt_delete_session) },
 	{ HP_POP(sockt->flush, HP_sockt_flush) },
 	{ HP_POP(sockt->flush_fifos, HP_sockt_flush_fifos) },
 	{ HP_POP(sockt->connect_client, HP_sockt_connect_client) },
 	{ HP_POP(sockt->set_nonblocking, HP_sockt_set_nonblocking) },
 	{ HP_POP(sockt->set_defaultparse, HP_sockt_set_defaultparse) },
+	{ HP_POP(sockt->set_default_client_connected, HP_sockt_set_default_client_connected) },
+	{ HP_POP(sockt->set_default_delete, HP_sockt_set_default_delete) },
 	{ HP_POP(sockt->host2ip, HP_sockt_host2ip) },
 	{ HP_POP(sockt->ip2str, HP_sockt_ip2str) },
 	{ HP_POP(sockt->str2ip, HP_sockt_str2ip) },
@@ -781,6 +846,7 @@ struct HookingPointData HookingPoints[] = {
 	{ HP_POP(SQL->EscapeStringLen, HP_SQL_EscapeStringLen) },
 	{ HP_POP(SQL->QueryV, HP_SQL_QueryV) },
 	{ HP_POP(SQL->QueryStr, HP_SQL_QueryStr) },
+	{ HP_POP(SQL->QueryStrFetch, HP_SQL_QueryStrFetch) },
 	{ HP_POP(SQL->LastInsertId, HP_SQL_LastInsertId) },
 	{ HP_POP(SQL->NumColumns, HP_SQL_NumColumns) },
 	{ HP_POP(SQL->NumRows, HP_SQL_NumRows) },
@@ -892,4 +958,4 @@ struct HookingPointData HookingPoints[] = {
 	{ HP_POP(timer->get_available_clocksource, HP_timer_get_available_clocksource) },
 };
 
-int HookingPointsLenMax = 43;
+int HookingPointsLenMax = 46;

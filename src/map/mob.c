@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -553,7 +553,7 @@ static bool mob_ksprotected(struct block_list *src, struct block_list *target)
 	} while(0);
 
 	status->change_start(NULL, target, SC_KSPROTECTED, 10000, sd->bl.id, sd->state.noks,
-	                     sd->status.party_id, sd->status.guild_id, battle_config.ksprotection, SCFLAG_NONE);
+	                     sd->status.party_id, sd->status.guild_id, battle_config.ksprotection, SCFLAG_NONE, 0);
 
 	return false;
 }
@@ -682,7 +682,7 @@ static int mob_once_spawn(struct map_session_data *sd, int16 m, int16 x, int16 y
 			/// Behold Aegis' masterful decisions yet again...
 			/// "I understand the "Aggressive" part, but the "Can Move" and "Can Attack" is just stupid" [Poki]
 			sc_start4(NULL, &md->bl, SC_MODECHANGE, 100, 1, 0, MD_AGGRESSIVE|MD_CANATTACK|MD_CANMOVE|MD_ANGRY,
-				  0, 60000);
+				  0, 60000, 0);
 		}
 	}
 
@@ -1192,6 +1192,7 @@ static int mob_spawn(struct mob_data *md)
 		memset(md->lootitem, 0, sizeof(*md->lootitem));
 
 	md->lootitem_count = 0;
+	md->dmg_taken_rate = md->db->dmg_taken_rate;
 
 	if(md->db->option)
 		// Added for carts, falcons and pecos for cloned monsters. [Valaris]
@@ -1326,7 +1327,14 @@ static int mob_ai_sub_hard_activesearch(struct block_list *bl, va_list ap)
 #ifdef ACTIVEPATHSEARCH
 				struct walkpath_data wpd;
 				bool is_standing = (md->ud.walktimer == INVALID_TIMER);
+#ifdef CELL_NOSTACK
+				// Do not count target's cell
+				short x, y;
+				if ((unit->can_reach_bl(&md->bl, bl, distance_bl(&md->bl, bl) + 1, 1, &x, &y)
+					&& !path->search(&wpd, &md->bl, md->bl.m, md->bl.x, md->bl.y, x, y, 0, CELL_CHKNOPASS)) // Count walk path cells
+#else
 				if (!path->search(&wpd, &md->bl, md->bl.m, md->bl.x, md->bl.y, bl->x, bl->y, 0, CELL_CHKNOPASS) // Count walk path cells
+#endif
 				    || (is_standing && wpd.path_len > md->db->range2) //Standing monsters use range2, walking monsters use range3
 				    || (!is_standing && wpd.path_len > md->db->range3)) {
 					if (!check_distance_bl(&md->bl, bl, md->status.rhw.range)
@@ -2745,7 +2753,7 @@ static int mob_dead(struct mob_data *md, struct block_list *src, int type)
 
 					// When PK Mode is enabled, increase item drop rate bonus of each items by 25% when there is a 20 level difference between the player and the monster.[KeiKun]
 					if (battle_config.pk_mode && (md->level - sd->status.base_level >= 20))
-						drop_rate_bonus += 25; // flat 25% bonus 
+						drop_rate_bonus += 25; // flat 25% bonus
 
 					drop_rate_bonus += sd->dropaddrace[md->status.race] + (is_boss(src) ? sd->dropaddrace[RC_BOSS] : sd->dropaddrace[RC_NONBOSS]); // bonus2 bDropAddRace[KeiKun]
 
@@ -2755,10 +2763,9 @@ static int mob_dead(struct mob_data *md, struct block_list *src, int type)
 					if (sd->sc.data[SC_OVERLAPEXPUP] != NULL)
 						drop_rate_bonus += sd->sc.data[SC_OVERLAPEXPUP]->val2;
 
-					drop_rate = (int)(0.5 + drop_rate * drop_rate_bonus / 100.);
-
-					// Limit drop rate, default: 90%
-					drop_rate = min(drop_rate, 9000);
+					if (drop_rate_bonus != 100) {
+						drop_rate = (int)(0.5 + drop_rate * drop_rate_bonus / 100.);
+					}
 				}
 			}
 
@@ -2779,6 +2786,9 @@ static int mob_dead(struct mob_data *md, struct block_list *src, int type)
 				drop_rate = max(drop_rate, 0);
 			else
 				drop_rate = max(drop_rate, 1);
+
+			// Make sure the bonuses don't make the drop rate grow past the configured threshold (unless it already was)
+			drop_rate = min(drop_rate, max(md->db->dropitem[i].p, battle_config.item_drop_bonus_max_threshold));
 
 			// attempt to drop the item
 			if (rnd() % 10000 >= drop_rate)
@@ -3386,19 +3396,19 @@ static int mob_summonslave(struct mob_data *md2, int *value, int amount, uint16 
 			switch (battle_config.slaves_inherit_mode) {
 			case 1: /// Always aggressive.
 				if ((md->status.mode & MD_AGGRESSIVE) == 0)
-					sc_start4(NULL, &md->bl, SC_MODECHANGE, 100, 1, 0, MD_AGGRESSIVE, 0, 0);
+					sc_start4(NULL, &md->bl, SC_MODECHANGE, 100, 1, 0, MD_AGGRESSIVE, 0, 0, 0);
 
 				break;
 			case 2: /// Always passive.
 				if ((md->status.mode & MD_AGGRESSIVE) == MD_AGGRESSIVE)
-					sc_start4(NULL, &md->bl, SC_MODECHANGE, 100, 1, 0, 0, MD_AGGRESSIVE, 0);
+					sc_start4(NULL, &md->bl, SC_MODECHANGE, 100, 1, 0, 0, MD_AGGRESSIVE, 0, 0);
 
 				break;
 			default: /// Copy master.
 				if ((md2->status.mode & MD_AGGRESSIVE) == MD_AGGRESSIVE)
-					sc_start4(NULL, &md->bl, SC_MODECHANGE, 100, 1, 0, MD_AGGRESSIVE, 0, 0);
+					sc_start4(NULL, &md->bl, SC_MODECHANGE, 100, 1, 0, MD_AGGRESSIVE, 0, 0, 0);
 				else
-					sc_start4(NULL, &md->bl, SC_MODECHANGE, 100, 1, 0, 0, MD_AGGRESSIVE, 0);
+					sc_start4(NULL, &md->bl, SC_MODECHANGE, 100, 1, 0, 0, MD_AGGRESSIVE, 0, 0);
 				break;
 			}
 		}
@@ -3796,13 +3806,13 @@ static int mob_use_skill(struct mob_data *md, int64 tick, int event)
 
 		// Skill used.
 		if (ms[skill_idx].msg_id != 0) { // Display color message. [SnakeDrak]
-			char temp[CHAT_SIZE_MAX];
+			char temp[CHAT_SIZE_MAX + NAME_LENGTH + 10];
 			char name[NAME_LENGTH];
 			struct mob_chat *mc = mob->chat(ms[skill_idx].msg_id);
 
 			snprintf(name, sizeof(name), "%s", md->name);
 			strtok(name, "#"); // Discard extra name identifier if present. [Daegaladh]
-			safesnprintf(temp, sizeof(temp), "%s : %s", name, mc->msg);
+			snprintf(temp, sizeof(temp), "%s : %s", name, mc->msg);
 			clif->messagecolor(&md->bl, mc->color, temp);
 		}
 
@@ -4475,22 +4485,22 @@ static void mob_read_db_stats_sub(struct mob_db *entry, struct config_setting_t 
 {
 	int i32;
 	nullpo_retv(entry);
-	if (mob->lookup_const(t, "Str", &i32) && i32 >= 0) {
+	if (map->setting_lookup_const(t, "Str", &i32) && i32 >= 0) {
 		entry->status.str = mob_parse_dbrow_cap_value(entry->mob_id, UINT16_MIN, UINT16_MAX, i32);
 	}
-	if (mob->lookup_const(t, "Agi", &i32) && i32 >= 0) {
+	if (map->setting_lookup_const(t, "Agi", &i32) && i32 >= 0) {
 		entry->status.agi = mob_parse_dbrow_cap_value(entry->mob_id, UINT16_MIN, UINT16_MAX, i32);
 	}
-	if (mob->lookup_const(t, "Vit", &i32) && i32 >= 0) {
+	if (map->setting_lookup_const(t, "Vit", &i32) && i32 >= 0) {
 		entry->status.vit = mob_parse_dbrow_cap_value(entry->mob_id, UINT16_MIN, UINT16_MAX, i32);
 	}
-	if (mob->lookup_const(t, "Int", &i32) && i32 >= 0) {
+	if (map->setting_lookup_const(t, "Int", &i32) && i32 >= 0) {
 		entry->status.int_ = mob_parse_dbrow_cap_value(entry->mob_id, UINT16_MIN, UINT16_MAX, i32);
 	}
-	if (mob->lookup_const(t, "Dex", &i32) && i32 >= 0) {
+	if (map->setting_lookup_const(t, "Dex", &i32) && i32 >= 0) {
 		entry->status.dex = mob_parse_dbrow_cap_value(entry->mob_id, UINT16_MIN, UINT16_MAX, i32);
 	}
-	if (mob->lookup_const(t, "Luk", &i32) && i32 >= 0) {
+	if (map->setting_lookup_const(t, "Luk", &i32) && i32 >= 0) {
 		entry->status.luk = mob_parse_dbrow_cap_value(entry->mob_id, UINT16_MIN, UINT16_MAX, i32);
 	}
 }
@@ -4536,7 +4546,7 @@ static void mob_read_db_viewdata_sub(struct mob_db *entry, struct config_setting
 		entry->vd.hair_color = libconfig->setting_get_uint16(it);
 	if ((it = libconfig->setting_get_member(t, "BodyColorId")) != NULL)
 		entry->vd.cloth_color = libconfig->setting_get_uint16(it);
-	if (mob->lookup_const(t, "Gender", &i32) && i32 >= 0) {
+	if (map->setting_lookup_const(t, "Gender", &i32) && i32 >= 0) {
 		entry->vd.sex = (char)i32;
 	}
 	if ((it = libconfig->setting_get_member(t, "Options")) != NULL)
@@ -5085,13 +5095,13 @@ static int mob_read_db_sub(struct config_setting_t *mobt, int n, const char *sou
 		safestrncpy(md.jname, str, sizeof(md.jname));
 	}
 
-	if (mob->lookup_const(mobt, "Lv", &i32) && i32 >= 0) {
+	if (map->setting_lookup_const(mobt, "Lv", &i32) && i32 >= 0) {
 		md.lv = i32;
 	} else if (!inherit) {
 		md.lv = 1;
 	}
 
-	if (mob->lookup_const(mobt, "Hp", &i32) && i32 >= 0) {
+	if (map->setting_lookup_const(mobt, "Hp", &i32) && i32 >= 0) {
 		md.status.max_hp = i32;
 		maxhpUpdated = true; // battle_config modifiers to max_hp are applied below
 	} else if (!inherit) {
@@ -5099,23 +5109,23 @@ static int mob_read_db_sub(struct config_setting_t *mobt, int n, const char *sou
 		maxhpUpdated = true; // battle_config modifiers to max_hp are applied below
 	}
 
-	if (mob->lookup_const(mobt, "Sp", &i32) && i32 >= 0) {
+	if (map->setting_lookup_const(mobt, "Sp", &i32) && i32 >= 0) {
 		md.status.max_sp = i32;
 	} else if (!inherit) {
 		md.status.max_sp = 1;
 	}
 
-	if (mob->lookup_const(mobt, "Exp", &i32) && i32 >= 0) {
+	if (map->setting_lookup_const(mobt, "Exp", &i32) && i32 >= 0) {
 		int64 exp = apply_percentrate64(i32, battle_config.base_exp_rate, 100);
 		md.base_exp = (unsigned int)cap_value(exp, 0, UINT_MAX);
 	}
 
-	if (mob->lookup_const(mobt, "JExp", &i32) && i32 >= 0) {
+	if (map->setting_lookup_const(mobt, "JExp", &i32) && i32 >= 0) {
 		int64 exp = apply_percentrate64(i32, battle_config.job_exp_rate, 100);
 		md.job_exp = (unsigned int)cap_value(exp, 0, UINT_MAX);
 	}
 
-	if (mob->lookup_const(mobt, "AttackRange", &i32) && i32 >= 0) {
+	if (map->setting_lookup_const(mobt, "AttackRange", &i32) && i32 >= 0) {
 		md.status.rhw.range = i32;
 	} else if (!inherit) {
 		md.status.rhw.range = 1;
@@ -5127,29 +5137,29 @@ static int mob_read_db_sub(struct config_setting_t *mobt, int n, const char *sou
 				md.status.rhw.atk2 = libconfig->setting_get_int_elem(t, 1);
 			if (libconfig->setting_length(t) >= 1)
 				md.status.rhw.atk = libconfig->setting_get_int_elem(t, 0);
-		} else if (mob->lookup_const(mobt, "Attack", &i32) && i32 >= 0) {
+		} else if (map->setting_lookup_const(mobt, "Attack", &i32) && i32 >= 0) {
 			md.status.rhw.atk = i32;
 			md.status.rhw.atk2 = i32;
 		}
 	}
 
-	if (mob->lookup_const(mobt, "Def", &i32) && i32 >= 0) {
+	if (map->setting_lookup_const(mobt, "Def", &i32) && i32 >= 0) {
 		md.status.def = mob_parse_dbrow_cap_value(md.mob_id, DEFTYPE_MIN, DEFTYPE_MAX, i32);
 	}
-	if (mob->lookup_const(mobt, "Mdef", &i32) && i32 >= 0) {
+	if (map->setting_lookup_const(mobt, "Mdef", &i32) && i32 >= 0) {
 		md.status.mdef = mob_parse_dbrow_cap_value(md.mob_id, DEFTYPE_MIN, DEFTYPE_MAX, i32);
 	}
 
 	if ((t = libconfig->setting_get_member(mobt, "Stats"))) {
 		if (config_setting_is_group(t)) {
 			mob->read_db_stats_sub(&md, t);
-		} else if (mob->lookup_const(mobt, "Stats", &i32) && i32 >= 0) {
+		} else if (map->setting_lookup_const(mobt, "Stats", &i32) && i32 >= 0) {
 			md.status.str = md.status.agi = md.status.vit = md.status.int_ = md.status.dex = md.status.luk =
 				mob_parse_dbrow_cap_value(md.mob_id, UINT16_MIN, UINT16_MAX, i32);
 		}
 	}
 
-	if (mob->lookup_const(mobt, "ViewRange", &i32) && i32 >= 0) {
+	if (map->setting_lookup_const(mobt, "ViewRange", &i32) && i32 >= 0) {
 		if (battle_config.view_range_rate != 100) {
 			md.range2 = i32 * battle_config.view_range_rate / 100;
 		} else {
@@ -5159,7 +5169,7 @@ static int mob_read_db_sub(struct config_setting_t *mobt, int n, const char *sou
 		md.range2 = 1;
 	}
 
-	if (mob->lookup_const(mobt, "ChaseRange", &i32) && i32 >= 0) {
+	if (map->setting_lookup_const(mobt, "ChaseRange", &i32) && i32 >= 0) {
 		if (battle_config.chase_range_rate != 100) {
 			md.range3 = i32 * battle_config.chase_range_rate / 100;
 		} else {
@@ -5169,13 +5179,13 @@ static int mob_read_db_sub(struct config_setting_t *mobt, int n, const char *sou
 		md.range3 = 1;
 	}
 
-	if (mob->lookup_const(mobt, "Size", &i32) && i32 >= 0) {
+	if (map->setting_lookup_const(mobt, "Size", &i32) && i32 >= 0) {
 		md.status.size = i32;
 	} else if (!inherit) {
 		md.status.size = 0;
 	}
 
-	if (mob->lookup_const(mobt, "Race", &i32) && i32 >= 0) {
+	if (map->setting_lookup_const(mobt, "Race", &i32) && i32 >= 0) {
 		md.status.race = i32;
 	} else if (!inherit) {
 		md.status.race = 0;
@@ -5198,32 +5208,32 @@ static int mob_read_db_sub(struct config_setting_t *mobt, int n, const char *sou
 	if ((t = libconfig->setting_get_member(mobt, "Mode"))) {
 		if (config_setting_is_group(t)) {
 			md.status.mode = mob->read_db_mode_sub(&md, t);
-		} else if (mob->lookup_const(mobt, "Mode", &i32) && i32 >= 0) {
+		} else if (map->setting_lookup_const(mobt, "Mode", &i32) && i32 >= 0) {
 			md.status.mode = (uint32)i32 & MD_MASK;
 		}
 	}
 	if (!battle_config.monster_active_enable)
 		md.status.mode &= ~MD_AGGRESSIVE;
 
-	if (mob->lookup_const(mobt, "MoveSpeed", &i32) && i32 >= 0) {
+	if (map->setting_lookup_const(mobt, "MoveSpeed", &i32) && i32 >= 0) {
 		md.status.speed = i32;
 	}
 
 	md.status.aspd_rate = 1000;
 
-	if (mob->lookup_const(mobt, "AttackDelay", &i32) && i32 >= 0) {
+	if (map->setting_lookup_const(mobt, "AttackDelay", &i32) && i32 >= 0) {
 		md.status.adelay = cap_value(i32, battle_config.monster_max_aspd*2, 4000);
 	} else if (!inherit) {
 		md.status.adelay = 4000;
 	}
 
-	if (mob->lookup_const(mobt, "AttackMotion", &i32) && i32 >= 0) {
+	if (map->setting_lookup_const(mobt, "AttackMotion", &i32) && i32 >= 0) {
 		md.status.amotion = cap_value(i32, battle_config.monster_max_aspd, 2000);
 	} else if (!inherit) {
 		md.status.amotion = 2000;
 	}
 
-	if (mob->lookup_const(mobt, "DamageMotion", &i32) && i32 >= 0) {
+	if (map->setting_lookup_const(mobt, "DamageMotion", &i32) && i32 >= 0) {
 		if (battle_config.monster_damage_delay_rate != 100)
 			md.status.dmotion = i32 * battle_config.monster_damage_delay_rate / 100;
 		else
@@ -5231,7 +5241,7 @@ static int mob_read_db_sub(struct config_setting_t *mobt, int n, const char *sou
 	}
 
 	// MVP EXP Bonus: MEXP
-	if (mob->lookup_const(mobt, "MvpExp", &i32) && i32 >= 0) {
+	if (map->setting_lookup_const(mobt, "MvpExp", &i32) && i32 >= 0) {
 		// Some new MVP's MEXP multiple by high exp-rate cause overflow. [LuzZza]
 		int64 exp = apply_percentrate64(i32, battle_config.mvp_exp_rate, 100);
 		md.mexp = (unsigned int)cap_value(exp, 0, UINT_MAX);
@@ -5260,7 +5270,7 @@ static int mob_read_db_sub(struct config_setting_t *mobt, int n, const char *sou
 		}
 	}
 
-	if (mob->lookup_const(mobt, "DamageTakenRate", &i32) && i32 >= 0) {
+	if (map->setting_lookup_const(mobt, "DamageTakenRate", &i32) && i32 >= 0) {
 		md.dmg_taken_rate = cap_value(i32, 1, INT_MAX);
 	} else if (!inherit) {
 		md.dmg_taken_rate = 100;
@@ -5291,24 +5301,6 @@ static int mob_read_db_sub(struct config_setting_t *mobt, int n, const char *sou
 static void mob_read_db_additional_fields(struct mob_db *entry, struct config_setting_t *t, int n, const char *source)
 {
 	// do nothing. plugins can do own work
-}
-
-static bool mob_lookup_const(const struct config_setting_t *it, const char *name, int *value)
-{
-	if (libconfig->setting_lookup_int(it, name, value))
-	{
-		return true;
-	}
-	else
-	{
-		const char *str = NULL;
-		if (libconfig->setting_lookup_string(it, name, &str))
-		{
-			if (*str && script->get_constant(str, value))
-				return true;
-		}
-	}
-	return false;
 }
 
 static bool mob_get_const(const struct config_setting_t *it, int *value)
@@ -5352,13 +5344,13 @@ static int mob_read_libconfig(const char *filename, bool ignore_missing)
 {
 	bool duplicate[MAX_MOB_DB] = { 0 };
 	struct config_t mob_db_conf;
-	char filepath[256];
+	char filepath[512];
 	struct config_setting_t *mdb;
 	struct config_setting_t *t;
 	int i = 0, count = 0;
 
 	nullpo_ret(filename);
-	safesnprintf(filepath, sizeof(filepath), "%s/%s", map->db_path, filename);
+	snprintf(filepath, sizeof(filepath), "%s/%s", map->db_path, filename);
 
 	if (ignore_missing && !exists(filepath))
 		return 0;
@@ -5409,9 +5401,9 @@ static void mob_name_constants(void)
 
 static void mob_mobavail_removal_notice(void)
 {
-	char filepath[256];
+	char filepath[270];
 
-	safesnprintf(filepath, sizeof(filepath), "%s/mob_avail.txt", map->db_path);
+	snprintf(filepath, sizeof(filepath), "%s/mob_avail.txt", map->db_path);
 
 	if (exists(filepath)) {
 		ShowError("mob_mobavail_removal_notice: the usage of mob_avail.txt is no longer supported, move your data using tools/mobavailconverter.py and delete the database file to suspend this message.\n");
@@ -5432,9 +5424,9 @@ static void mob_read_group_db(void)
 static bool mob_read_group_db_libconfig(const char *filename)
 {
 	struct config_t mg_conf;
-	char filepath[256];
+	char filepath[512];
 
-	safesnprintf(filepath, sizeof(filepath), "%s/%s", map->db_path, filename);
+	snprintf(filepath, sizeof(filepath), "%s/%s", map->db_path, filename);
 	if (libconfig->load_file(&mg_conf, filepath) == CONFIG_FALSE) {
 		ShowError("%s: can't read %s\n", __func__, filepath);
 		return false;
@@ -5587,12 +5579,12 @@ static bool mob_parse_row_chatdb(char **str, const char *source, int line, int *
  *-------------------------------------------------------------------------*/
 static void mob_readchatdb(void)
 {
-	char arc[]="mob_chat_db.txt";
+	const char *arc = "mob_chat_db.txt";
 	uint32 lines=0, count=0;
-	char line[1024], filepath[256];
+	char line[1024], filepath[280];
 	int i, tmp=0;
 	FILE *fp;
-	safesnprintf(filepath, sizeof(filepath), "%s/%s", map->db_path, arc);
+	snprintf(filepath, sizeof(filepath), "%s/%s", map->db_path, arc);
 	fp=fopen(filepath, "r");
 	if(fp == NULL) {
 		ShowWarning("mob_readchatdb: File not found \"%s\", skipping.\n", filepath);
@@ -5643,12 +5635,12 @@ static bool mob_skill_db_libconfig(const char *filename, bool ignore_missing)
 {
 	struct config_t mob_skill_conf;
 	struct config_setting_t *it = NULL, *its = NULL, *mob_skill = NULL;
-	char filepath[256];
+	char filepath[512];
 	int i = 0;
 
 	nullpo_retr(false, filename);
 
-	safesnprintf(filepath, sizeof(filepath), "%s/%s", map->db_path, filename);
+	snprintf(filepath, sizeof(filepath), "%s/%s", map->db_path, filename);
 
 	if (!exists(filepath)) {
 		if (!ignore_missing) {
@@ -5763,7 +5755,7 @@ static bool mob_skill_db_libconfig_sub_skill(struct config_setting_t *it, int n,
 	ms->skill_id = skill_id;
 
 	int i32 = MSS_ANY;
-	if (mob->lookup_const(it, "SkillState", &i32) && (i32 < MSS_ANY || i32 > MSS_ANYTARGET)) {
+	if (map->setting_lookup_const(it, "SkillState", &i32) && (i32 < MSS_ANY || i32 > MSS_ANYTARGET)) {
 		ShowWarning("%s: Invalid skill state %d for skill %d (%s) in %s %s (%d), defaulting to MSS_ANY.\n",
 			    __func__, i32, skill_id, skill_name, mob_str, mob_sprite, mob_id);
 		i32 = MSS_ANY;
@@ -5801,7 +5793,7 @@ static bool mob_skill_db_libconfig_sub_skill(struct config_setting_t *it, int n,
 	ms->cancel = (res == CONFIG_FALSE) ? 0 : cap_value(i32, 0, 1);
 
 	i32 = MST_TARGET;
-	if (mob->lookup_const(it, "SkillTarget", &i32) && (i32 < MST_TARGET || i32 > MST_AROUND)) {
+	if (map->setting_lookup_const(it, "SkillTarget", &i32) && (i32 < MST_TARGET || i32 > MST_AROUND)) {
 		ShowWarning("%s: Invalid skill target %d for skill %d (%s) in %s %s (%d), defaulting to MST_TARGET.\n",
 			    __func__, i32, skill_id, skill_name, mob_str, mob_sprite, mob_id);
 		i32 = MST_TARGET;
@@ -5816,20 +5808,20 @@ static bool mob_skill_db_libconfig_sub_skill(struct config_setting_t *it, int n,
 	}
 
 	i32 = MSC_ALWAYS;
-	if (mob->lookup_const(it, "CastCondition", &i32) && (i32 < MSC_ALWAYS || i32 > MSC_MAGICATTACKED)) {
+	if (map->setting_lookup_const(it, "CastCondition", &i32) && (i32 < MSC_ALWAYS || i32 > MSC_MAGICATTACKED)) {
 		ShowWarning("%s: Invalid skill condition %d for skill id %d (%s) in %s %s (%d), defaulting to MSC_ALWAYS.\n",
 			    __func__, i32, skill_id, skill_name, mob_str, mob_sprite, mob_id);
 		i32 = MSC_ALWAYS;
 	}
 	ms->cond1 = i32;
 
-	ms->cond2 = !mob->lookup_const(it, "ConditionData", &i32) ? 0 : cap_value(i32, SHRT_MIN, SHRT_MAX);
+	ms->cond2 = !map->setting_lookup_const(it, "ConditionData", &i32) ? 0 : cap_value(i32, SHRT_MIN, SHRT_MAX);
 
 	for (int i = 0; i < 5; i++) {
 		char valname[16];
 		sprintf(valname, "val%1d", i);
 
-		if (libconfig->setting_lookup_int(it, valname, &i32) == CONFIG_TRUE)
+		if (map->setting_lookup_const_mask(it, valname, &i32))
 			ms->val[i] = i32;
 	}
 
@@ -5853,8 +5845,8 @@ static bool mob_skill_db_libconfig_sub_skill(struct config_setting_t *it, int n,
 		ms->val[1] = MD_NONE; // Do not "set" it.
 	}
 
-	res = libconfig->setting_lookup_int(it, "Emotion", &i32);
-	ms->emotion = (res == CONFIG_FALSE) ? -1 : cap_value(i32, -1, SHRT_MAX);
+	res = map->setting_lookup_const(it, "Emotion", &i32);
+	ms->emotion = res ? cap_value(i32, -1, SHRT_MAX) : -1;
 
 	if (libconfig->setting_lookup_int(it, "ChatMsgID", &i32) == CONFIG_TRUE) {
 		if (i32 <= 0 || i32 > MAX_MOB_CHAT || mob->chat_db[i32] == NULL) {
@@ -6312,7 +6304,6 @@ void mob_defaults(void)
 	mob->read_optdrops_optslot = mob_read_optdrops_optslot;
 	mob->read_optdrops_group = mob_read_optdrops_group;
 	mob->read_optdrops_db = mob_read_optdrops_db;
-	mob->lookup_const = mob_lookup_const;
 	mob->get_const = mob_get_const;
 	mob->db_validate_entry = mob_db_validate_entry;
 	mob->readdb = mob_readdb;

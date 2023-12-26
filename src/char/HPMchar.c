@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2014-2022 Hercules Dev Team
+ * Copyright (C) 2014-2023 Hercules Dev Team
  *
  * Hercules is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,10 +24,12 @@
 #include "common/HPM.h"
 #include "common/cbasetypes.h"
 
+#include "char/capiif.h"
 #include "char/char.h"
 #include "char/geoip.h"
 #include "char/inter.h"
 #include "char/int_achievement.h"
+#include "char/int_adventurer_agency.h"
 #include "char/int_auction.h"
 #include "char/int_clan.h"
 #include "char/int_elemental.h"
@@ -40,17 +42,20 @@
 #include "char/int_quest.h"
 #include "char/int_rodex.h"
 #include "char/int_storage.h"
+#include "char/int_userconfig.h"
 #include "char/loginif.h"
 #include "char/mapif.h"
 #include "char/pincode.h"
 
 #include "common/HPMi.h"
+#include "common/base62.h"
 #include "common/conf.h"
 #include "common/console.h"
 #include "common/core.h"
 #include "common/db.h"
 #include "common/des.h"
 #include "common/ers.h"
+#include "common/extraconf.h"
 #include "common/md5calc.h"
 #include "common/memmgr.h"
 #include "common/mutex.h"

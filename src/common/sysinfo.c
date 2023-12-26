@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2013-2022 Hercules Dev Team
+ * Copyright (C) 2013-2023 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -325,14 +325,14 @@ static bool sysinfo_git_get_revision(char **out)
 {
 	// Only include Git support if we detected it, or we're on MSVC
 #if !defined(SYSINFO_VCSTYPE) || SYSINFO_VCSTYPE == VCSTYPE_GIT || SYSINFO_VCSTYPE == VCSTYPE_UNKNOWN
-	char ref[128], filepath[128], line[128];
+	char ref[128], filepath[256], line[128];
 
 	nullpo_ret(out);
 	strcpy(ref, "HEAD");
 
 	while (*ref) {
 		FILE *fp;
-		safesnprintf(filepath, sizeof(filepath), ".git/%s", ref);
+		snprintf(filepath, sizeof(filepath), ".git/%s", ref);
 		if ((fp = fopen(filepath, "r")) != NULL) {
 			if (fgets(line, sizeof(line)-1, fp) == NULL) {
 				fclose(fp);
@@ -1082,6 +1082,9 @@ static uint32 sysinfo_fflags(void)
 #ifdef ENABLE_CASHSHOP_PREVIEW_PATCH
 		| 1
 #endif  // ENABLE_CASHSHOP_PREVIEW_PATCH
+#ifdef ENABLE_OLD_CASHSHOP_PREVIEW_PATCH
+		| 2
+#endif  // ENABLE_OLD_CASHSHOP_PREVIEW_PATCH
 	;
 	return flags;
 }

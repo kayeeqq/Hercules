@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -120,6 +120,7 @@ struct showmsg_interface {
 	void (*showError) (const char *, ...) __attribute__((format(printf, 1, 2)));
 	void (*showFatalError) (const char *, ...) __attribute__((format(printf, 1, 2)));
 	void (*showConfigWarning) (struct config_setting_t *config, const char *string, ...) __attribute__((format(printf, 2, 3)));
+	const char *(*getLogFileName) (void);
 };
 
 /* the purpose of these macros is simply to not make calling them be an annoyance */

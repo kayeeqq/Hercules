@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -55,8 +55,8 @@ static void config_format_db_path(const char *filename, char *path_buf, int buff
 {
 	nullpo_retv(filename);
 	nullpo_retv(path_buf);
-	
-	safesnprintf(path_buf, buffer_len, "%s/%s", libconfig->db_path, filename);
+
+	snprintf(path_buf, buffer_len, "%s/%s", libconfig->db_path, filename);
 }
 
 /**
@@ -84,6 +84,7 @@ static int config_load_file(struct config_t *config, const char *config_filename
 
 	if (!exists(config_filename)) {
 		ShowError("Unable to load '%s' - File not found\n", config_filename);
+		libconfig->destroy(config);
 		return CONFIG_FALSE;
 	}
 	if (libconfig->read_file_src(config, config_filename) != CONFIG_TRUE) {

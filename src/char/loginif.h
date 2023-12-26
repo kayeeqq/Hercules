@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -42,6 +42,7 @@ struct loginif_interface {
 	void (*auth) (int fd, struct char_session_data* sd, uint32 ipl);
 	void (*send_users_count) (int users);
 	void (*connect_to_server) (void);
+	void (*set_char_online) (int char_id, int account_id);
 };
 
 #ifdef HERCULES_CORE

@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -22,6 +22,7 @@
 #define MAP_INTIF_H
 
 #include "common/hercules.h"
+#include "common/chunked/rfifo.h"
 
 /**
  * Declarations
@@ -52,7 +53,13 @@ struct rodex_message;
 * created by Susu
 *-------------------------------------*/
 struct intif_interface {
+	struct fifo_chunk_buf emblem_tmp;
+	bool emblem_tmp_done;
+	int emblem_tmp_guild_id;
+	int emblem_tmp_emblem_id;
+
 	/* funcs */
+	void (*final) (void);
 	int (*parse) (int fd);
 	int (*create_pet)(int account_id, int char_id, int pet_type, int pet_lv, int pet_egg_id,
 	                  int pet_equip, short intimate, short hungry, char rename_flag, char incubate, char *pet_name);
@@ -156,6 +163,7 @@ struct intif_interface {
 	void (*pPartyBroken) (int fd);
 	void (*pGuildCreated) (int fd);
 	void (*pGuildInfo) (int fd);
+	void (*pGuildInfoEmblem) (int fd);
 	void (*pGuildMemberAdded) (int fd);
 	void (*pGuildMemberWithdraw) (int fd);
 	void (*pGuildMemberInfoShort) (int fd);
@@ -207,6 +215,9 @@ struct intif_interface {
 	void (*pRecvClanMemberAction) (int fd);
 	/* Achievements */
 	void (*pAchievementsLoad) (int fd);
+	void (*request_agency_join_party) (int char_id, int party_id, int map_index);
+
+	void (*pAgencyJoinResult) (int fd);
 };
 
 #ifdef HERCULES_CORE

@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -1165,8 +1165,8 @@ static void homunculus_read_db(void)
 static bool homunculus_read_db_libconfig(const char *filename)
 {
 	struct config_t homun_conf;
-	char filepath[256];
-	safesnprintf(filepath, sizeof(filepath), "%s/%s", map->db_path, filename);
+	char filepath[260];
+	snprintf(filepath, sizeof(filepath), "%s/%s", map->db_path, filename);
 
 	if (libconfig->load_file(&homun_conf, filepath) == CONFIG_FALSE) {
 		ShowError("homunculus_read_db_libconfig: can't read %s\n", filepath);
@@ -1224,7 +1224,7 @@ static bool homunculus_read_db_libconfig_sub(struct config_setting_t *it, const 
 	}
 	safestrncpy(db->name, str, NAME_LENGTH - 1);
 
-	if (!itemdb->lookup_const(it, "FoodItem", &i32)) {
+	if (!map->setting_lookup_const(it, "FoodItem", &i32)) {
 		ShowError("homunculus_read_db_libconfig_sub: Invalid homunculus FoodItem '%d' provided for entry %d in '%s', skipping...\n", i32, idx, source);
 		return false;
 	}
@@ -1232,13 +1232,13 @@ static bool homunculus_read_db_libconfig_sub(struct config_setting_t *it, const 
 
 	if (libconfig->setting_lookup_int(it, "HungryDelay", &i32) == CONFIG_TRUE && i32 >= 0)
 		db->hungryDelay = i32;
-	if (mob->lookup_const(it, "Size", &i32) && i32 >= 0)
+	if (map->setting_lookup_const(it, "Size", &i32) && i32 >= 0)
 		db->base_size = i32;
-	if (mob->lookup_const(it, "EvoSize", &i32) && i32 >= 0)
+	if (map->setting_lookup_const(it, "EvoSize", &i32) && i32 >= 0)
 		db->evo_size = i32;
-	if (mob->lookup_const(it, "Race", &i32) && i32 >= 0)
+	if (map->setting_lookup_const(it, "Race", &i32) && i32 >= 0)
 		db->race = i32;
-	if (mob->lookup_const(it, "Element", &i32) && i32 >= 0)
+	if (map->setting_lookup_const(it, "Element", &i32) && i32 >= 0)
 		db->element = i32;
 	if (libconfig->setting_lookup_int(it, "Aspd", &i32) == CONFIG_TRUE && i32 >= 0)
 		db->baseASPD = i32;

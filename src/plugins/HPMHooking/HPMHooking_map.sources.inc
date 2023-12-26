@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2013-2022 Hercules Dev Team
+ * Copyright (C) 2013-2023 Hercules Dev Team
  *
  * Hercules is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 HPMHooks.source.HCache = *HCache;
 HPMHooks.source.achievement = *achievement;
 HPMHooks.source.atcommand = *atcommand;
+HPMHooks.source.base62 = *base62;
 HPMHooks.source.battle = *battle;
 HPMHooks.source.bg = *bg;
 HPMHooks.source.buyingstore = *buyingstore;
@@ -43,6 +44,9 @@ HPMHooks.source.DB = *DB;
 HPMHooks.source.des = *des;
 HPMHooks.source.duel = *duel;
 HPMHooks.source.elemental = *elemental;
+HPMHooks.source.enchantui = *enchantui;
+HPMHooks.source.extraconf = *extraconf;
+HPMHooks.source.goldpc = *goldpc;
 HPMHooks.source.grader = *grader;
 HPMHooks.source.grfio = *grfio;
 HPMHooks.source.guild = *guild;
@@ -57,6 +61,7 @@ HPMHooks.source.logs = *logs;
 HPMHooks.source.macro = *macro;
 HPMHooks.source.mail = *mail;
 HPMHooks.source.map = *map;
+HPMHooks.source.mapiif = *mapiif;
 HPMHooks.source.mapindex = *mapindex;
 HPMHooks.source.mapit = *mapit;
 HPMHooks.source.mapreg = *mapreg;

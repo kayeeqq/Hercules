@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2013-2022 Hercules Dev Team
+ * Copyright (C) 2013-2023 Hercules Dev Team
  *
  * Hercules is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -50,6 +50,8 @@ struct HookingPointData HookingPoints[] = {
 	{ HP_POP(account->db_sql_iter_destroy, HP_account_db_sql_iter_destroy) },
 	{ HP_POP(account->db_sql_iter_next, HP_account_db_sql_iter_next) },
 	{ HP_POP(account->db_read_inter, HP_account_db_read_inter) },
+/* base62_interface */
+	{ HP_POP(base62->encode_int_padded, HP_base62_encode_int_padded) },
 /* cmdline_interface */
 	{ HP_POP(cmdline->init, HP_cmdline_init) },
 	{ HP_POP(cmdline->final, HP_cmdline_final) },
@@ -87,6 +89,15 @@ struct HookingPointData HookingPoints[] = {
 /* des_interface */
 	{ HP_POP(des->decrypt_block, HP_des_decrypt_block) },
 	{ HP_POP(des->decrypt, HP_des_decrypt) },
+/* extraconf_interface */
+	{ HP_POP(extraconf->init, HP_extraconf_init) },
+	{ HP_POP(extraconf->final, HP_extraconf_final) },
+	{ HP_POP(extraconf->read_conf_file, HP_extraconf_read_conf_file) },
+	{ HP_POP(extraconf->read_conf, HP_extraconf_read_conf) },
+	{ HP_POP(extraconf->read_vars, HP_extraconf_read_vars) },
+	{ HP_POP(extraconf->set_var, HP_extraconf_set_var) },
+	{ HP_POP(extraconf->set_var_str, HP_extraconf_set_var_str) },
+	{ HP_POP(extraconf->read_emblems, HP_extraconf_read_emblems) },
 /* ipban_interface */
 	{ HP_POP(ipban->init, HP_ipban_init) },
 	{ HP_POP(ipban->final, HP_ipban_final) },
@@ -97,6 +108,29 @@ struct HookingPointData HookingPoints[] = {
 	{ HP_POP(ipban->config_read, HP_ipban_config_read) },
 	{ HP_POP(ipban->check, HP_ipban_check) },
 	{ HP_POP(ipban->log, HP_ipban_log) },
+/* lapiif_interface */
+	{ HP_POP(lapiif->init, HP_lapiif_init) },
+	{ HP_POP(lapiif->final, HP_lapiif_final) },
+	{ HP_POP(lapiif->connect_user, HP_lapiif_connect_user) },
+	{ HP_POP(lapiif->disconnect_user, HP_lapiif_disconnect_user) },
+	{ HP_POP(lapiif->connect_user_char, HP_lapiif_connect_user_char) },
+	{ HP_POP(lapiif->server_init, HP_lapiif_server_init) },
+	{ HP_POP(lapiif->server_destroy, HP_lapiif_server_destroy) },
+	{ HP_POP(lapiif->server_reset, HP_lapiif_server_reset) },
+	{ HP_POP(lapiif->on_disconnect, HP_lapiif_on_disconnect) },
+	{ HP_POP(lapiif->pong, HP_lapiif_pong) },
+	{ HP_POP(lapiif->add_char_server, HP_lapiif_add_char_server) },
+	{ HP_POP(lapiif->add_char_server_to, HP_lapiif_add_char_server_to) },
+	{ HP_POP(lapiif->remove_char_server, HP_lapiif_remove_char_server) },
+	{ HP_POP(lapiif->remove_char_server_from, HP_lapiif_remove_char_server_from) },
+	{ HP_POP(lapiif->send_char_servers, HP_lapiif_send_char_servers) },
+	{ HP_POP(lapiif->set_char_online, HP_lapiif_set_char_online) },
+	{ HP_POP(lapiif->set_char_online_to, HP_lapiif_set_char_online_to) },
+	{ HP_POP(lapiif->parse, HP_lapiif_parse) },
+	{ HP_POP(lapiif->parse_fromapi_api_proxy, HP_lapiif_parse_fromapi_api_proxy) },
+	{ HP_POP(lapiif->parse_ping, HP_lapiif_parse_ping) },
+	{ HP_POP(lapiif->parse_proxy_api_to_char, HP_lapiif_parse_proxy_api_to_char) },
+	{ HP_POP(lapiif->parse_proxy_api_from_char, HP_lapiif_parse_proxy_api_from_char) },
 /* lchrif_interface */
 	{ HP_POP(lchrif->server_init, HP_lchrif_server_init) },
 	{ HP_POP(lchrif->server_destroy, HP_lchrif_server_destroy) },
@@ -130,6 +164,7 @@ struct HookingPointData HookingPoints[] = {
 	{ HP_POP(lclif->p->parse_CA_OTP_CODE, HP_PRIV__lclif_parse_CA_OTP_CODE) },
 	{ HP_POP(lclif->p->parse_CA_REQ_HASH, HP_PRIV__lclif_parse_CA_REQ_HASH) },
 	{ HP_POP(lclif->p->parse_CA_CHARSERVERCONNECT, HP_PRIV__lclif_parse_CA_CHARSERVERCONNECT) },
+	{ HP_POP(lclif->p->parse_CA_APISERVERCONNECT, HP_PRIV__lclif_parse_CA_APISERVERCONNECT) },
 /* libconfig_interface */
 	{ HP_POP(libconfig->set_db_path, HP_libconfig_set_db_path) },
 	{ HP_POP(libconfig->format_db_path, HP_libconfig_format_db_path) },
@@ -242,6 +277,7 @@ struct HookingPointData HookingPoints[] = {
 	{ HP_POP(login->fromchar_parse_change_pincode, HP_login_fromchar_parse_change_pincode) },
 	{ HP_POP(login->fromchar_parse_wrong_pincode, HP_login_fromchar_parse_wrong_pincode) },
 	{ HP_POP(login->fromchar_parse_accinfo, HP_login_fromchar_parse_accinfo) },
+	{ HP_POP(login->fromchar_parse_set_char_online, HP_login_fromchar_parse_set_char_online) },
 	{ HP_POP(login->parse_fromchar, HP_login_parse_fromchar) },
 	{ HP_POP(login->kick, HP_login_kick) },
 	{ HP_POP(login->auth_ok, HP_login_auth_ok) },
@@ -249,8 +285,10 @@ struct HookingPointData HookingPoints[] = {
 	{ HP_POP(login->client_login, HP_login_client_login) },
 	{ HP_POP(login->client_login_otp, HP_login_client_login_otp) },
 	{ HP_POP(login->client_login_mobile_otp_request, HP_login_client_login_mobile_otp_request) },
+	{ HP_POP(login->api_server_connection_status, HP_login_api_server_connection_status) },
 	{ HP_POP(login->char_server_connection_status, HP_login_char_server_connection_status) },
 	{ HP_POP(login->parse_request_connection, HP_login_parse_request_connection) },
+	{ HP_POP(login->parse_request_api_connection, HP_login_parse_request_api_connection) },
 	{ HP_POP(login->config_set_defaults, HP_login_config_set_defaults) },
 	{ HP_POP(login->config_read, HP_login_config_read) },
 	{ HP_POP(login->config_read_inter, HP_login_config_read_inter) },
@@ -267,6 +305,7 @@ struct HookingPointData HookingPoints[] = {
 	{ HP_POP(login->config_set_md5hash, HP_login_config_set_md5hash) },
 	{ HP_POP(login->convert_users_to_colors, HP_login_convert_users_to_colors) },
 	{ HP_POP(login->check_client_version, HP_login_check_client_version) },
+	{ HP_POP(login->generate_token, HP_login_generate_token) },
 /* loginlog_interface */
 	{ HP_POP(loginlog->failedattempts, HP_loginlog_failedattempts) },
 	{ HP_POP(loginlog->log, HP_loginlog_log) },
@@ -316,6 +355,7 @@ struct HookingPointData HookingPoints[] = {
 	{ HP_POP(showmsg->final, HP_showmsg_final) },
 	{ HP_POP(showmsg->clearScreen, HP_showmsg_clearScreen) },
 	{ HP_POP(showmsg->showMessageV, HP_showmsg_showMessageV) },
+	{ HP_POP(showmsg->getLogFileName, HP_showmsg_getLogFileName) },
 /* socket_interface */
 	{ HP_POP(sockt->init, HP_sockt_init) },
 	{ HP_POP(sockt->final, HP_sockt_final) },
@@ -332,11 +372,15 @@ struct HookingPointData HookingPoints[] = {
 	{ HP_POP(sockt->validateWfifo, HP_sockt_validateWfifo) },
 	{ HP_POP(sockt->session_is_valid, HP_sockt_session_is_valid) },
 	{ HP_POP(sockt->session_is_active, HP_sockt_session_is_active) },
+	{ HP_POP(sockt->create_session, HP_sockt_create_session) },
+	{ HP_POP(sockt->delete_session, HP_sockt_delete_session) },
 	{ HP_POP(sockt->flush, HP_sockt_flush) },
 	{ HP_POP(sockt->flush_fifos, HP_sockt_flush_fifos) },
 	{ HP_POP(sockt->connect_client, HP_sockt_connect_client) },
 	{ HP_POP(sockt->set_nonblocking, HP_sockt_set_nonblocking) },
 	{ HP_POP(sockt->set_defaultparse, HP_sockt_set_defaultparse) },
+	{ HP_POP(sockt->set_default_client_connected, HP_sockt_set_default_client_connected) },
+	{ HP_POP(sockt->set_default_delete, HP_sockt_set_default_delete) },
 	{ HP_POP(sockt->host2ip, HP_sockt_host2ip) },
 	{ HP_POP(sockt->ip2str, HP_sockt_ip2str) },
 	{ HP_POP(sockt->str2ip, HP_sockt_str2ip) },
@@ -358,6 +402,7 @@ struct HookingPointData HookingPoints[] = {
 	{ HP_POP(SQL->EscapeStringLen, HP_SQL_EscapeStringLen) },
 	{ HP_POP(SQL->QueryV, HP_SQL_QueryV) },
 	{ HP_POP(SQL->QueryStr, HP_SQL_QueryStr) },
+	{ HP_POP(SQL->QueryStrFetch, HP_SQL_QueryStrFetch) },
 	{ HP_POP(SQL->LastInsertId, HP_SQL_LastInsertId) },
 	{ HP_POP(SQL->NumColumns, HP_SQL_NumColumns) },
 	{ HP_POP(SQL->NumRows, HP_SQL_NumRows) },

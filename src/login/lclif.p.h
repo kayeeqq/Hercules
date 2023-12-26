@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2016-2022 Hercules Dev Team
+ * Copyright (C) 2016-2023 Hercules Dev Team
  *
  * Hercules is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -84,6 +84,7 @@ struct lclif_interface_private {
 	LoginParseFunc *parse_CA_OTP_CODE;             ///< Packet handler for #PACKET_CA_OTP_CODE.
 	LoginParseFunc *parse_CA_REQ_HASH;             ///< Packet handler for #PACKET_CA_REQ_HASH.
 	LoginParseFunc *parse_CA_CHARSERVERCONNECT;    ///< Packet handler for #PACKET_CA_CHARSERVERCONNECT.
+	LoginParseFunc *parse_CA_APISERVERCONNECT;     ///< Packet handler for #PACKET_CA_APISERVERCONNECT.
 };
 
 #endif // LOGIN_LCLIF_P_H

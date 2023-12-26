@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -70,8 +70,8 @@ struct inter_guild_interface {
 	int (*parse_frommap) (int fd);
 	int (*broken) (int guild_id);
 	struct guild *(*create) (const char *name, const struct guild_member *master);
-	bool (*add_member) (int guild_id, const struct guild_member *member, int map_fd);
-	bool (*leave) (int guild_id, int account_id, int char_id, int flag, const char *mes, int map_fd);
+	bool (*add_member) (int guild_id, const struct guild_member *member);
+	bool (*leave) (int guild_id, int account_id, int char_id, int flag, const char *mes);
 	bool (*update_member_info_short) (int guild_id, int account_id, int char_id, int online, int lv, int class);
 	bool (*update_member_info) (int guild_id, int account_id, int char_id, enum guild_member_info type, const char *data, int len);
 	bool (*disband) (int guild_id);
@@ -84,6 +84,7 @@ struct inter_guild_interface {
 	bool (*update_emblem) (int len, int guild_id, const char *data);
 	bool (*update_castle_data) (int castle_id, int index, int value);
 	bool (*change_leader) (int guild_id, const char *name, int len);
+	bool (*is_guild_master) (int char_id, int guild_id);
 };
 
 #ifdef HERCULES_CORE

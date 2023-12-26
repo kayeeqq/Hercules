@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -81,6 +81,8 @@ extern float GetFloat(const unsigned char* buf);
 
 size_t hread(void * ptr, size_t size, size_t count, FILE * stream);
 size_t hwrite(const void * ptr, size_t size, size_t count, FILE * stream);
+int64 htell(FILE *stream);
+int hseek(FILE *stream, int64 offset, int origin);
 #endif // HERCULES_CORE
 
 #ifdef WIN32

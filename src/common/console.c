@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -469,8 +469,9 @@ static void console_parse_sub(char *line)
 
 		cmd = entry;
 
-		if (strlen(sublist) < sizeof(sublist)-1)
-			snprintf(sublist+strlen(sublist), sizeof(sublist), " %s", cmd->cmd);
+		size_t len = strlen(sublist);
+		if (len < sizeof(sublist) - 1)
+			snprintf(sublist + len, sizeof(sublist) - len, " %s", cmd->cmd);
 	}
 	ShowError("Is only a category, type '"CL_WHITE"%s help"CL_RESET"' to list its subcommands\n",sublist);
 }

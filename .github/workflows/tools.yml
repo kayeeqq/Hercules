@@ -1,17 +1,24 @@
 name: tools
 
-on: [workflow_call, pull_request]
+on: workflow_call
 
 env:
   MYSQL_DATABASE: 'ragnarok'
   MYSQL_USER: 'ragnarok'
   MYSQL_PASSWORD: 'ragnarok'
   MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
-  DEBIAN_COMMON_PACKAGES: php php-dom composer wget
+  DEBIAN_COMMON_PACKAGES: php php-xml composer wget python3
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    # github.head_ref will stop previous runs in the same PR (if in a PR)
+    # github.run_id is a fallback when outside a PR (e.g. every merge in master will run, and previous won't stop)
+    concurrency:
+      group: tools-${{ github.head_ref || github.run_id }}
+      cancel-in-progress: true
+
     container:
       image: debian:unstable
     steps:
@@ -32,7 +39,7 @@ jobs:
           mv composer.phar /usr/local/bin/composer
           chmod +x /usr/local/bin/composer
 
-      - name: check sql
+      - name: check sql syntax
         run: |
           cd tools/php-sqllint
           ../../tools/ci/retry.sh /usr/local/bin/composer update
@@ -41,3 +48,7 @@ jobs:
           ./tools/checksql.sh
 
           #./tools/ci/retry.sh composer self-update
+
+      - name: check sql updates
+        run: |
+          ./tools/checksql.py

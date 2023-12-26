@@ -9,7 +9,7 @@
 //= This file is part of Hercules.
 //= http://herc.ws - http://github.com/HerculesWS/Hercules
 //=
-//= Copyright (C) 2013-2022 Hercules Dev Team
+//= Copyright (C) 2013-2023 Hercules Dev Team
 //= Copyright (C) 2013-2021 Haru
 //=
 //= Hercules is free software: you can redistribute it and/or modify
@@ -151,21 +151,114 @@ function	script	F_TestVarOfAnotherNPC	{
 }
 
 function	script	F_TestCalendarNextTime	{
-	.@hour = gettime(GETTIME_HOUR);
-	.@min = gettime(GETTIME_MINUTE);
-	
-	.@result = getcalendartime(.@hour, .@min);
-	.@expected = gettimetick(2) + 24 * 60 * 60;
-	
+	.@local_hour = gettime(GETTIME_HOUR, true);
+	.@local_min = gettime(GETTIME_MINUTE, true);
+	.@result_fromlocal = getcalendartime(.@local_hour, .@local_min, -1, -1, true);
+
+	.@utc_hour = gettime(GETTIME_HOUR, false);
+	.@utc_min = gettime(GETTIME_MINUTE, false);
+	.@result_fromutc = getcalendartime(.@utc_hour, .@utc_min, -1, -1, false);
+
+	.@expected = gettimetick(GETTIMETICK_UNIXTIME) + 24 * 60 * 60;
+
 	// We give it a range of 70 seconds more or less in the result because:
 	// 1. getcalendartime doesn't take seconds into account, so we may have differing seconds;
 	// 2. We can't mock time, the second may change during the commands execution,
 	//    so we give it a few seconds to spare.
 	// This still gives a good test, because we are looking for 24 hours into the future,
 	// ~3 minutes aren't really an issue for correcteness here.
-	.@check = (.@result >= .@expected - 70 && .@result <= .@expected + 70);
-	
-	return .@check;
+	.@local_check = (.@result_fromlocal >= .@expected - 70 && .@result_fromlocal <= .@expected + 70);
+	.@utc_check = (.@result_fromutc >= .@expected - 70 && .@result_fromutc <= .@expected + 70);
+
+	return .@local_check && .@utc_check;
+}
+
+function	script	F_TestGetItemLink_Etc	{
+	.@str$ = getitemlink(Jellopy, 0, 0, 0, 0);
+	.@str2$ = getitemlink(Jellopy);
+
+	// Sanity check, optional parameters should not affect result
+	if (.@str$ != .@str2$) {
+		return false;
+	}
+
+	.@pass = false;
+	if (PACKETVER < 20150923) {
+		.@pass = (.@str$ == getiteminfo(Jellopy, ITEMINFO_NAME));
+	} else if (PACKETVER < 20161116) {
+		.@pass = (.@str$ == "<ITEM>000000eF'00'00'00'00</ITEM>");
+	} else if (PACKETVER < 20200916) {
+		.@pass = (.@str$ == "<ITEML>000000eF&00(00(00(00(00</ITEML>");
+	} else {
+		.@pass = (.@str$ == "<ITEML>000000eF&00'00)00)00)00)00</ITEML>");
+	}
+
+	return .@pass;
+}
+
+function	script	F_TestGetItemLink_Headgear	{
+	.@str$ = getitemlink(Hat, 0, 0, 0, 0);
+	.@str2$ = getitemlink(Hat);
+
+	// Sanity check, optional parameters should not affect result
+	if (.@str$ != .@str2$) {
+		return false;
+	}
+
+	.@pass = false;
+	if (PACKETVER < 20150923) {
+		.@pass = (.@str$ == getiteminfo(Hat, ITEMINFO_NAME));
+	} else if (PACKETVER < 20161116) {
+		.@pass = (.@str$ == "<ITEM>000481zO'00'00'00'00</ITEM>");
+	} else if (PACKETVER < 20200916) {
+		.@pass = (.@str$ == "<ITEML>000481zO&0g(00(00(00(00</ITEML>");
+	} else {
+		.@pass = (.@str$ == "<ITEML>000481zO&0g'00)00)00)00)00</ITEML>");
+	}
+
+	return .@pass;
+}
+
+function	script	F_TestGetItemLink_BaseWeapon	{
+	.@str$ = getitemlink(Knife, 0, 0, 0, 0);
+	.@str2$ = getitemlink(Knife);
+
+	// Sanity check, optional parameters should not affect result
+	if (.@str$ != .@str2$) {
+		return false;
+	}
+
+	.@pass = false;
+	if (PACKETVER < 20150923) {
+		.@pass = (.@str$ == getiteminfo(Knife, ITEMINFO_NAME));
+	} else if (PACKETVER < 20161116) {
+		.@pass = (.@str$ == "<ITEM>000021jn'00'00'00'00</ITEM>");
+	} else if (PACKETVER < 20200916) {
+		.@pass = (.@str$ == "<ITEML>000021jn&00(00(00(00(00</ITEML>");
+	} else {
+		.@pass = (.@str$ == "<ITEML>000021jn&00'00)00)00)00)00</ITEML>");
+	}
+
+	return .@pass;
+}
+
+function	script	F_TestGetItemLink_FullWeapon	{
+	setarray(.@cards[0], Fabre_Card, Necromancer_Card, 0, Agility1);
+	setarray(.@options[0], WEAPON_ATTR_GROUND, 1, 0, VAR_MAXHPAMOUNT, 10, 0);
+	.@str$ = getitemlink(Knife, 10, .@cards, .@options, 2);
+
+	.@pass = false;
+	if (PACKETVER < 20150923) {
+		.@pass = (.@str$ == getiteminfo(Knife, ITEMINFO_NAME));
+	} else if (PACKETVER < 20161116) {
+		.@pass = (.@str$ == "<ITEM>000021jn%0a'12y'19C'00'1ei)2R*00+01)01*00+0a</ITEM>");
+	} else if (PACKETVER < 20200916) {
+		.@pass = (.@str$ == "<ITEML>000021jn%0a&00(12y(19C(00(1ei*2R+00,01*01+00,0a</ITEML>");
+	} else {
+		.@pass = (.@str$ == "<ITEML>000021jn%0a&00'02)12y)19C)00)1ei+2R,00-01+01,00-0a</ITEML>");
+	}
+
+	return .@pass;
 }
 
 function	script	HerculesSelfTestHelper	{
@@ -879,6 +972,11 @@ function	script	HerculesSelfTestHelper	{
 	callsub(OnCheck, "programatic public local call",            callfunctionofnpc("export test", "RefTest", .@refTest = 1), 1337);
 
 	callsub(OnCheck, "getcalendartime: next occurence of current Hour/Minute", F_TestCalendarNextTime(), true);
+
+	callsub(OnCheck, "getitemlink: etc tag", F_TestGetItemLink_Etc(), true);
+	callsub(OnCheck, "getitemlink: headgear tag", F_TestGetItemLink_Headgear(), true);
+	callsub(OnCheck, "getitemlink: basic weapon tag", F_TestGetItemLink_BaseWeapon(), true);
+	callsub(OnCheck, "getitemlink: complete weapon tag", F_TestGetItemLink_FullWeapon(), true);
 
 	if (.errors) {
 		consolemes(CONSOLEMES_DEBUG, "Script engine self-test   [ \033[0;31mFAILED\033[0m ]");

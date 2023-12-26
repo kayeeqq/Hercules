@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2014-2022 Hercules Dev Team
+ * Copyright (C) 2014-2023 Hercules Dev Team
  *
  * Hercules is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 
 #include "login/account.h"
 #include "login/ipban.h"
+#include "login/lapiif.h"
 #include "login/lclif.h"
 #include "login/lclif.p.h"
 #include "login/login.h"
@@ -33,18 +34,21 @@
 #include "login/packets_ac_struct.h"
 #include "login/packets_ca_struct.h"
 #include "common/HPMi.h"
+#include "common/base62.h"
 #include "common/conf.h"
 #include "common/console.h"
 #include "common/core.h"
 #include "common/db.h"
 #include "common/des.h"
 #include "common/ers.h"
+#include "common/extraconf.h"
 #include "common/md5calc.h"
 #include "common/memmgr.h"
 #include "common/mutex.h"
 #include "common/mmo.h"
 #include "common/packets.h"
 #include "common/nullpo.h"
+#include "common/packets_struct.h"
 #include "common/random.h"
 #include "common/showmsg.h"
 #include "common/socket.h"

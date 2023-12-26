@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -129,6 +129,7 @@ struct unit_interface {
 	int (*is_walking) (struct block_list *bl);
 	int (*can_move) (struct block_list *bl);
 	int (*resume_running) (int tid, int64 tick, int id, intptr_t data);
+	int (*set_walkdelay_timer) (int tid, int64 tick, int id, intptr_t data);
 	int (*set_walkdelay) (struct block_list *bl, int64 tick, int delay, int type);
 	int (*skilluse_id2) (struct block_list *src, int target_id, uint16 skill_id, uint16 skill_lv, int casttime, int castcancel);
 	int (*skilluse_pos) (struct block_list *src, short skill_x, short skill_y, uint16 skill_id, uint16 skill_lv);

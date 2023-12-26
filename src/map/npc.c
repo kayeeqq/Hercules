@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -859,6 +859,7 @@ static int npc_settimerevent_tick(struct npc_data *nd, int newtimer)
 static int npc_event_sub(struct map_session_data *sd, struct event_data *ev, const char *eventname)
 {
 	nullpo_retr(2, sd);
+	nullpo_retr(2, ev);
 	nullpo_retr(2, eventname);
 	if ( sd->npc_id != 0 )
 	{
@@ -874,7 +875,8 @@ static int npc_event_sub(struct map_session_data *sd, struct event_data *ev, con
 		ShowWarning("npc_event: player's event queue is full, can't add event '%s' !\n", eventname);
 		return 1;
 	}
-	if( ev->nd->option&OPTION_INVISIBLE )
+	nullpo_retr(2, ev->nd);
+	if (ev->nd->option & OPTION_INVISIBLE)
 	{
 		//Disabled npc, shouldn't trigger event.
 		npc->event_dequeue(sd);
@@ -1322,6 +1324,7 @@ static void run_tomb(struct map_session_data *sd, struct npc_data *nd)
 	char buffer[200];
 	char time[10];
 
+	nullpo_retv(sd);
 	nullpo_retv(nd);
 
 	sd->npc_id = nd->bl.id;
@@ -1827,6 +1830,7 @@ static void npc_barter_tosql(struct npc_data *nd, int index)
  */
 static void npc_barter_delfromsql_sub(const char *npcname, int itemId, int itemId2, int amount2)
 {
+	nullpo_retv(npcname);
 	if (itemId == INT_MAX) {
 		if (SQL_ERROR == SQL->Query(map->mysql_handle, "DELETE FROM `%s` WHERE `name`='%s'", map->npc_barter_data_db, npcname))
 			Sql_ShowDebug(map->mysql_handle);
@@ -1980,10 +1984,12 @@ static void npc_expanded_barter_tosql(struct npc_data *nd, int index)
  */
 static void npc_expanded_barter_delfromsql_sub(const char *npcname, int itemId, int zeny, int currencyCount, struct npc_barter_currency* currency)
 {
+	nullpo_retv(npcname);
 	if (itemId == INT_MAX) {
 		if (SQL_ERROR == SQL->Query(map->mysql_handle, "DELETE FROM `%s` WHERE `name`='%s'", map->npc_expanded_barter_data_db, npcname))
 			Sql_ShowDebug(map->mysql_handle);
 	} else {
+		nullpo_retv(currency);
 		StringBuf buf;
 
 		StrBuf->Init(&buf);
@@ -3404,8 +3410,12 @@ static void npc_parsename(struct npc_data *nd, const char *name, const char *sta
 
 		do {
 			++i;
-			safesnprintf(newname, ARRAYLENGTH(newname), "%d_%d_%d_%d", i, nd->bl.m, nd->bl.x, nd->bl.y);
-		} while( npc->name2id(newname) != NULL );
+			PRAGMA_GCC7(GCC diagnostic push)
+			PRAGMA_GCC7(GCC diagnostic ignored "-Wformat-truncation")
+			// Name is being checked for duplicates, so it's safe to ignore the unlikely but possible string truncation
+			snprintf(newname, ARRAYLENGTH(newname), "%d_%d_%d_%d", i, nd->bl.m, nd->bl.x, nd->bl.y);
+			PRAGMA_GCC7(GCC diagnostic pop)
+		} while(npc->name2id(newname) != NULL);
 
 		strcpy(this_mapname, (nd->bl.m == -1 ? "(not on a map)" : mapindex_id2name(map_id2index(nd->bl.m))));
 		strcpy(other_mapname, (dnd->bl.m == -1 ? "(not on a map)" : mapindex_id2name(map_id2index(dnd->bl.m))));
@@ -3508,7 +3518,6 @@ static struct npc_data *npc_create_npc(enum npc_subtype subtype, int m, int x, i
 //Add then display an npc warp on map
 static struct npc_data *npc_add_warp(char *name, short from_mapid, short from_x, short from_y, short xs, short ys, unsigned short to_mapindex, short to_x, short to_y)
 {
-	int i, flag = 0;
 	struct npc_data *nd;
 
 	nullpo_retr(NULL, name);
@@ -3516,14 +3525,21 @@ static struct npc_data *npc_add_warp(char *name, short from_mapid, short from_x,
 	nd = npc->create_npc(WARP, from_mapid, from_x, from_y, 0, battle_config.warp_point_debug ? WARP_DEBUG_CLASS : WARP_CLASS);
 
 	safestrncpy(nd->exname, name, ARRAYLENGTH(nd->exname));
-	if (npc->name2id(nd->exname) != NULL)
-		flag = 1;
+	if (npc->name2id(nd->exname) != NULL) {
+		PRAGMA_GCC7(GCC diagnostic push)
+		PRAGMA_GCC7(GCC diagnostic ignored "-Wformat-truncation")
+		// Name is being checked for duplicates afterwards, so it's safe to ignore the unlikely but possible string truncation
+		snprintf(nd->exname, ARRAYLENGTH(nd->exname), "warp_%d_%d_%d", from_mapid, from_x, from_y);
+		PRAGMA_GCC7(GCC diagnostic pop)
+	}
 
-	if (flag == 1)
-		safesnprintf(nd->exname, ARRAYLENGTH(nd->exname), "warp_%d_%d_%d", from_mapid, from_x, from_y);
-
-	for( i = 0; npc->name2id(nd->exname) != NULL; ++i )
-		safesnprintf(nd->exname, ARRAYLENGTH(nd->exname), "warp%d_%d_%d_%d", i, from_mapid, from_x, from_y);
+	for (int i = 0; npc->name2id(nd->exname) != NULL; ++i) {
+		PRAGMA_GCC7(GCC diagnostic push)
+		PRAGMA_GCC7(GCC diagnostic ignored "-Wformat-truncation")
+		// Name is being checked for duplicates, so it's safe to ignore the unlikely but possible string truncation
+		snprintf(nd->exname, ARRAYLENGTH(nd->exname), "warp%d_%d_%d_%d", i, from_mapid, from_x, from_y);
+		PRAGMA_GCC7(GCC diagnostic pop)
+	}
 	safestrncpy(nd->name, nd->exname, ARRAYLENGTH(nd->name));
 
 	nd->u.warp.mapindex = to_mapindex;
@@ -5106,6 +5122,10 @@ static const char *npc_parse_mapflag(const char *w1, const char *w2, const char 
 		if (map->list[m].bexp < 0)
 			map->list[m].bexp = 100;
 		map->list[m].flag.nobaseexp = (map->list[m].bexp == 0) ? 1 : 0;
+	} else if (strcmpi(w3, "specialpopup") == 0) {
+		map->list[m].flag.specialpopup = (state != 0) ? atoi(w4) : 100;
+		if (map->list[m].flag.specialpopup < 0)
+			map->list[m].flag.specialpopup = 0;
 	} else if (strcmpi(w3, "novending") == 0)
 		map->list[m].flag.novending = (state != 0) ? 1 : 0;
 	else if (strcmpi(w3, "loadevent") == 0)
@@ -5179,6 +5199,8 @@ static const char *npc_parse_mapflag(const char *w1, const char *w2, const char 
 		map->list[m].flag.nostorage = (state != 0) ? cap_value(atoi(w4), 1, 3) : 0;
 	else if (strcmpi(w3, "nogstorage") == 0)
 		map->list[m].flag.nogstorage = (state != 0) ? cap_value(atoi(w4), 1, 3) : 0;
+	else if (strcmpi(w3, "nosendmail") == 0)
+		map->list[m].flag.nosendmail = (state != 0) ? 1 : 0;
 	else if (strcmpi(w3, "nopet") == 0)
 		map->list[m].flag.nopet = (state != 0) ? 1 : 0;
 	else if (strcmpi(w3, "nomapchannelautojoin") == 0)
@@ -5411,7 +5433,6 @@ static int npc_parsesrcfile(const char *filepath, bool runOnInit)
 {
 	int success = EXIT_SUCCESS;
 	int16 m, x, y;
-	int lines = 0;
 	FILE* fp;
 	size_t len;
 	char* buffer;
@@ -5455,7 +5476,6 @@ static int npc_parsesrcfile(const char *filepath, bool runOnInit)
 		int pos[9];
 		char w1[2048], w2[2048], w3[2048], w4[2048];
 		int i, count;
-		lines++;
 
 		// w1<TAB>w2<TAB>w3<TAB>w4
 		count = sv->parse(p, (int)(len+buffer-p), 0, '\t', pos, ARRAYLENGTH(pos), (e_svopt)(SV_TERMINATE_LF|SV_TERMINATE_CRLF));
@@ -5598,15 +5618,17 @@ static int npc_parsesrcfile(const char *filepath, bool runOnInit)
 
 static int npc_script_event(struct map_session_data *sd, enum npce_event type)
 {
-	int i;
 	if (type == NPCE_MAX)
 		return 0;
+	Assert_ret(type >= 0 && type < NPCE_MAX);
 	if (!sd) {
 		ShowError("npc_script_event: NULL sd. Event Type %u\n", type);
 		return 0;
 	}
+
+	int i;
 	for (i = 0; i<script_event[type].event_count; i++)
-		npc->event_sub(sd,script_event[type].event[i],script_event[type].event_name[i]);
+		npc->event_sub(sd, script_event[type].event[i], script_event[type].event_name[i]);
 	return i;
 }
 

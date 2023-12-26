@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -232,7 +232,10 @@ void findfile(const char *p, const char *pat, void (func)(const char *, void *co
 		if (strcmp(entry->d_name, "..") == 0)
 			continue;
 
-		safesnprintf(tmppath, sizeof(tmppath), "%s%c%s", path, PATHSEP, entry->d_name);
+		if (snprintf(tmppath, sizeof(tmppath), "%s%c%s", path, PATHSEP, entry->d_name) >= sizeof(tmppath)) {
+			ShowError("findfile: too long path would be truncated: '%s' - skipping\n", tmppath);
+			continue;
+		}
 
 		// check if the pattern matches.
 		if (strstr(entry->d_name, pattern)) {
@@ -579,6 +582,24 @@ size_t hread(void *ptr, size_t size, size_t count, FILE *stream)
 size_t hwrite(const void *ptr, size_t size, size_t count, FILE *stream)
 {
 	return fwrite(ptr, size, count, stream);
+}
+
+int64 htell(FILE *stream)
+{
+#ifdef WIN32
+	return _ftelli64(stream);
+#else
+	return ftell(stream);
+#endif
+}
+
+int hseek(FILE *stream, int64 offset, int origin)
+{
+#ifdef WIN32
+	return _fseeki64(stream, offset, origin);
+#else
+	return fseek(stream, offset, origin);
+#endif
 }
 
 void HCache_defaults(void)

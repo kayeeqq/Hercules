@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2013-2022 Hercules Dev Team
+ * Copyright (C) 2013-2023 Hercules Dev Team
  *
  * Hercules is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,12 +27,15 @@
 
 HPMHooks.source.HCache = *HCache;
 HPMHooks.source.account = *account;
+HPMHooks.source.base62 = *base62;
 HPMHooks.source.cmdline = *cmdline;
 HPMHooks.source.console = *console;
 HPMHooks.source.core = *core;
 HPMHooks.source.DB = *DB;
 HPMHooks.source.des = *des;
+HPMHooks.source.extraconf = *extraconf;
 HPMHooks.source.ipban = *ipban;
+HPMHooks.source.lapiif = *lapiif;
 HPMHooks.source.lchrif = *lchrif;
 HPMHooks.source.lclif = *lclif;
 HPMHooks.source.PRIV__lclif = *lclif->p;

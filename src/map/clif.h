@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -31,6 +31,7 @@
 /**
  * Declarations
  **/
+struct StringBuf;
 struct battleground_data;
 struct channel_data;
 struct chat_data;
@@ -70,6 +71,7 @@ enum macro_detect_status;
 enum macro_report_status;
 enum grade_level;
 enum grade_ui_result;
+enum item_reform_status;
 
 /**
  * Defines
@@ -637,15 +639,15 @@ enum zc_ui_types {
 	ZC_RENEWQUEST_UI = 6,
 	ZC_ATTENDANCE_UI = 7,
 #endif
-#if PACKETVER_MAIN_NUM >= 20200916 || PACKETVER_RE_NUM >= 20200723
+#if PACKETVER_MAIN_NUM >= 20200916 || PACKETVER_RE_NUM >= 20200723 || PACKETVER_ZERO_NUM >= 20221024
 	ZC_GRADE_ENCHANT_UI = 8,
 #endif
-#if PACKETVER_MAIN_NUM >= 20210203 || PACKETVER_RE_NUM >= 20211103
+#if PACKETVER_MAIN_NUM >= 20210203 || PACKETVER_RE_NUM >= 20211103 || PACKETVER_ZERO_NUM >= 20221024
 	zc_ui_unused9 = 9,  // for avoid compilation errors
 	ZC_ENCHANT_UI = 10
-#else  // PACKETVER_MAIN_NUM >= 20210203 || PACKETVER_RE_NUM >= 20211103
+#else  // PACKETVER_MAIN_NUM >= 20210203 || PACKETVER_RE_NUM >= 20211103 || PACKETVER_ZERO_NUM >= 20221024
 	zc_ui_unused9 = 9  // for avoid compilation errors
-#endif  // PACKETVER_MAIN_NUM >= 20210203 || PACKETVER_RE_NUM >= 20211103
+#endif  // PACKETVER_MAIN_NUM >= 20210203 || PACKETVER_RE_NUM >= 20211103 || PACKETVER_ZERO_NUM >= 20221024
 };
 
 /**
@@ -901,6 +903,18 @@ enum instance_window_info_type {
 	INSTANCE_WND_INFO_DESTROY = 5,
 };
 
+enum enchantui_status {
+	ENCHANTUI_SUCCESS,
+	ENCHANTUI_FAILURE,
+};
+
+enum dynamicnpc_create_result {
+	DYNAMICNPC_RESULT_SUCCESS = 0,
+	DYNAMICNPC_RESULT_UNKNOWN = 1,
+	DYNAMICNPC_RESULT_NOT_EXIST = 2,
+	DYNAMICNPC_RESULT_DUPLICATED = 3,
+};
+
 /**
  * Clif.c Interface
  **/
@@ -947,6 +961,8 @@ struct clif_interface {
 	const struct s_packet_db *(*packet) (int packet_id);
 	unsigned short (*parse_cmd) ( int fd, struct map_session_data *sd );
 	unsigned short (*decrypt_cmd) ( int cmd, struct map_session_data *sd );
+	/* client-specific logic */
+	void (*format_itemlink) (struct StringBuf *buf, const struct item *it);
 	/* auth */
 	void (*authok) (struct map_session_data *sd);
 	void (*auth_error) (int fd, int errorCode);
@@ -1075,7 +1091,7 @@ struct clif_interface {
 	void (*skill_mapinfomessage) (struct map_session_data *sd, int type);
 	void (*skill_produce_mix_list) (struct map_session_data *sd, int skill_id, int trigger);
 	void (*cooking_list) (struct map_session_data *sd, int trigger, uint16 skill_id, int qty, int list_type);
-	void (*autospell) (struct map_session_data *sd,uint16 skill_lv);
+	void (*autospell) (struct map_session_data *sd, uint16 skill_lv, int *skill_ids_list, int list_len);
 	void (*combo_delay) (struct block_list *bl,int wait);
 	void (*status_change) (struct block_list *bl, int relevant_bl, int type, int flag, int total_tick, int val1, int val2, int val3);
 	void (*status_change_sub) (struct block_list *bl, int type, int relevant_bl, int flag, int tick, int total_tick, int val1, int val2, int val3);
@@ -1287,7 +1303,7 @@ struct clif_interface {
 	void (*skillup) (struct map_session_data *sd, uint16 skill_id, int skill_lv, int flag);
 	void (*skillinfo) (struct map_session_data *sd,int skill_id, int inf);
 	void (*addskill) (struct map_session_data *sd, int id);
-	void (*deleteskill) (struct map_session_data *sd, int id);
+	void (*deleteskill) (struct map_session_data *sd, int id, bool skip_infoblock);
 	void (*playerSkillToPacket) (struct map_session_data *sd, struct SKILLDATA *skillData, int skillId, int idx, bool newSkill);
 	/* party-specific */
 	void (*party_created) (struct map_session_data *sd,int result);
@@ -1325,7 +1341,10 @@ struct clif_interface {
 	void (*guild_positionchanged) (struct guild *g,int idx);
 	void (*guild_memberpositionchanged) (struct guild *g,int idx);
 	void (*guild_emblem) (struct map_session_data *sd,struct guild *g);
-	void (*guild_emblem_area) (struct block_list* bl);
+	void (*guild_emblem_clear) (struct map_session_data *sd,struct guild *g);
+	void (*guild_emblem_complete) (struct map_session_data *sd,struct guild *g);
+	void (*guild_emblem_body) (struct map_session_data *sd,struct guild *g);
+	void (*guild_emblem_id_area) (struct block_list* bl);
 	void (*guild_notice) (struct map_session_data* sd, struct guild* g);
 	void (*guild_message) (struct guild *g,int account_id,const char *mes,int len);
 	void (*guild_reqalliance) (struct map_session_data *sd,int account_id,const char *name);
@@ -1536,6 +1555,7 @@ struct clif_interface {
 	void (*pTakeItem) (int fd, struct map_session_data *sd);
 	void (*pDropItem) (int fd, struct map_session_data *sd);
 	void (*pUseItem) (int fd, struct map_session_data *sd);
+	void (*pUsePackageItem) (int fd, struct map_session_data *sd);
 	void (*pEquipItem) (int fd,struct map_session_data *sd);
 	void (*pUnequipItem) (int fd,struct map_session_data *sd);
 	void (*pUnequipAllItems) (int fd,struct map_session_data *sd);
@@ -1629,7 +1649,9 @@ struct clif_interface {
 	void (*pGuildRequestInfo) (int fd, struct map_session_data *sd);
 	void (*pGuildChangePositionInfo) (int fd, struct map_session_data *sd);
 	void (*pGuildChangeMemberPosition) (int fd, struct map_session_data *sd);
-	void (*pGuildRequestEmblem) (int fd,struct map_session_data *sd);
+	void (*pGuildRequestEmblem1) (int fd,struct map_session_data *sd);
+	void (*pGuildRequestEmblem2) (int fd,struct map_session_data *sd);
+	void (*pGuildRequestEmblem3) (int fd,struct map_session_data *sd);
 	void (*pGuildChangeEmblem) (int fd,struct map_session_data *sd);
 	void (*pGuildChangeNotice) (int fd, struct map_session_data* sd);
 	void (*pGuildInvite) (int fd,struct map_session_data *sd);
@@ -1820,7 +1842,7 @@ struct clif_interface {
 	bool (*attendance_timediff) (struct map_session_data *sd);
 	time_t (*attendance_getendtime) (void);
 	void (*pOpenUIRequest) (int fd, struct map_session_data *sd);
-	void (*open_ui_send1) (struct map_session_data *sd, enum zc_ui_types ui_type);
+	void (*open_ui_send1) (struct map_session_data *sd, enum zc_ui_types ui_type, int32 data);
 	void (*open_ui_send2) (struct map_session_data *sd, enum zc_ui_types ui_type, uint64 data);
 	void (*open_ui_send) (struct map_session_data *sd, enum zc_ui_types ui_type);
 	void (*open_ui) (struct map_session_data *sd, enum cz_ui_types uiType);
@@ -1856,6 +1878,7 @@ struct clif_interface {
 	int (*pingTimerSub) (struct map_session_data *sd, va_list ap);
 	void (*pResetCooldown) (int fd, struct map_session_data *sd);
 	void (*loadConfirm) (struct map_session_data *sd);
+	void (*updateSpecialPopup) (struct map_session_data *sd);
 	void (*send_selforarea) (int fd, struct block_list *bl, const void *buf, int len);
 	void (*OpenRefineryUI) (struct map_session_data *sd);
 	void (*pAddItemRefineryUI) (int fd, struct map_session_data *sd);
@@ -1933,6 +1956,30 @@ struct clif_interface {
 	void (*PartyBookingCancelVolunteerToPM) (struct map_session_data *sd);
 	void (*PartyBookingRefuseVolunteerToPM) (struct map_session_data *sd);
 #endif
+	/* Item Reform */
+	void (*item_reform_open) (struct map_session_data *sd, int itemId);
+	void (*pItemReformClose) (int fd, struct map_session_data *sd);
+	void (*pItemReformAck) (int fd, struct map_session_data *sd);
+	void (*item_reform_result) (struct map_session_data *sd, int index, enum item_reform_status result);
+
+	void (*enchantui_open) (struct map_session_data *sd, int64 enchant_group);
+	void (*enchantui_status) (struct map_session_data *sd, enum enchantui_status result, int itemId);
+	void (*pEnchantUINormalRequest) (int fd, struct map_session_data *sd);
+	void (*pEnchantUIPerfectRequest) (int fd, struct map_session_data *sd);
+	void (*pEnchantUIUpgradeRequest) (int fd, struct map_session_data *sd);
+	void (*pEnchantUIResetRequest) (int fd, struct map_session_data *sd);
+	void (*pEnchantUIClose) (int fd, struct map_session_data *sd);
+
+	void (*special_popup) (struct map_session_data *sd, int popupId);
+
+	void (*pDynamicnpcCreateRequest) (int fd, struct map_session_data *sd);
+	void (*dynamicnpc_create_result) (struct map_session_data *sd, enum dynamicnpc_create_result result);
+	void (*goldpc_info) (struct map_session_data *sd);
+
+	void (*pAdventuterAgencyJoinReq) (int fd, struct map_session_data *sd);
+	void (*adventurerAgencyResult) (struct map_session_data *sd, enum adventurer_agency_result result, const char *player_name, const char *party_name);
+	void (*adventurerAgencyJoinReq) (struct map_session_data *sd, struct map_session_data *tsd);
+	void (*pAdventuterAgencyJoinResult) (int fd, struct map_session_data *sd);
 };
 
 #ifdef HERCULES_CORE

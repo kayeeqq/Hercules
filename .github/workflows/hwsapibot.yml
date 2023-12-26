@@ -4,7 +4,7 @@ on:
   workflow_call:
 
 env:
-  INSTALL_PACKAGES: make gcc zlib1g-dev libpcre3-dev git libmariadbclient-dev-compat doxygen perl libxml-simple-perl bc curl
+  INSTALL_PACKAGES: make gcc zlib1g-dev libpcre3-dev git libmariadbclient-dev-compat doxygen perl libxml-simple-perl libxml-parser-perl bc curl
   BUILDSTATS_API_KEY: ${{ secrets.BUILDSTATS_API_KEY }}
   GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
 
@@ -94,11 +94,20 @@ jobs:
 
       - name: constdb2doc
         run: |
+          ./configure --enable-debug --disable-lto --disable-renewal
+          make clean
           start_this=$(date +%s.%3N)
           make map_sql plugin.constdb2doc -j3
           ./map-server --load-plugin constdb2doc --constdb2doc
           end_this=$(date +%s.%3N)
           elapsed_constdb=$(echo "scale=0; ($end_this - $start_this) * 1000 / 1" | bc)
+          ./configure --enable-debug --disable-lto --enable-renewal
+          make clean
+          start_this=$(date +%s.%3N)
+          make map_sql plugin.constdb2doc -j3
+          ./map-server --load-plugin constdb2doc --constdb2doc
+          end_this=$(date +%s.%3N)
+          elapsed_constdb=$(echo "scale=0; $elapsed_constdb + ($end_this - $start_this) * 1000 / 1" | bc)
           echo "elapsed_constdb=$elapsed_constdb" >> $GITHUB_ENV
           git commit -am 'Update constants documentation' --signoff --gpg-sign || echo "Nothing to commit"
 

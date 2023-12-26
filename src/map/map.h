@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -1046,7 +1046,9 @@ struct map_data {
 		unsigned nostorage : 2;
 		unsigned nogstorage : 2;
 		unsigned nopet : 1;
+		unsigned nosendmail : 1;
 		uint32 noviewid; ///< noviewid (bitmask - @see enum equip_pos)
+		int32 specialpopup;
 	} flag;
 	struct point save;
 	struct npc_data *npc[MAX_NPC_PER_MAP];
@@ -1109,16 +1111,6 @@ struct map_data {
 	/* speeds up clif_updatestatus processing by causing hpmeter to run only when someone with the permission can view it */
 	unsigned short hpmeter_visible;
 	struct hplugin_data_store *hdata; ///< HPM Plugin Data Store
-};
-
-/// Stores information about a remote map (for multi-mapserver setups).
-/// Beginning of data structure matches 'map_data', to allow typecasting.
-struct map_data_other_server {
-	char name[MAP_NAME_LENGTH];
-	unsigned short index; //Index is the map index used by the mapindex* functions.
-	struct mapcell* cell; // If this is NULL, the map is not on this map-server
-	uint32 ip;
-	uint16 port;
 };
 
 #define map_id2index(id) (map->list[(id)].index)
@@ -1340,7 +1332,6 @@ struct map_interface {
 	struct DBMap *pc_db;     // int id -> struct map_session_data*
 	struct DBMap *mobid_db;  // int id -> struct mob_data*
 	struct DBMap *bossid_db; // int id -> struct mob_data* (MVP db)
-	struct DBMap *map_db;    // unsigned int mapindex -> struct map_data_other_server*
 	struct DBMap *nick_db;   // int char_id -> struct charid2nick* (requested names of offline characters)
 	struct DBMap *charid_db; // int char_id -> struct map_session_data*
 	struct DBMap *regen_db;  // int id -> struct block_list* (status_natural_heal processing)
@@ -1464,10 +1455,6 @@ END_ZEROED_BLOCK;
 	bool (*blid_exists) (int id);
 	int16 (*mapindex2mapid) (unsigned short map_index);
 	int16 (*mapname2mapid) (const char* name);
-	int (*mapname2ipport) (unsigned short name, uint32* ip, uint16* port);
-	int (*setipport) (unsigned short map_index, uint32 ip, uint16 port);
-	int (*eraseipport) (unsigned short map_index, uint32 ip, uint16 port);
-	int (*eraseallipport) (void);
 	void (*addiddb) (struct block_list *bl);
 	void (*deliddb) (struct block_list *bl);
 	/* */
@@ -1515,8 +1502,6 @@ END_ZEROED_BLOCK;
 	int (*sub_getcellp) (struct map_data *m, const struct block_list *bl, int16 x, int16 y, cell_chk cellchk);
 	void (*sub_setcell) (int16 m, int16 x, int16 y, cell_t cell, bool flag);
 	void (*iwall_nextxy) (int16 x, int16 y, int8 dir, int pos, int16 *x1, int16 *y1);
-	struct DBData (*create_map_data_other_server) (union DBKey key, va_list args);
-	int (*eraseallipport_sub) (union DBKey key, struct DBData *data, va_list va);
 	bool (*readfromcache) (struct map_data *m);
 	bool (*readfromcache_v1) (FILE *fp, struct map_data *m, unsigned int file_size);
 	int (*addmap) (const char *mapname);
@@ -1537,6 +1522,8 @@ END_ZEROED_BLOCK;
 	bool (*inter_config_read) (const char *filename, bool imported);
 	bool (*inter_config_read_database_names) (const char *filename, const struct config_t *config, bool imported);
 	bool (*inter_config_read_connection) (const char *filename, const struct config_t *config, bool imported);
+	bool (*setting_lookup_const) (const struct config_setting_t *setting, const char *name, int *value);
+	bool (*setting_lookup_const_mask) (const struct config_setting_t *setting, const char *name, int *value);
 	int (*sql_init) (void);
 	int (*sql_close) (void);
 	bool (*zone_mf_cache) (int m, char *flag, char *params);
@@ -1544,7 +1531,6 @@ END_ZEROED_BLOCK;
 	unsigned short (*zone_str2skillid) (const char *name);
 	enum bl_type (*zone_bl_type) (const char *entry, enum map_zone_skill_subtype *subtype);
 	void (*read_zone_db) (void);
-	int (*db_final) (union DBKey key, struct DBData *data, va_list ap);
 	int (*nick_db_final) (union DBKey key, struct DBData *data, va_list args);
 	int (*cleanup_db_sub) (union DBKey key, struct DBData *data, va_list va);
 	int (*abort_sub) (struct map_session_data *sd, va_list ap);

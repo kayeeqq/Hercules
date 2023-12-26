@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -21,8 +21,8 @@
 #ifndef CONFIG_CORE_H
 #define CONFIG_CORE_H
 
-// from tag vXXXXXXXX.Y -> XXXXXXXXY
-#define HERCULES_VERSION 202206010
+/// Hercules version. From tag vYYYY.MM(+PPP) -> YYYYMMPPP
+#define HERCULES_VERSION 202311000
 
 /// Max number of items on @autolootid list
 #define AUTOLOOTITEM_SIZE 10
@@ -96,6 +96,13 @@
 
 /// Uncomment for use with Nemo patch ExtendCashShopPreview
 //#define ENABLE_CASHSHOP_PREVIEW_PATCH
+
+/// Uncomment for use with Nemo patch ExtendOldCashShopPreview
+//#define ENABLE_OLD_CASHSHOP_PREVIEW_PATCH
+
+/// Uncomment to allow flinch animation and walk delay to be synced
+/// Reduces positional lag when getting hit
+//#define WALKDELAY_SYNC
 
 /**
  * No settings past this point

@@ -9,7 +9,7 @@
 //= This file is part of Hercules.
 //= http://herc.ws - http://github.com/HerculesWS/Hercules
 //=
-//= Copyright (C) 2012-2022 Hercules Dev Team
+//= Copyright (C) 2012-2023 Hercules Dev Team
 //= Copyright (C) Ai4rei
 //= Copyright (C) L0ne_W0lf
 //=
@@ -154,7 +154,7 @@ OnCroixJoin:
 	end;
 
 OnGuillaumeQuit:
-	//BG_Delay_Tick = gettimetick(2) + 1200;
+	//BG_Delay_Tick = gettimetick(GETTIMETICK_UNIXTIME) + 1200;
 OnGuillaumeDie:
 	if ($@KvM02BG == 2) {
 		--.Guillaume_Count;
@@ -168,7 +168,7 @@ OnGuillaumeDie:
 	end;
 
 OnCroixQuit:
-	//BG_Delay_Tick = gettimetick(2) + 1200;
+	//BG_Delay_Tick = gettimetick(GETTIMETICK_UNIXTIME) + 1200;
 OnCroixDie:
 	if ($@KvM02BG == 2) {
 		--.Croix_Count;

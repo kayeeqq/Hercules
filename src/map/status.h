@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -912,6 +912,8 @@ typedef enum sc_type {
 
 	SC_ACTIVE_MONSTER_TRANSFORM,
 
+	SC_FIRE_EXPANSION_TEAR_GAS_SOB,
+
 #ifndef SC_MAX
 	SC_MAX, //Automatically updated max, used in for's to check we are within bounds.
 #endif
@@ -1266,9 +1268,9 @@ struct status_change {
 #define status_get_mode(bl)                  (status->get_status_data(bl)->mode)
 
 //Short version, receives rate in 1->100 range, and does not uses a flag setting.
-#define sc_start(src, bl, type, rate, val1, tick)                    (status->change_start((src),(bl),(type),100*(rate),(val1),0,0,0,(tick),SCFLAG_NONE))
-#define sc_start2(src, bl, type, rate, val1, val2, tick)             (status->change_start((src),(bl),(type),100*(rate),(val1),(val2),0,0,(tick),SCFLAG_NONE))
-#define sc_start4(src, bl, type, rate, val1, val2, val3, val4, tick) (status->change_start((src),(bl),(type),100*(rate),(val1),(val2),(val3),(val4),(tick),SCFLAG_NONE))
+#define sc_start(src, bl, type, rate, val1, tick, skill_id)                    (status->change_start((src),(bl),(type),100*(rate),(val1),0,0,0,(tick),SCFLAG_NONE,(skill_id)))
+#define sc_start2(src, bl, type, rate, val1, val2, tick, skill_id)             (status->change_start((src),(bl),(type),100*(rate),(val1),(val2),0,0,(tick),SCFLAG_NONE,(skill_id)))
+#define sc_start4(src, bl, type, rate, val1, val2, val3, val4, tick, skill_id) (status->change_start((src),(bl),(type),100*(rate),(val1),(val2),(val3),(val4),(tick),SCFLAG_NONE,(skill_id)))
 
 #define status_change_end(bl,type,tid) (status->change_end_((bl),(type),(tid)))
 
@@ -1281,11 +1283,29 @@ struct status_change {
 #define status_calc_elemental(ed, opt)  (status->calc_bl_(&(ed)->bl, SCB_ALL, (opt)))
 #define status_calc_npc(nd, opt)        (status->calc_bl_(&(nd)->bl, SCB_ALL, (opt)))
 
+struct s_maxhp_entry {
+	int max_level; ///< Highest level which this entry still applies to
+	int value; ///< The actual max hp value
+};
+
+struct s_unit_params {
+	char name[SCRIPT_VARNAME_LENGTH]; ///< group name as defined in conf
+
+	int natural_heal_weight_rate;
+	int max_aspd;
+	struct s_maxhp_entry *maxhp; ///< list of s_maxhp_entry entries
+	int maxhp_size; ///< size of maxhp
+	int max_stats;
+
+	struct hplugin_data_store *hdata; ///< HPM Plugin Data Store
+};
+
 struct s_status_dbs {
 BEGIN_ZEROED_BLOCK; /* Everything within this block will be memset to 0 when status_defaults() is executed */
 	int max_weight_base[CLASS_COUNT];
 	int HP_table[CLASS_COUNT][MAX_LEVEL + 1];
 	int SP_table[CLASS_COUNT][MAX_LEVEL + 1];
+	struct s_unit_params *unit_params[CLASS_COUNT];
 	int aspd_base[CLASS_COUNT][MAX_SINGLE_WEAPON_TYPE+1]; // +1 for RENEWAL_ASPD
 	struct {
 		int id;
@@ -1314,9 +1334,11 @@ struct status_interface {
 	int current_equip_option_index;
 
 	struct s_status_dbs *dbs;
+	VECTOR_DECL(struct s_unit_params) unit_params_groups;
 
 	struct eri *data_ers; //For sc_data entries
 	struct status_data dummy;
+	struct s_unit_params dummy_unit_params;
 	int64 natural_heal_prev_tick;
 	unsigned int natural_heal_diff_tick;
 	/* */
@@ -1359,9 +1381,9 @@ struct status_interface {
 	struct status_change * (*get_sc) (struct block_list *bl);
 	int (*isdead) (struct block_list *bl);
 	int (*isimmune) (struct block_list *bl);
-	int (*get_sc_def) (struct block_list *src, struct block_list *bl, enum sc_type type, int rate, int tick, int flag);
-	int (*change_start) (struct block_list *src, struct block_list *bl, enum sc_type type, int rate, int val1, int val2, int val3, int val4, int tick, int flag);
-	int (*change_start_sub) (struct block_list *src, struct block_list *bl, enum sc_type type, int rate, int val1, int val2, int val3, int val4, int tick, int total_tick, int flag);
+	int (*get_sc_def) (struct block_list *src, struct block_list *bl, enum sc_type type, int rate, int tick, int flag, int skill_id);
+	int (*change_start) (struct block_list *src, struct block_list *bl, enum sc_type type, int rate, int val1, int val2, int val3, int val4, int tick, int flag, int skill_id);
+	int (*change_start_sub) (struct block_list *src, struct block_list *bl, enum sc_type type, int rate, int val1, int val2, int val3, int val4, int tick, int total_tick, int flag, int skill_id);
 	int (*change_end_) (struct block_list* bl, enum sc_type type, int tid);
 	bool (*is_immune_to_status) (struct status_change* sc, enum sc_type type);
 	bool (*is_boss_resist_sc) (enum sc_type type);
@@ -1398,7 +1420,7 @@ struct status_interface {
 	bool (*check_skilluse_mapzone) (struct block_list *src, struct status_data *st, uint16 skill_id);
 	int (*check_skilluse) (struct block_list *src, struct block_list *target, uint16 skill_id, int flag); // [Skotlex]
 	int (*check_visibility) (struct block_list *src, struct block_list *target); //[Skotlex]
-	int (*change_spread) (struct block_list *src, struct block_list *bl);
+	int (*change_spread) (struct block_list *src, struct block_list *bl, int skill_id);
 	defType (*calc_def) (struct block_list *bl, struct status_change *sc, int def, bool viewable);
 	short (*calc_def2) (struct block_list *bl, struct status_change *sc, int def2, bool viewable);
 	defType (*calc_mdef) (struct block_list *bl, struct status_change *sc, int mdef, bool viewable);
@@ -1417,6 +1439,7 @@ struct status_interface {
 	int (*base_amotion_pc) (struct map_session_data *sd, struct status_data *st);
 	int (*base_atk) (const struct block_list *bl, const struct status_data *st);
 	unsigned int (*get_base_maxhp) (const struct map_session_data *sd, const struct status_data *st);
+	struct s_maxhp_entry * (*get_maxhp_cap_entry) (int classidx, int level);
 	unsigned int (*get_base_maxsp) (const struct map_session_data *sd, const struct status_data *st);
 	unsigned int (*get_restart_hp) (const struct map_session_data *sd, const struct status_data *st);
 	unsigned int (*get_restart_sp) (const struct map_session_data *sd, const struct status_data *st);
@@ -1460,6 +1483,12 @@ struct status_interface {
 	bool (*read_scdb_libconfig_sub_skill) (struct config_setting_t *it, int type, const char *source);
 	void (*read_job_db) (void);
 	void (*read_job_db_sub) (int idx, const char *name, struct config_setting_t *jdb);
+	void (*read_unit_params_db) (void);
+	bool (*read_unit_params_db_sub) (const char *name, struct config_setting_t *group, const char *source);
+	bool (*read_unit_params_db_maxhp) (struct s_unit_params *entry, struct s_unit_params *inherited, struct config_setting_t *group, const char *source);
+	int (*maxhp_entry_compare) (const void *entry1, const void *entry2);
+	bool (*read_unit_params_db_additional) (struct s_unit_params *entry, struct s_unit_params *inherited, struct config_setting_t *group, const char *source);
+	void (*unit_params_destroy) (struct s_unit_params *entry);
 	void (*copy) (struct status_data *a, const struct status_data *b);
 	int (*base_matk_min) (const struct status_data *st);
 	int (*base_matk_max) (const struct status_data *st);

@@ -9,7 +9,7 @@ and this project does not adhere to [Semantic Versioning](http://semver.org/spec
 <!--
 If you are reading this in a text editor, simply ignore this section
 
-## [vYYYY.MM.DD] `MMMM DD YYYY`
+## [vYYYY.MM] `MMMM YYYY`
 
 ### Added
 
@@ -21,6 +21,500 @@ If you are reading this in a text editor, simply ignore this section
 
 ### Removed
 -->
+
+## [v2023.11] `November 2023`
+
+### Added
+
+- Added an option to use an unit's current facing direction to search for free cells, instead of defaulting to east. (#3242)
+  - The option, currently disabled by default, can be turned on by setting `keep_dir_free_cell` (`conf/map/battle/misc.conf`) to true.
+  - Advantages:
+    - Improves distribution of mobs when dispersing after being grouped. This setting allows monsters to spread in a circular fashion instead of forming a long horizontal line.
+    - Allows characters to move more naturally if they came from the east, instead of walking back.
+    - In some instances, fixes characters walking in a loop unable to pick up an item. (#1241)
+
+### Changed
+
+- Changed the map server's behavior when receiving invalid connections with unknown protocols to terminate the connection after receiving the second byte. (#3247)
+- Disabled the possibility of attaching a script to a character in autotrade mode through `attachrid()`. This solves a number of issues with many script commands assuming a client to be attached. (#3243, issue #568)
+- Updated map list, mapcache, NPC and hateffect constant databases. (#3249)
+- Extracted the Blade Stop (Root) trigger conditions to a separate function for better readability and maintainability. (#3254)
+
+### Fixed
+
+- Fixed some job concurrency conflicts in the GitHub Actions workflows causing some tests to be skipped for pushes to the master branch. (#3239)
+- Consolidated the GitHub Actions workflow entry point to always be the 'controller' regardless of the trigger condition. (#3239)
+- Fixed `MO_TRIPLEATTACK` not applying the same motion delay as the client in the case the next combo is not possible, causing visual glitches. (#3240)
+- Fixed the `MO_TRIPLEATTACK` delay formula increasing delay with dex instead of decreasing it. (#3240)
+- Fixed an issue causing characters to be stuck in a walk loop while trying to pick up an unreachable item on the ground. (#3242, issue #1241)
+- Fixed a deprecation warning issued by MariaDB causing CI test failures. (#3247)
+- Fixed range and cast time for `ASC_BREAKER`. (#3245, issue #1104)
+- Fixed `SA_DISPEL` not working in duels. (#3246, issue #640)
+- Added support for GRF files larger than 2 GiB on Windows, fixing failures in mapcache generation. (#3248, issue #2935)
+- Fixed songs not triggering their onleft or onout events when overlapping and turning into dissonance. (#3251, issue #1501)
+- Fixed the range checks of Blade Stop/Root: (#3254)
+  - Fixed the target's (as in triggering attack target, and Blade Stop caster) equipped weapon wrongly affecting the skill's working range.
+  - Success range is changed to 2, to match the official behavior.
+  - In pre-re, changed it to always succeed against player attackers regardless of range.
+  - Changed it to always succeed for non-player casters regardless of range (custom Hercules behavior, officially only players may cast Blade Stop).
+- Fixed `CELL_NOSTACK` making mob ai not being able to reach target under certain conditions. (#3244, issue #574)
+- Fixed the critical bonus calculation from status effects getting truncated to 0.3 CRIT per point of LUK instead of 1/3. (#3252, issue #3094)
+
+# [v2023.10] `October 2023`
+
+### Added
+
+- Added an option to synchronize the flinch animation with walk delay, improving positional lag. The option is disabled by default, uncomment the `WALKDELAY_SYNC` definition in `src/config/core.h` to enable it. (#3232)
+- Implemented logic to generate "item links" serverside and the related script command `getitemlink()`, including various core functionalities this relies on. (#3236, #3238)
+  - This also adds basic support for the `base62` encoding used by the client.
+
+### Changed
+
+- Refactored Auto Spell (Hindsight) and moved its configuration to a libconfig table. (#3237)
+  - The configuration is available in the `{re,pre-re}/autospell_db.conf` file, see the documentation in the file header.
+  - The separation between game logic (in `skill.c`) and client/display logic (in `clif.c`) has been improved.
+  - Cast end logic has been separated from the large skill castend function into smaller dedicated functions.
+  - The function `skill->autospell()` has been renamed to `skill->autospell_spell_selected()` to make its purpose clearer.
+  - This refactoring will simplify some of the upcoming rebalance changes.
+- Added concurrency settings to the GitHub CI workflows to cancel old ongoing builds when a new commit is pushed, speeding up testing the up to date version. (#3238)
+
+### Fixed
+
+- Fixed the HPMHooking API plugin builds in VS 17.x (#3231)
+- Fixed `AM_ACIDTERROR` not ignoring defense on units other than those defined in `battle_config.vit_penalty_target` (i.e. players). (#3234)
+- Fixed Sage's free case increasing ASPD instead of decreasing it when the skill level is lower than 10. (#3235)
+- Fixed the `clang-13` build in the GitHub CI, failing due to a removed package in debian unstable. (#3238)
+- Fixed AppVeyor CI builds, failing due to a missing `mysql56` image. (#3238)
+
+## [v2023.08] `August 2023`
+
+> Note: with this release the versioning scheme has slightly changed: the release day is no longer included in the release tag and is set to `00` in the `HERCULES_VERSION` constant. Hotfix releases will take the form `v2023.08.001` ~ `v2023.08.999` (and will set `HERCULES_VERSION` to `202308001` ~ `202308999`). Releases will still happen around the second wednesday of each month when possible.
+
+### Added
+
+- Added support for choosing between localtime and UTC output in the script command `gettime()` (defaults to localtime for backward compatibility). (#3224)
+- Added support for choosing between localtime and UTC input in the script command `getcalendartime()` (defaults to localtime for backward compatibility). (#3224)
+- Added the `GETTIMETICK_*` constants to be used with the `gettimetick()` script commands. It's recommended to update custom scripts to use the constants instead of numbers, as there is no guarantee that the values will not change in the future. (#3224)
+- Added an option to allow Venom Dust to give experience points. See `venom_dust_exp` in `conf/battle/battle.conf`. (#3226, issue #3188)
+- Added the missing `common/packets_struct.h` include to `HPMapi.c` and `HPMlogin.c`. (#3228)
+
+### Changed
+
+- Changed Poisoning Weapon to show the type of poison used when applied. (#3219)
+- Moved the `GETTIME_*` constants to source. (#3224)
+- Documented a quirk of `gettimetick(GETTIMETICK_HOUROFDAY_S)` (formerly known as type 1) when the server is running with a local timezone on the day daylight savings begin or end. (#3224)
+- Changed `gettimetick()` to reject unknown types instead of defaulting to type 0. (#3224)
+
+### Fixed
+
+- Fixed a typo in the `sc_start()` rate description in the command documentation. (#3219)
+- Fixed the duration and rate of Poisoning Weapon getting reduced more than they were supposed to be. (#3219)
+- Fixed the duration of the Venom Bleed poison effect. (#3219)
+- Fixed a missing VS 2022 solution for the HPMHooking API plugin. (#3222)
+- Fixed `TF_DOUBLE` not granting the Hit bonus when triggered. (#3225)
+- Fixed the command `getcalendartime()` returning the wrong timestamp when fed with a localtime input while daylight savings are in effect. (#3224)
+- Fixed a warning about an unused variable in `npc.c` with some compilers. (#3224)
+- Fixed the attendance system returning the wrong timestamp when the server is running on a local timezone and daylight savings are in effect. (#3224)
+- Fixed temporary skills not getting cleared from the skill tree on recent clients when the item granting them is unequipped. (#3227, issue #3209)
+
+## [v2023.07.12] `July 12 2023`
+
+### Added
+
+- Added a macro to toggle the logging of login/logout events in the API server. Disabled by default, uncomment the `DEBUG_ONLINEDB_LOG` definition in `aclif.c` to enable it. (#3207)
+- Added support for `skill_db2.conf` to extend/override the skill DB. Just like the item and mob databases, it supports the `Inherit` field to allow overriding part of a skill's entry without having to copy the rest. (#3216)
+
+### Changed
+
+- Increased the default value of the API server setting `remove_disconnected_delay` from 5000 to 50000. (#3207)
+- Reduced the timeout in the GitHub Actions CI scripts to 60 minutes, to avoid stuck jobs preventing further builds from starting for 6 hours and wasting a large amount of runner minutes. (part of #3217)
+- Replaced some lengthy pieces of repeated code in the skill DB parser with a loop. (part of #3216)
+- Changed case-insensitive checks to case-sensitive for many database fields: (#3216)
+  - `SkillInfo` flag names
+  - `SkillType` flag names
+  - `DamageType` flags names
+  - `Requirements/WeaponTypes` flags names
+  - `Requirements/AmmoTypes` flags names
+  - `Requirements/State` values
+  - `Unit/Flag` flag names
+  - `Unit/Target` values
+    - NOTE: the `SameGuild` value was previously incorrectly listed as `Sameguild` in the examples and documentation. The correct version is `SameGuild`.
+  - For debugging purposes, a piece of code similar to https://github.com/HerculesWS/Hercules/files/11782956/compare_skills.diff.txt can be used to print the values before and after applying this patch, to check the differences and ensure that no unintended changes were introduced in the parsing of one's custom entries.
+- Added a `target` argument to `skill->check_condition_castend()` to allow additional checks that require information about the skill's target. (part of #3215)
+
+### Fixed
+
+- Added some missing null pointer checks and assertions. (part of #3207)
+- Added API-server related configs into the copy actions of the VS projects. (part of #3207)
+- Fixed an unreliable health check in the CI builds based on MariaDB containers. (#3217)
+- Fixed some interactions of `MO_KITRANSLATION`. (#3215)
+  - It should fail with a skill failure message and not consume requirements when: (#3215)
+    - being cast on Gunslinger class
+    - being cast on a player that already has 5 spheres
+    - being cast on friendly non-player units (e.g. Mercenary)
+- Fixed some interactions of `MO_ABSORBSPIRITS`. (#3215)
+  - It should fail and not consume SP when:
+    - the target player doesn't have spheres
+    - the target player is of Gunslinger class (due to teh game implementation not allowing them to have spheres)
+    - the target player is friendly
+  - It should fail and consume SP when:
+    - used on a BOSS monster
+    - used on a non-boss monster, but failing the 20% check
+    - used on non-player units (like mercenaries)
+  - moved the target check to condition cast end
+- Fixed the error message when a gunslinger is attempting to use a skill that requires coins without having the necessary amount. (#3215)
+- Fixed the stacking of `WM_POEMOFNETHERWORLD` to match the behavior described in the 2012.08.22 official patch notes: (#3215)
+  - it cannot be placed over another instance of the skill
+  - when trying to do so, it should show a position error to client
+
+## [v2023.06.14] `June 14 2023`
+
+### Added
+
+- Implemented the Unit Parameters DB, to allow splitting some battle configs into separate pre-renewal and renewal databases and fine tune them in configuration groups associated to each job. (#3214)
+  - The new database is in [db/pre-re/unit_parameters_db.conf](db/pre-re/unit_parameters_db.conf) / [db/re/unit_parameters_db.conf](db/re/unit_parameters_db.conf) and it is referenced by the job db through the new `ParametersGroup` field.
+  - Support for plugins to extend the DB is provided, through `addToUnitParam()`, `getfromUnitParam()`, `removefromUnitParam()`.
+  - The following fields are available, with the respective macros to access them from the source:
+    - `MaxHP` (replaces `battle_configuration/max_hp`) - `pc_maxhp_cap(sd)`
+    - `MaxASPD` (extends `battle_configuration/max_aspd` and supersedes `battle_configuration/max_third_aspd`) - `pc_max_aspd(sd)`
+    - `MaxStats` (extends `battle_configuration/max_parameter` and `battle_configuration/max_third_parameter`, supersedes `battle_configuration/max_extended_parameter`, `battle_configuration/max_summoner_parameter`, `battle_configuration/max_baby_parameter`, `battle_configuration/max_baby_third_parameter`) - `pc_maxstats(sd)` (replaces `pc_maxparameter(sd)`)
+    - `NaturalHealWeightRate` (replaces `battle_configuration/natural_heal_weight_rate`) - `pc_overhealweightrate(sd)` and the helper `pc_isoverhealweight(sd)` (replaces `pc_is50overweight(sd)`)
+  - The `MaxHP` field supports defining level ranges to make the parameter vary based on the character's level.
+  - Detailed documentation is available in [doc/unit_parameters_db.md](doc/unit_parameters_db.md)
+  - Additional upgrade notes including an upgrade cheatsheet can be reviewed in the pull request description at https://github.com/HerculesWS/Hercules/pull/3214
+
+### Changed
+
+- Changed the animation delay to be applied at castbegin instead of castend, to match official behavior. `skill_amotion_leniency` now defaults to 0 which offers a more accurate official behavior. Users that wish to block more speedhacks may still increase it. (#3187, issue #2703)
+- Changed the player's maximum HP to be capped differently based on the player's level (Renewal, episode 15.1). (part of #3214, related to issue #243)
+
+### Fixed
+
+- Fixed some (false positive) `sprintf()` overflow warnings. (#3212)
+
+### Removed
+
+- Removed the deprecated `LGTM` badge from the main README. (#3211)
+- Removed the following battle configuration settings, superseded by the unit parameters db - see above for details: (part of #3214)
+  - `battle_configuration/max_hp`
+  - `battle_configuration/max_third_aspd`
+  - Note: `battle_configuration/max_aspd` still exists but is only used for Homunculus and as a fallback for players whose job can't be determined
+  - `battle_configuration/max_extended_parameter`
+  - `battle_configuration/max_summoner_parameter`
+  - `battle_configuration/max_baby_parameter`
+  - `battle_configuration/max_baby_third_parameter`
+  - Note: `battle_configuration/max_parameter` and `battle_configuration/max_third_parameter` are retained since some logic still depends on them
+  - `battle_configuration/natural_heal_weight_rate`
+
+## [v2023.05.10] `May 10 2023`
+
+### Added
+
+- Added support to clone the definition of an item in the `item_db`. A cloned item inherits all the fields (except item ID and AegisName) of its original, allowing a compact definition with only the fields that differ. See the definition of `CloneItem` in [doc/item_db.txt](doc/item_db.txt) for details. (#3206)
+- Added the script commands `openquestui()` and `opentipboxui()`. (#3201)
+
+### Changed
+
+- Updated the Thanatos Tower with its Renewal changes (only affecting Renewal mode), based on the official patch notes, until before the revamp update. (#3204)
+  - Changes from 2012.04.04 kRO Patch:
+    - It is no longer required to have several players near the NPC to move to the 3rd floor
+  - Changes from 2016.06.29 kRO Patch:
+    - Burled Request quest exp reward updated:
+      - Base EXP: 120,000 -> 1,200,000
+      - Job EXP : 100,000 -> 1,000,000
+    - Burled Request quest required level changed
+      - No level requirement -> Level 91 or higher required
+    - Changed weapon level required to progress Burled Request quest
+      - Level 4 Weapon -> Level 3 or 4 Weapon
+    - Changed restrictions to enter upper floors of the tower with a Black Key
+      - Before: Reborn, 3rd classes or Expanded jobs level 95 or above
+      - Now: Any character level 95 or above
+  - Edited lines were also updated to current Hercules' standards and HULD
+- Disabled full request logging in the api server. (#3203)
+- Added the warning flag `-Wenum-int-mismatch` to the build settings. (#3203)
+- Extended the `ZC_OPEN_UI` packet functions to allow passing the `data` field as a parameter. (part of #3201)
+
+### Fixed
+
+- Added the missing EXP rewards for the Amatsu Dungeon quest. (#3205)
+- Fixed errors in the MinGW builds (#3203)
+  - Added a missing stdbool.h include.
+  - Fixed the plugin file extension.
+- Added a check for an empty char server response in the API handler `emblem_download` (i.e. when requesting the emblem of a nonexistent guild). (#3203)
+- Fixed the unit-specific `dmg_taken_rate` getting ignored in favor of the database-defined value (mostly when using `setunitdata(UDT_DAMAGE_TAKEN_RATE, ...)`. (#3202)
+- Added the missing documentation for the `openbank()` script command. (#3201)
+- Fixed handling of multiple RoDEX item claim requests (such as when retrieving multiple attachments at once) by queuing up the requests. (#3189, issues #3186, 3009)
+
+## [v2023.04.12] `April 12 2023`
+
+Note: everything included in this release is part of PR #3198 which consists of 301 commits. To avoid extreme redundancy the PR link will not be repeated for each line of the changelog.
+
+### Added
+
+- Added a brand new fourth server (api-server) to support HTTP-based client features as well as, potentially, third party tools
+  - The api-server listens by default on port 7121.
+  - The server is a separate process and can be started in the same way as login, char and map servers.
+  - Configuration can be found in `conf/api/` and supports the same import mechanism as the other servers.
+  - HPM plugins are supported in the same way as login, char and map servers and sample plugins are included.
+  - The api-server can be customized (i.e. through HPM plugins) to provide an easily accessible HTTP API for use by third party tools that want to communicate with the Hercules server.
+  - The server offers some built-in basic protection (limiting connections by IP, limiting request and headers size, trusted IPs, etc.), but as with any externally exposed service, caution is recommended, and a system administrator should decide whether it is necessary to use additional forms of filtering (such as a judiciously configured reverse proxy or web application firewall) for public deployments.
+  - The connection interfaces are as follows:
+    - client - api-server (`aclif`)
+    - login-server (`lapiif`) - api-server (`aloginif`)
+    - char-server (`capiif`) - api-server
+    - map-server (`mapiif`) - api-server
+  - The http parser library can be switched at compile time to llhttp (`--with-http_parser=llhttp`) and defaults to `http-parser` (`--with-http_parser=http-parser`)
+  - Visual Studio solutions have been updated (as a best-effort approach, those files are unmaintainable and are looking to be replaced by a generator such as CMake in order to avoid repetition and desynchronization). Xcode project has not been updated at the current time.
+  - Some parameters can be edited at compile time to alter various behaviors. See `src/api/aclif.h`, `src/api/httpsender.h`, `src/api/mimepart.h`, `common/apipackets.h` for a list of macros that can be redefined (undocumented and may have unexpected side-effects, edit after familiarizing with the code that uses them).
+- Added support for user configuration in clients that support the HTTP API at the `/userconfig/load` and `/userconfig/save` endpoints
+  - emotes are persisted by the char server into the `emotes` table (SQL migration is included), default emotes can be edited in `conf/emotes.conf`
+  - hotkeys (v1) are currently not supported
+  - hotkeys (v2) are persisted by the char server into the `hotkeys` table (SQL migration is included)
+- Added support for character settings in clients that support the HTTP API at the `/charconfig/load` endpoint
+- Added support for guild emblems in clients that support the HTTP API at the `/emblem/upload` and `/emblem/download` endpoints
+  - Supports BMP (static) and GIF (static or animated) emblems
+  - The `emblem_data` field in the `guild` table has been changed to a `mediumblob` (SQL migration is included)
+  - Validation parameters can be changed in `conf/common/emblems.conf`
+- Added support for party/adventurer agency functions in clients that support the HTTP API at the `/party/list`, `/party/get`, `/party/add`, `/party/del` endpoints
+  - Search is currently not supported
+  - Adventurer agency data is persisted by the char server into the `adventurer_agency` table (SQL migration is included)
+  - A new module (`int_adventurer_agency`) has been added to the char server
+- Added the following third party libraries, used by the api-server:
+  - http-handler from the node-js http-parser (`3rdparty/http-parser`)
+  - multipart-parser (`3rdparty/multipart-parser`)
+  - cJSON (`3rdparty/cJSON`)
+  - llhttp (`3rdparty/llhttp`)
+  - GIFLIB (`3rdparty/libgif`)
+- Extended the SQL interface with the `SQL->QueryStrFetch()` method, to execute a query and fetch a row.
+- Added support for sending/receiving chunked packets (for sending and receiving packets that would exceed the maximum packet size)
+  - See related macros in `src/common/chunked/rfifo.h` and `src/common/chunked/wfifo.h`
+  - Tests are included, in `src/test/test_chunked.c`
+  - Chunked packets are usable for both server-server and client-server communication
+- Added `extraconf` interface (currently supporting `conf/common/emblems.conf`) for configuration files used by multiple servers
+
+### Changed
+
+- The `create_session()` function is now part of the socket interface and adds support for configurable connection and termination handlers.
+- The `delete_session()` function is now part of the socket interface.
+- Updated token generation in the login server to support communication with the API server.
+- Updated gitignore with temporary files from python and ccache.
+- Updated handling of packet `CZ_REQ_GUILD_EMBLEM_IMG` (now `PACKET_CZ_REQ_GUILD_EMBLEM_IMG1`) to use the struct format and added the `PACKET_CZ_REQ_GUILD_EMBLEM_IMG2` and `CZ_REQ_GUILD_EMBLEM_IMG3` variants.
+- Updated handling of packets `ZC_CHANGE_GUILD`, `ZC_GUILD_EMBLEM_IMG`, `CHARMAP_GUILD_EMBLEM`, `CHARMAP_GUILD_INFO`, `CHARMAP_GUILD_INFO_EMPTY`, `MAPCHAR_GUILD_EMBLEM` to use the struct format.
+- Updated packets `ZC_CHANGE_GUILD`, `ZC_GUILD_EMBLEM_IMG`.
+- Renamed `clif->guild_emblem_area()` into `clif->guild_emblem_id_area()`.
+- Renamed `DEFAULT_AUTOSAVE_INTERVAL` to `DEFAULT_CHAR_AUTOSAVE_INTERVAL` and `DEFAULT_MAP_AUTOSAVE_INTERVAL` to avoid conflicting definitions of the same macro.
+- Extended the `console.console_msg_log` (`conf/global/console.conf`) setting to work on all servers instead of just the map server.
+  - Log filenames will be named accordingly: `log/login-msg_log.log`, `log/char-msg_log.log`, `log/map-msg_log.log`, `log/api-msg_log.log`.
+- Changed `emblem_data` in `struct guild` to be a pointer instead of a fixed size array (this may require updates to any custom code copying or allocating/deallocating the struct).
+- Switched to python3 for all the debian/ubuntu jobs in Gitlab-CI
+- Enabled memory leak on exit checks to the address sanitizer configuration for CI builds
+
+### Fixed
+
+- Fixed a compilation error with ccache.
+- Fixed packetvers in `clif_friendslist_send()`.
+
+## [v2023.03.08] `March 08 2023`
+
+### Added
+
+- Added documentation for include overrides in configuration files (#3191)
+- Implemented the DynamicNPC Create request packets and the related script command `dynamicnpcresult()`. An example can be found in `npc/other/dynamicnpc_create.txt`. (#3192)
+- Implemented support for the GoldPC UI (a.k.a. Mileage), disabled by default, which can be enabled from `conf/map/battle/feature.conf` for packetver `20140611` and newer. (#3192)
+  - The initial implementation includes two modes (single and double), configurable in `db/goldpc_db.conf`, and selectable in `feature.conf`.
+  - An example NPC can be found in [doc/sample/goldpc.txt](doc/sample/goldpc.txt), demonstrating the use of the GoldPC system script commands (`setgoldpcmode()`).
+  - A custom GoldNPC NPC is spawned by players upon clicking the GoldPC button, see `npc/other/goldpc.txt`.
+  - Further documentation of the system is available in [doc/goldpc.md](doc/goldpc.md).
+
+### Changed
+
+- Added paths for include overrides to .gitignore so that they won't show up as untracked in git status or risk getting committed by accident. Those that wish to commit them to their fork are still free to do so by issuing a git add command. (#3191)
+
+### Fixed
+
+- Fixed the `RA_WUGBITE` immobile status (#2813)
+- Fixed the `SC_FEINTBOMB` cloak status not working (#2813)
+- Fixed an UnknownStatusChange error triggered by `SC__BLOODYLUST` (#2813)
+
+## [v2023.01.11] `January 11 2023`
+
+### Added
+
+- Added a skeleton function for generating an auth token. This doesn't add actual token generation capabilities at this time, but allows plugins to hook into it to implement custom behavior. (#3183)
+- Added the missing effects of Fire Expansion level 3 and 4 (#2920)
+
+### Changed
+
+- Changed `validateinterfaces.py` to run on python3. (#3185)
+- Changed the CI builds to use python3 instead of python2, as it's getting removed by linux distributions including debian unstable. (part of #3185)
+- Changed the `show_monster_hp_bar` option to show the HP bar on WoE guardians when it's enabled for Emperium (flag '2', disabled by default) instead of when it's enabled for MvPs/bosses (flag '4', also disabled by default.) (#2931, related to #2008, #2912)
+
+### Fixed
+
+- Fixed a missing package `php-dom` in CI builds. (part of #3185)
+
+### Other
+
+- Updated copyright headers for year 2023.
+
+## [v2022.12.07] `December 07 2022`
+
+### Added
+
+- Added the `nosendmail` mapflag, adding the ability to prevent players from sending emails (RODEX and classic) from a map. (#2962)
+- Added the `item_drop_bonus_max_threshold` configuration flag in `conf/map/battle/drops.conf`, making the item bonus rate cap configurable. (#3136)
+
+### Changed
+
+- Updated `script_commands.txt`, fixing typos and incorrect file names, adding documentation for missing `checkoption()` flags and updating some external URLs. (#3177)
+
+### Fixed
+
+- Added some missing checks for null in `sd->inventory_data` pointers to prevent crashes. (#3176)
+- Fixed the item bonus rate cap getting applied to the base item drop rates and the server's drop rate modifiers, making their real values different from what `@mi` shows. The cap now only applies to drop-time bonuses (cash shop SCs, race-specific drop rate modifiers, luk or size custom influence, renewal level modifiers, etc). (part of #3136)
+
+## [v2022.11.02+1] `November 02 2022` `PATCH 1`
+
+### Added
+
+- Added support for newer packetvers/encryption keys/client messages (up to 20221019). (#3174)
+- Added support for packet `ZC_SPECIALPOPUP` related to the Special Popup messages. (part of #3174)
+- Implemented script command `specialpopup()` to open a popup and/or show a chat text message from the `spopup.lub` file. An example script has been provided in `npc/custom/specialpopup.txt`. (#3174)
+- Implemented the `specialpopup` mapflag, to automatically show the popup text configured clientside. All GvG maps have been configured to show popup with type 1. (#3174)
+
+### Changed
+
+- Updated many packets with the correct Zero client packetver checks. (part of #3174)
+- Updated GitHub Actions workflows to use the latest packetver. (part of #3174)
+- Updated GitHub Actions workflow to include a gcc-12 build. (part of #3174)
+
+### Fixed
+
+- Fixed a conflicting variable name `pinfo`, causing warnings about shadowed variables when building plugins. (part of #3174)
+
+### Removed
+
+- Removed the unused value `vendinglistType` from `enum packet_headers`. (part of #3174)
+
+## [v2022.11.02] `November 02 2022`
+
+### Added
+
+- Updated the map cache and map list with new maps. (#3156)
+- Updated the NPC ID constants and Hat effect constants with new IDs. (part of #3156)
+- Implemented the package item selection UI for recent clients that support it. (#3158)
+  - A new item type, `IT_SELECTPACKAGE` is defined for this purpose (see the `Select_Example1` item).
+- Added support for constants and bitmask arrays in `mob_skill_db.conf`, for the `ConditionData`, `val<n>` and `Emotion` fields. (#3164, issue #2768)
+- Exposed monster modes (`MD_*` constants) to the script engine. (part of #3164)
+- Implemented the `@quest` atcommand, to manipulate a character's quest log. (#3166)
+- Implemented the Rebuilding the Destroyed Morroc quests from episode 14.3. Note: the quests (except the reward NPCs) are disabled by default. (#3167)
+- Implemented the Enchant User Interface for clients that support it. (#3159)
+  - The enchantments are defined in the newly introduced `db/*/enchant_db.conf` database.
+
+### Changed
+
+- Refactored `status->get_sc_def()` and its call chain (including `status->change_start()` and the `sc_start*()` macros to include the skill ID, used for SC immunity checks. (part of #3155)
+- Updated the CodeQL GitHub workflow to follow the latest upstream templates. (part of #3169)
+- Removed duplication and consolidated the functions of the `itemdb->lookup_const()` / `mob->lookup_const()` functions as `map->setting_lookup_const()`. (part of #3164)
+- Moved the function `itemdb->lookup_const_mask()` into the map interface as `map->setting_lookup_const_mask()`. (part of #3164)
+- Renamed the `BA_FROSTJOKER` skill and related constant to the official name `BA_FROSTJOKE`. The old name is left behind as a deprecated constant, to ease migration of custom code. (#3170)
+- Split `constants.md` into `constants_re.md` and `constants_pre-re.md`, since there are large variations in the available constants and their values between modes. The generator plugin and related CI script have been updated accordingly. (#3171)
+- Refactored and simplified some code after the removal of the multi-zone leftovers. (part of #3173)
+  - Cheatsheet for updating custom code:
+    - `MAX_MAP_SERVERS` has been removed, and any code that used it in a loop needs to be refactored to remove the loop that is no longer necessary.
+    - `chr->server[]` has become `chr->map_server` (and it's a single object rather than an array of one element).
+    - packet `H->Z` 0x2b04 (`chrif->recvmap()`) has been removed without a replacement as it was never sent.
+    - many functions that took a `map_id` / `server_id` argument no longer need it (since it would be always zero). Code that used it likely needs to be refactored or removed.
+    - packet `H->Z` 0x2b20 (`chrif->removemap()`) has been removed without a replacement as it was never sent.
+    - `mapif->sendallwos()` has been removed without a replacement as it never sent anything since there couldn't be more than one map server connected at any given time.
+    - `mapif->sendall()` is replaced by `mapif->send()` (but mind the different return value).
+    - `mapif->send()` no longer requires a server id argument since there can only be one (and its return value changed).
+    - several pieces of code have been completely removed since they were not reachable through any code path: any custom code part of them was likely never called and can be safely removed.
+    - `map->map_db` and any related functions have been removed, as it could never get populated.
+    - `chrif->other_mapserver_count` and any related functions have been removed, as it could never become nonzero.
+    - packets `Z->H` 0x2b05 and `H->Z` 0x2b06 have been removed as they could never be sent.
+    - `chr->search_mapserver()` and `chr->search_default_maps_mapserver()` have been completely overhauled and their purpose is now fulfilled by `chr->mapserver_has_map()` and `chr->find_available_map_fallback()`, with different return values and arguments.
+    - the `map_fd` argument has been removed from several non-mapif functions that should have no business with it. The map server's fd can be retrieved through `chr->map_server.fd`, but in most cases it shouldn't be necessary and could be a code smell.
+    - the `chrif->changemapserver()` function has been removed with no replacement as it was never called.
+    - the `server` field of `struct online_char_data` has been replaced with an enum and renamed to `mapserver_connection`. It no longer encodes the server ID (since it could only be zero) but only the connection state. The old `-2` special value maps to `OCS_UNKNOWN`, `-1` to `OCS_NOT_CONNECTED` and `>= 0` to `OCS_CONNECTED`.
+- Moved the `chrif` packet documentation to `packets_chrif_len.h`, where the packet lengths are defined. (part of #3173)
+
+### Fixed
+
+- Fixed/implemented Official behavior for the Golden Thief Bug Card, blocking SCs caused by magic-type skills, regardless of the SC type. (#3155)
+  - Exceptions apply: Magnificat, Gloria and Angelus are blocked, even if they aren't magic-type skills.
+  - Some skills that would be broken now have temporary workarounds to apply the right behavior if it doesn't match what their type dictates.
+  - The `NoMagicBlocked` flag has been removed from skills that no longer require it.
+- Fixed the `AttackType` for many skills to match the official value. (part of #3155)
+- Fixed the zeny payments through the Stylist UI to be properly logged and count toward achievements. (#3157)
+  - This includes a potentially very long running database migration for the logs database (adding the picklog type '5').
+- Fixed `PF_SOULCHANGE` to match the official behavior, preventing its use against characters in the Berserk state and against boss monsters and allowing it to disregard `SC_FOGWALL`. (#3160)
+- Fixed a case of the Doctor Quest taking items and not rewarding in return, as well as some `delitem()` that aren't executed in the same run loop as `countitem()`. (#3162)
+- Fixed some possible exploits in the Pickocked Quest, allowing only one instance of the NPC to be available at any time. (#3162)
+- Fixed the Dual Monster Race logic to disregard the relative order of the winning monsters and simplified the script logic. (#3162)
+- Fixed Kihop wrongly counting the bearer Taekwon for the bonus calculation. (#3161)
+- Fixed the interaction of Lex Aetherna with Freeze and Stone Curse. (#3161)
+- Fixed the SP cost behavior for Tarot Card of Fate when under the effect of Service for You. (#3161)
+- Fixed the duration of Super Novice's Steel Body when dying at 99% experience. (#3161)
+- Fixed the cast time and after cast delay of Napalm Beat. (#3161)
+- Fixed `CH_CHAINCRUSH` not working after `MO_COMBOFINISH`. (#3161)
+- Fixed several security issues (including a number of false positives) reported by CodeQL (overflows, misleading implicit type conversions, ambiguous regular expressions, etc) and refactored some related code to reduce dangerous variable reuses. (#3169)
+- Fixed some cases of movement notifications sent to the client after a monster dies, causing visual glitches such as mobs not cleared and still standing or moving after their death. (#3163, issues #2047, #2109)
+- Fixed an integer overflow in the image size for the Macro interface. (#3165)
+- Fixed a failed assertion when a quest has 3 objectives. (#3166)
+- Fixed various quest related packets sent to the client. (#3166)
+  - Fixed the labelling for quests that use monster size, race or element as conditions.
+  - Fixed swapped values for the mob size.
+  - Fixed the mob ID not being sent for special cases (with map names, races, sizes or elements) and requiring a new log in to see the correct quest objectives.
+- Fixed the Zeny retrieval process from RoDEX, causing potential loss of Zeny. (#3168)
+- Fixed output character encoding in the `setup_mariadb.ps1` script. (#3172)
+- Fixed a buffer overflow in `mapif->rodex_getitemsack()`. (part of #3173)
+
+### Deprecated
+
+- Deprecated the `BA_FROSTJOKER` skill ID and constant, renamed to the official name `BA_FROSTJOKE`. (part of #3170)
+
+### Removed
+
+- Removed the `itemdb->lookup_const()` and `mob->lookup_const()` functions, replaced by `map->setting_lookup_const()`. (part of #3164)
+- Removed the `itemdb->lookup_const_mask()` function, replaced by `map->setting_lookup_const_mask()`. (part of #3164)
+- Removed support for the deprecated `View` field in the item DB, replaced in 2016 by `ViewSprite` and `SubType` with #1828. (#3170)
+- Removed the deprecated constants `Job_Alchem` and `Job_Baby_Alchem`, replaced in 2016 by `Job_Alchemist` and `Job_Baby_Alchemist` with #1088. (#3170)
+- Removed the old `VAR_*` setlook constants, deprecated since 2016 with #908. (#3170)
+- Removed the `useatcmd()` script command, deprecated in 2017 with #1841. (#3170)
+- Removed code (mostly dead code) related to the long unsupported and long broken multi-zone functionality. (#3173)
+
+## [v2022.10.05] `October 05 2022`
+
+### Added
+
+- Added support for `UDT_OPTIONS` to `getunitdata()` and `setunitdata()`, allowing to interact with mobs that are using job sprites. (#3146)
+- Implemented the `AllowPlagiarism` `SkillInfo` flag in the skill DB and the `INF2_ALLOW_PLAGIARIZE` source code counterpart, allowing separate per-skill settings for Plagiarize and Reproduce. (#2948)
+- Added support for newer packetvers/encryption keys/client messages (up to 20220831). (#3152)
+- Added support for preview in the old cash shop packet. This is disabled by default and can be enabled by defining `ENABLE_OLD_CASHSHOP_PREVIEW_PATCH` or through the configure flag `--enable-old-cashshop-preview-patch`. A client patch is necessary, available at http://nemo.herc.ws/patches/ExtendOldCashShopPreview (part of #3152)
+- Implemented the Item Reform user interface on supported clients (2020 and newer). The feature can be configured through the `item_reform_info.conf` and `item_reform_list.conf` db files. (#3150)
+
+### Changed
+
+- Replaced use of `safesnprintf()` with the C99 standard `snprintf()`. (part of #3148)
+- Improved detection of the usability of `-Wformat-truncation`, disabling it on older gcc versions where it doesn't produce useful warnings. (part of #3148)
+- Refactored and fixed some Plagiarize/Reproduce related code. (part of #2948, issue #989)
+- Updated the list of third job skills that can be plagiarized. (part of #2948)
+
+### Fixed
+
+- Fixed the gcc version specific GitHub CI builds that were running Ubuntu 21.10, which is EOL. LTS versions are now preferentially used, where possible. (#3147)
+- Fixed HWSAPI run failures caused by a missing XML::Parser perl module (872aebe2d3)
+- Fixed the `UDT_CLASS` option of `setunitdata()` to set the view data's class if a mob uses a job class ID. (part of #3146)
+- Fixed some improper use of `safesnprintf()`/`snprintf()`, potentially causing truncation at the wrong position or buffer overruns. (part of #3148)
+- Fixed text in old clients in packet `ZC_NOTIFY_CHAT_PARTY`. (#3149)
+- Code style fixes. (part of #3149)
+- Fixed an interaction issue between copied (Plagiarize/Reproduce) skills and ones already present in the character's skill list. (part of #2948, issue 2940)
+
+### Removed
+
+- Removed the `safesnprintf()` function, superseded by the C99 standard function `snprintf()`. Note: in case of truncation, `snprintf()` returns the amount of characters that would have been written if the buffer wasn't limited, while `safesnprintf()` returns a negative value. Care should be used when replacing the function in third party code. (#3148)
+- Removed the `copyskill_restrict` battle config setting, superseded by the configurable per-skill restrictions. (part of #2948)
 
 ## [v2022.06.01] `June 01 2022`
 
@@ -368,10 +862,10 @@ If you are reading this in a text editor, simply ignore this section
 
 ### Added
 
-- Implemented support for conditional comments in the script engine's parser, allowing to exclude blocks of code (including top-level commands) from parsing based on a condition, in a similar fashion to ifdef directives in the C preprocessor. See `doc/script_commands.txt` and the pull request description for detailed information on their use. (#3080)
+- Implemented support for conditional comments in the script engine's parser, allowing to exclude blocks of code (including top-level commands) from parsing based on a condition, in a similar fashion to ifdef directives in the C preprocessor. See [doc/script_commands.txt](doc/script_commands.txt) and the pull request description for detailed information on their use. (#3080)
 - Added a setting to prevent the GM administration NPCs from loading (leveraging conditional comments). (part of #3080)
   - See `script_configuration.load_gm_scripts` in `conf/map/script.conf`.
-  - The provided administrative NPCs have been updated to support this setting and third party scripters that want to do the same can put their administrative NPCs behind conditional comments controlled by the `LOADGMSCRIPTS` feature (see `doc/script_commands.txt` for details.
+  - The provided administrative NPCs have been updated to support this setting and third party scripters that want to do the same can put their administrative NPCs behind conditional comments controlled by the `LOADGMSCRIPTS` feature (see [doc/script_commands.txt](doc/script_commands.txt) for details.
 - Implemented the `bSubSkill` item bonus, reducing damage in percentage from the specified skill. (#2970)
 - Implemented the `bDropAddRace` item bonus, increasing item drop rate in percentage when killing monsters of the specified race. (part of #2970)
 - Implemented the Star Emperor and the Soul Reaper job classes and their respective skills. (#3030)
@@ -381,7 +875,7 @@ If you are reading this in a text editor, simply ignore this section
 - Implemented support for loading captcha images on server startup (#3064)
 - Implemented the Lapine Upgrade user interface. (#3068)
 - Exposed the former `rodex_sendmail_sub()` function as part of the script interface, as `script->buildin_rodex_sendmail_sub()`. (part of #3071)
-- Implemented a `checkhiding()` script command, returning true if a character is hidden (Hiding, Cloaking or Chase Walking but not GM Perfect Hide). See `doc/script_commands.txt` for details. (part of #3081)
+- Implemented a `checkhiding()` script command, returning true if a character is hidden (Hiding, Cloaking or Chase Walking but not GM Perfect Hide). See [doc/script_commands.txt](doc/script_commands.txt) for details. (part of #3081)
 
 ### Changed
 
@@ -1120,7 +1614,7 @@ If you are reading this in a text editor, simply ignore this section
 - Added the new pets (including the jRO exclusive ones) and their related items/monsters to the renewal database. (#2689)
 - Added constants `ALL_MOBS_NONBOSS`, `ALL_MOBS_BOSS`, `ALL_MOBS` for the special mob IDs for global skill assignment in the mob skill database. (part of #2691)
 - Added support for `__func__` on Windows, since it's now available in every supported compiler. (part of #2691)
-- Added documentation for the mob skill database. See `doc/mob_skill_db.conf`. (#2680)
+- Added documentation for the mob skill database. See [doc/mob_skill_db.md](doc/mob_skill_db.md). (#2680)
 - Added missing functions for the name ack packets for `BL_ITEM` and `BL_SKILL`. (part of #2695)
 - Added/updated packets and encryption keys for clients up to 2020-04-14. (#2695)
 - Added support for packets `ZC_LAPINEUPGRADE_OPEN`, `CZ_LAPINEUPGRADE_CLOSE` and `ZC_LAPINEUPGRADE_RESULT` and a placeholder for `CZ_LAPINEUPGRADE_MAKE_ITEM`. (part of #2695)
@@ -1181,7 +1675,7 @@ If you are reading this in a text editor, simply ignore this section
   - Added new field `Intimacy.StarvingDelay` to pet DB.
   - Added new field `Intimacy.StarvingDecrement` to pet DB.
   - Increased `MAX_MOB_DB` to 22000.
-  - Added pet DB documentation file. (`doc/pet_db.txt`)
+  - Added pet DB documentation file. ([doc/pet_db.txt](doc/pet_db.txt))
   - Removed fields from pet DB where default values can be used.
   - Added intimacy validation to pet DB `EquipScript` fields. This replaces the `pet_equip_min_friendly` battle config setting.
   - Adjusted `inter_pet_tosql()` and `inter_pet_fromsql()` functions to use prepared statements.
@@ -1815,7 +2309,7 @@ If you are reading this in a text editor, simply ignore this section
 ### Added
 
 - Added/updated packets, encryption keys and message tables for clients up to 2019-01-09. (#2339)
-- Added support for the barter type shops. See `sellitem()`, `NST_BARTER` and the demo scripts in `doc/sample/npc_trader_sample.txt` and `npc/custom/bartershop.txt`. (part of #2339)
+- Added support for the barter type shops. See `sellitem()`, `NST_BARTER` and the demo scripts in [doc/sample/npc_trader_sample.txt](doc/sample/npc_trader_sample.txt) and [npc/custom/bartershop.txt](npc/custom/bartershop.txt). (part of #2339)
 - Added the `countnameditem()` script command. (#2307)
 - Added/updated packets, encryption keys and message tables for clients up to 2019-01-30. (#2353)
 
@@ -1900,12 +2394,12 @@ If you are reading this in a text editor, simply ignore this section
 ### Changed
 
 - Made `getunits()` stop unnecessarily iterating when the maximum specified amount of units is reached. (#2105)
-- Updated the item bonus documentation, converted to the Markdown format in `doc/item_bonus.md`. (#2259)
+- Updated the item bonus documentation, converted to the Markdown format in [doc/item_bonus.md](doc/item_bonus.md). (#2259)
 - Improved the channel delay message to include the remaining time before a new message can be sent. (#2286)
 - Removed the unused `type` argument from `getnpcid()`. All the shipped scripts have been updated. (#2289)
 - Improved the `charlog` to include the stats, class, hair color and style whenever available. This affects the character selection and rename log entries, that had most fields zeroed before. (#2320)
-- Updated the quest variables documentation, converted to the Markdown format in `doc/quest_variables.md`. (#2256)
-- Updated the monster modes documentation, converted to the Markdown format in `doc/mob_db_mode_list.md`. (#2255)
+- Updated the quest variables documentation, converted to the Markdown format in [doc/quest_variables.md](doc/quest_variables.md). (#2256)
+- Updated the monster modes documentation, converted to the Markdown format in [doc/mob_db_mode_list.md](doc/mob_db_mode_list.md). (#2255)
 - Documented `flag` of the `status->heal()` function through the `enum status_heal_flag`. (part of #1215)
 - Added packet versions for all server types to the socket datasync validation. (part of #2321)
 
@@ -2463,6 +2957,19 @@ If you are reading this in a text editor, simply ignore this section
 - New versioning scheme and project changelogs/release notes (#1853)
 
 [Unreleased]: https://github.com/HerculesWS/Hercules/compare/stable...master
+[v2023.11]: https://github.com/HerculesWS/Hercules/compare/v2023.10...v2023.11
+[v2023.10]: https://github.com/HerculesWS/Hercules/compare/v2023.08...v2023.10
+[v2023.08]: https://github.com/HerculesWS/Hercules/compare/v2023.07.12...v2023.08
+[v2023.07.12]: https://github.com/HerculesWS/Hercules/compare/v2022.06.14...v2023.07.12
+[v2023.06.14]: https://github.com/HerculesWS/Hercules/compare/v2022.05.10...v2023.06.14
+[v2023.05.10]: https://github.com/HerculesWS/Hercules/compare/v2022.04.12...v2023.05.10
+[v2023.04.12]: https://github.com/HerculesWS/Hercules/compare/v2022.03.08...v2023.04.12
+[v2023.03.08]: https://github.com/HerculesWS/Hercules/compare/v2022.01.11...v2023.03.08
+[v2023.01.11]: https://github.com/HerculesWS/Hercules/compare/v2022.12.07...v2023.01.11
+[v2022.12.07]: https://github.com/HerculesWS/Hercules/compare/v2022.11.02+1...v2022.12.07
+[v2022.11.02+1]: https://github.com/HerculesWS/Hercules/compare/v2022.11.02...v2022.11.02+1
+[v2022.11.02]: https://github.com/HerculesWS/Hercules/compare/v2022.10.05...v2022.11.02
+[v2022.10.05]: https://github.com/HerculesWS/Hercules/compare/v2022.06.01...v2022.10.05
 [v2022.06.01]: https://github.com/HerculesWS/Hercules/compare/v2022.04.07...v2022.06.01
 [v2022.04.07]: https://github.com/HerculesWS/Hercules/compare/v2022.03.02...v2022.04.07
 [v2022.03.02]: https://github.com/HerculesWS/Hercules/compare/v2022.01.05+2...v2022.03.02

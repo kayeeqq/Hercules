@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -77,6 +77,7 @@ struct status_change_entry;
 
 #define MAX_SKILL_SPELLBOOK_DB     17
 #define MAX_SKILL_MAGICMUSHROOM_DB 23
+#define MAX_AUTOSPELL_DB           7
 
 //Walk intervals at which chase-skills are attempted to be triggered.
 #define WALK_SKILL_INTERVAL 5
@@ -116,38 +117,39 @@ enum e_skill_nk {
 	NK_NO_CARDFIX_DEF = 0x80,
 };
 
-//A skill with 3 would be no damage + splash: area of effect.
-//Constants to identify a skill's inf2 value.
+/// A skill with 3 would be no damage + splash: area of effect.
+/// Constants to identify a skill's inf2 value.
 enum e_skill_inf2 {
-	INF2_NONE               = 0x0000000,
-	INF2_QUEST_SKILL        = 0x0000001,
-	INF2_NPC_SKILL          = 0x0000002, // NPC skills are those that players can't have in their skill tree.
-	INF2_WEDDING_SKILL      = 0x0000004,
-	INF2_SPIRIT_SKILL       = 0x0000008,
-	INF2_GUILD_SKILL        = 0x0000010,
-	INF2_SONG_DANCE         = 0x0000020,
-	INF2_ENSEMBLE_SKILL     = 0x0000040,
-	INF2_TRAP               = 0x0000080,
-	INF2_TARGET_SELF        = 0x0000100, // Refers to ground placed skills that will target the caster as well (like Grandcross)
-	INF2_NO_TARGET_SELF     = 0x0000200,
-	INF2_PARTY_ONLY         = 0x0000400,
-	INF2_GUILD_ONLY         = 0x0000800,
-	INF2_NO_ENEMY           = 0x0001000,
-	INF2_NOLP               = 0x0002000, // Spells that can ignore Land Protector
-	INF2_CHORUS_SKILL       = 0x0004000, // Chorus skill
-	INF2_FREE_CAST_NORMAL   = 0x0008000,
-	INF2_FREE_CAST_REDUCED  = 0x0010000,
-	INF2_SHOW_SKILL_SCALE   = 0x0020000,
-	INF2_ALLOW_REPRODUCE    = 0x0040000,
-	INF2_HIDDEN_TRAP        = 0x0080000, // Traps that are hidden (based on trap_visiblity battle conf)
-	INF2_IS_COMBO_SKILL     = 0x0100000, // Sets whether a skill can be used in combos or not
-	INF2_NO_STASIS          = 0x0200000,
-	INF2_NO_KAGEHUMI        = 0x0400000,
-	INF2_RANGE_VULTURE      = 0x0800000, // Range is modified by AC_VULTURE
-	INF2_RANGE_SNAKEEYE     = 0x1000000, // Range is modified by GS_SNAKEEYE
-	INF2_RANGE_SHADOWJUMP   = 0x2000000, // Range is modified by NJ_SHADOWJUMP
-	INF2_RANGE_RADIUS       = 0x4000000, // Range is modified by WL_RADIUS
-	INF2_RANGE_RESEARCHTRAP = 0x8000000, // Range is modified by RA_RESEARCHTRAP
+	INF2_NONE               = 0x00000000,
+	INF2_QUEST_SKILL        = 0x00000001,
+	INF2_NPC_SKILL          = 0x00000002, ///< NPC skills are those that players can't have in their skill tree.
+	INF2_WEDDING_SKILL      = 0x00000004,
+	INF2_SPIRIT_SKILL       = 0x00000008,
+	INF2_GUILD_SKILL        = 0x00000010,
+	INF2_SONG_DANCE         = 0x00000020,
+	INF2_ENSEMBLE_SKILL     = 0x00000040,
+	INF2_TRAP               = 0x00000080,
+	INF2_TARGET_SELF        = 0x00000100, ///< Refers to ground placed skills that will target the caster as well (like Grandcross)
+	INF2_NO_TARGET_SELF     = 0x00000200,
+	INF2_PARTY_ONLY         = 0x00000400,
+	INF2_GUILD_ONLY         = 0x00000800,
+	INF2_NO_ENEMY           = 0x00001000,
+	INF2_NOLP               = 0x00002000, ///< Spells that can ignore Land Protector
+	INF2_CHORUS_SKILL       = 0x00004000, ///< Chorus skill
+	INF2_FREE_CAST_NORMAL   = 0x00008000,
+	INF2_FREE_CAST_REDUCED  = 0x00010000,
+	INF2_SHOW_SKILL_SCALE   = 0x00020000,
+	INF2_ALLOW_REPRODUCE    = 0x00040000, ///< Allow skill to be copied via SC_REPRODUCE
+	INF2_HIDDEN_TRAP        = 0x00080000, ///< Traps that are hidden (based on trap_visiblity battle conf)
+	INF2_IS_COMBO_SKILL     = 0x00100000, ///< Sets whether a skill can be used in combos or not
+	INF2_NO_STASIS          = 0x00200000,
+	INF2_NO_KAGEHUMI        = 0x00400000, 
+	INF2_RANGE_VULTURE      = 0x00800000, ///< Range is modified by AC_VULTURE
+	INF2_RANGE_SNAKEEYE     = 0x01000000, ///< Range is modified by GS_SNAKEEYE
+	INF2_RANGE_SHADOWJUMP   = 0x02000000, ///< Range is modified by NJ_SHADOWJUMP
+	INF2_RANGE_RADIUS       = 0x04000000, ///< Range is modified by WL_RADIUS
+	INF2_RANGE_RESEARCHTRAP = 0x08000000, ///< Range is modified by RA_RESEARCHTRAP
+	INF2_ALLOW_PLAGIARIZE   = 0x10000000, ///< Allow skill to be copied via RG_PLAGIARISM[KeiKun]
 };
 
 
@@ -563,7 +565,7 @@ enum e_skill {
 	BA_MUSICALLESSON,
 	BA_MUSICALSTRIKE,
 	BA_DISSONANCE,
-	BA_FROSTJOKER,
+	BA_FROSTJOKE,
 	BA_WHISTLE,
 	BA_ASSASSINCROSS,
 	BA_POEMBRAGI,
@@ -1809,6 +1811,14 @@ enum skill_enabled_npc_flags {
  * Structures
  **/
 
+/** Information about a possible skill for AutoSpell */
+struct s_autospell_db {
+	int autospell_level; //< Minimum AutoSpell level to show this skill
+	int skill_id; //< Skill Id
+	int skill_lv[MAX_SKILL_LEVEL]; //< Maximum usable skill level at each AutoSpell level
+	bool spirit_boost; //< Whether Sage's Spirit boosts this skill to maximum level
+};
+
 /** A container holding all required items. **/
 struct skill_required_item_data {
 	struct {
@@ -2015,6 +2025,10 @@ BEGIN_ZEROED_BLOCK; // This block will be zeroed in skill_defaults() as well as 
 	struct s_skill_improvise_db improvise_db[MAX_SKILL_IMPROVISE_DB];
 	struct s_skill_changematerial_db changematerial_db[MAX_SKILL_PRODUCE_DB];
 	struct s_skill_spellbook_db spellbook_db[MAX_SKILL_SPELLBOOK_DB];
+	/**
+	 * Skills for AutoSpell. entries with autospell_level = 0 are unused (and always at the end)
+	 */
+	struct s_autospell_db autospell_db[MAX_AUTOSPELL_DB];
 END_ZEROED_BLOCK;
 	struct s_skill_unit_layout unit_layout[MAX_SKILL_UNIT_LAYOUT];
 };
@@ -2140,7 +2154,7 @@ struct skill_interface {
 	int (*check_condition_castbegin) (struct map_session_data *sd, uint16 skill_id, uint16 skill_lv);
 	int (*check_condition_required_items) (struct map_session_data *sd, int skill_id, int skill_lv);
 	bool (*items_required) (struct map_session_data *sd, int skill_id, int skill_lv);
-	int (*check_condition_castend) (struct map_session_data *sd, uint16 skill_id, uint16 skill_lv);
+	int (*check_condition_castend) (struct map_session_data *sd, uint16 skill_id, uint16 skill_lv, struct block_list *target);
 	int (*get_any_item_index) (struct map_session_data *sd, int skill_id, int skill_lv);
 	int (*consume_requirement) (struct map_session_data *sd, uint16 skill_id, uint16 skill_lv, short type);
 	struct skill_condition (*get_requirement) (struct map_session_data *sd, uint16 skill_id, uint16 skill_lv);
@@ -2154,7 +2168,9 @@ struct skill_interface {
 	void (*repairweapon) (struct map_session_data *sd, int idx);
 	void (*identify) (struct map_session_data *sd,int idx);
 	void (*weaponrefine) (struct map_session_data *sd,int idx);
-	int (*autospell) (struct map_session_data *md,uint16 skill_id);
+	void (*autospell_select_spell) (struct block_list *bl, int skill_lv);
+	void (*autospell_select_spell_pc) (struct map_session_data *sd, int skill_lv);
+	int (*autospell_spell_selected) (struct map_session_data *md, uint16 skill_id);
 	int (*calc_heal) (struct block_list *src, struct block_list *target, uint16 skill_id, uint16 skill_lv, bool heal);
 	bool (*check_cloaking) (struct block_list *bl, struct status_change_entry *sce);
 	int (*check_cloaking_end) (struct block_list *bl, va_list ap);
@@ -2227,47 +2243,47 @@ struct skill_interface {
 	int (*unit_timer_sub) (union DBKey key, struct DBData *data, va_list ap);
 	void (*init_unit_layout) (void);
 	void (*init_unit_layout_unknown) (int skill_idx, int pos);
-	void (*validate_id) (struct config_setting_t *conf, struct s_skill_db *sk, int conf_index);
+	void (*validate_id) (struct config_setting_t *conf, struct s_skill_db *sk, int conf_index, struct DBMap *loaded_ids_db);
 	bool (*name_contains_invalid_character) (const char *name);
-	void (*validate_name) (struct config_setting_t *conf, struct s_skill_db *sk);
-	void (*validate_max_level) (struct config_setting_t *conf, struct s_skill_db *sk);
-	void (*validate_description) (struct config_setting_t *conf, struct s_skill_db *sk);
-	void (*validate_range) (struct config_setting_t *conf, struct s_skill_db *sk);
-	void (*validate_hittype) (struct config_setting_t *conf, struct s_skill_db *sk);
-	void (*validate_skilltype) (struct config_setting_t *conf, struct s_skill_db *sk);
-	void (*validate_skillinfo) (struct config_setting_t *conf, struct s_skill_db *sk);
-	void (*validate_attacktype) (struct config_setting_t *conf, struct s_skill_db *sk);
-	void (*validate_element) (struct config_setting_t *conf, struct s_skill_db *sk);
-	void (*validate_damagetype) (struct config_setting_t *conf, struct s_skill_db *sk);
-	void (*validate_splash_range) (struct config_setting_t *conf, struct s_skill_db *sk);
-	void (*validate_number_of_hits) (struct config_setting_t *conf, struct s_skill_db *sk);
-	void (*validate_interrupt_cast) (struct config_setting_t *conf, struct s_skill_db *sk);
-	void (*validate_cast_def_rate) (struct config_setting_t *conf, struct s_skill_db *sk);
-	void (*validate_number_of_instances) (struct config_setting_t *conf, struct s_skill_db *sk);
-	void (*validate_knock_back_tiles) (struct config_setting_t *conf, struct s_skill_db *sk);
-	void (*validate_cast_time) (struct config_setting_t *conf, struct s_skill_db *sk);
-	void (*validate_act_delay) (struct config_setting_t *conf, struct s_skill_db *sk);
-	void (*validate_walk_delay) (struct config_setting_t *conf, struct s_skill_db *sk);
-	void (*validate_skill_data1) (struct config_setting_t *conf, struct s_skill_db *sk);
-	void (*validate_skill_data2) (struct config_setting_t *conf, struct s_skill_db *sk);
-	void (*validate_cooldown) (struct config_setting_t *conf, struct s_skill_db *sk);
-	void (*validate_fixed_cast_time) (struct config_setting_t *conf, struct s_skill_db *sk);
-	void (*validate_castnodex) (struct config_setting_t *conf, struct s_skill_db *sk, bool delay);
-	void (*validate_hp_cost) (struct config_setting_t *conf, struct s_skill_db *sk);
-	void (*validate_sp_cost) (struct config_setting_t *conf, struct s_skill_db *sk);
-	void (*validate_hp_rate_cost) (struct config_setting_t *conf, struct s_skill_db *sk);
-	void (*validate_sp_rate_cost) (struct config_setting_t *conf, struct s_skill_db *sk);
-	void (*validate_max_hp_trigger) (struct config_setting_t *conf, struct s_skill_db *sk);
-	void (*validate_max_sp_trigger) (struct config_setting_t *conf, struct s_skill_db *sk);
-	void (*validate_zeny_cost) (struct config_setting_t *conf, struct s_skill_db *sk);
+	void (*validate_name) (struct config_setting_t *conf, struct s_skill_db *sk, bool inherited);
+	void (*validate_max_level) (struct config_setting_t *conf, struct s_skill_db *sk, bool inherited);
+	void (*validate_description) (struct config_setting_t *conf, struct s_skill_db *sk, bool inherited);
+	void (*validate_range) (struct config_setting_t *conf, struct s_skill_db *sk, bool inherited);
+	void (*validate_hittype) (struct config_setting_t *conf, struct s_skill_db *sk, bool inherited);
+	void (*validate_skilltype) (struct config_setting_t *conf, struct s_skill_db *sk, bool inherited);
+	void (*validate_skillinfo) (struct config_setting_t *conf, struct s_skill_db *sk, bool inherited);
+	void (*validate_attacktype) (struct config_setting_t *conf, struct s_skill_db *sk, bool inherited);
+	void (*validate_element) (struct config_setting_t *conf, struct s_skill_db *sk, bool inherited);
+	void (*validate_damagetype) (struct config_setting_t *conf, struct s_skill_db *sk, bool inherited);
+	void (*validate_splash_range) (struct config_setting_t *conf, struct s_skill_db *sk, bool inherited);
+	void (*validate_number_of_hits) (struct config_setting_t *conf, struct s_skill_db *sk, bool inherited);
+	void (*validate_interrupt_cast) (struct config_setting_t *conf, struct s_skill_db *sk, bool inherited);
+	void (*validate_cast_def_rate) (struct config_setting_t *conf, struct s_skill_db *sk, bool inherited);
+	void (*validate_number_of_instances) (struct config_setting_t *conf, struct s_skill_db *sk, bool inherited);
+	void (*validate_knock_back_tiles) (struct config_setting_t *conf, struct s_skill_db *sk, bool inherited);
+	void (*validate_cast_time) (struct config_setting_t *conf, struct s_skill_db *sk, bool inherited);
+	void (*validate_act_delay) (struct config_setting_t *conf, struct s_skill_db *sk, bool inherited);
+	void (*validate_walk_delay) (struct config_setting_t *conf, struct s_skill_db *sk, bool inherited);
+	void (*validate_skill_data1) (struct config_setting_t *conf, struct s_skill_db *sk, bool inherited);
+	void (*validate_skill_data2) (struct config_setting_t *conf, struct s_skill_db *sk, bool inherited);
+	void (*validate_cooldown) (struct config_setting_t *conf, struct s_skill_db *sk, bool inherited);
+	void (*validate_fixed_cast_time) (struct config_setting_t *conf, struct s_skill_db *sk, bool inherited);
+	void (*validate_castnodex) (struct config_setting_t *conf, struct s_skill_db *sk, bool delay, bool inherited);
+	void (*validate_hp_cost) (struct config_setting_t *conf, struct s_skill_db *sk, bool inherited);
+	void (*validate_sp_cost) (struct config_setting_t *conf, struct s_skill_db *sk, bool inherited);
+	void (*validate_hp_rate_cost) (struct config_setting_t *conf, struct s_skill_db *sk, bool inherited);
+	void (*validate_sp_rate_cost) (struct config_setting_t *conf, struct s_skill_db *sk, bool inherited);
+	void (*validate_max_hp_trigger) (struct config_setting_t *conf, struct s_skill_db *sk, bool inherited);
+	void (*validate_max_sp_trigger) (struct config_setting_t *conf, struct s_skill_db *sk, bool inherited);
+	void (*validate_zeny_cost) (struct config_setting_t *conf, struct s_skill_db *sk, bool inherited);
 	int (*validate_weapontype_sub) (const char *type, bool on, struct s_skill_db *sk);
-	void (*validate_weapontype) (struct config_setting_t *conf,  struct s_skill_db *sk);
+	void (*validate_weapontype) (struct config_setting_t *conf,  struct s_skill_db *sk, bool inherited);
 	int (*validate_ammotype_sub) (const char *type, bool on, struct s_skill_db *sk);
-	void (*validate_ammotype) (struct config_setting_t *conf,  struct s_skill_db *sk);
-	void (*validate_ammo_amount) (struct config_setting_t *conf,  struct s_skill_db *sk);
+	void (*validate_ammotype) (struct config_setting_t *conf,  struct s_skill_db *sk, bool inherited);
+	void (*validate_ammo_amount) (struct config_setting_t *conf,  struct s_skill_db *sk, bool inherited);
 	int (*validate_state_sub) (const char *state);
-	void (*validate_state) (struct config_setting_t *conf, struct s_skill_db *sk);
-	void (*validate_spirit_sphere_cost) (struct config_setting_t *conf, struct s_skill_db *sk);
+	void (*validate_state) (struct config_setting_t *conf, struct s_skill_db *sk, bool inherited);
+	void (*validate_spirit_sphere_cost) (struct config_setting_t *conf, struct s_skill_db *sk, bool inherited);
 	void (*validate_item_requirements_sub_item_amount) (struct config_setting_t *conf, struct s_skill_db *sk, int item_index);
 	void (*validate_item_requirements_sub_items) (struct config_setting_t *conf, struct s_skill_db *sk);
 	void (*validate_item_requirements_sub_any_flag) (struct config_setting_t *conf, struct s_skill_db *sk);
@@ -2277,7 +2293,7 @@ struct skill_interface {
 	void (*validate_equip_requirements_sub_any_flag) (struct config_setting_t *conf, struct s_skill_db *sk);
 	void (*validate_equip_requirements) (struct config_setting_t *conf, struct s_skill_db *sk);
 	int (*validate_requirements_item_name) (const char *name);
-	void (*validate_requirements) (struct config_setting_t *conf, struct s_skill_db *sk);
+	void (*validate_requirements) (struct config_setting_t *conf, struct s_skill_db *sk, bool inherited);
 	int (*validate_unit_id_sub) (int unit_id);
 	void (*validate_unit_id) (struct config_setting_t *conf, struct s_skill_db *sk);
 	void (*validate_unit_layout) (struct config_setting_t *conf, struct s_skill_db *sk);
@@ -2288,9 +2304,14 @@ struct skill_interface {
 	int (*validate_unit_target_sub) (const char *target);
 	void (*validate_unit_target) (struct config_setting_t *conf, struct s_skill_db *sk);
 	void (*validate_unit) (struct config_setting_t *conf, struct s_skill_db *sk);
-	void (*validate_status_change) (struct config_setting_t *conf, struct s_skill_db *sk);
-	void (*validate_additional_fields) (struct config_setting_t *conf, struct s_skill_db *sk);
+	void (*validate_status_change) (struct config_setting_t *conf, struct s_skill_db *sk, bool inherited);
+	void (*validate_additional_fields) (struct config_setting_t *conf, struct s_skill_db *sk, bool inherited);
 	bool (*read_skilldb) (const char *filename);
+	void (*read_autospell_skill_id) (struct config_setting_t *conf, struct s_autospell_db *sk, int index);
+	void (*read_autospell_skill_level) (struct config_setting_t *conf, struct s_autospell_db *sk);
+	void (*read_autospell_additional_fields) (struct config_setting_t *conf, struct s_autospell_db *sk);
+	int (*autospell_db_entry_compare) (const void *entry1, const void *entry2);
+	bool (*read_autospell_db) (const char *filename);
 	void (*config_set_level) (struct config_setting_t *conf, int *arr);
 	void (*level_set_value) (int *arr, int value);
 	bool (*parse_row_producedb) (char* split[], int columns, int current);
@@ -2350,7 +2371,7 @@ struct skill_interface {
 	int (*check_condition_castbegin_mount_unknown) (struct status_change *sc, uint16 *skill_id);
 	int (*check_condition_castbegin_madogear_unknown) (struct status_change *sc, uint16 *skill_id);
 	int (*check_condition_castbegin_unknown) (struct status_change *sc, uint16 *skill_id);
-	bool (*check_condition_castend_unknown) (struct map_session_data* sd, uint16 *skill_id, uint16 *skill_lv);
+	bool (*check_condition_castend_unknown) (struct map_session_data* sd, uint16 *skill_id, uint16 *skill_lv, struct block_list *target);
 	bool (*get_requirement_off_unknown) (struct status_change *sc, uint16 *skill_id);
 	bool (*get_requirement_item_unknown) (struct status_change *sc, struct map_session_data* sd, uint16 *skill_id, uint16 *skill_lv, uint16 *idx, int *i);
 	void (*get_requirement_unknown) (struct status_change *sc, struct map_session_data* sd, uint16 *skill_id, uint16 *skill_lv, struct skill_condition *req);

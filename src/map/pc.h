@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -25,6 +25,7 @@
 #include "map/battleground.h" // enum bg_queue_types
 #include "map/buyingstore.h"  // struct s_buyingstore
 #include "map/itemdb.h" // MAX_ITEMDELAYS
+#include "map/goldpc.h" // goldpc_mode
 #include "map/log.h" // struct e_log_pick_type
 #include "map/macro.h" // struct macro_detect
 #include "map/map.h" // RC_MAX, ELE_MAX
@@ -264,6 +265,8 @@ struct map_session_data {
 		unsigned int lapine_ui : 1;
 		unsigned int onekillmonster : 1;
 		unsigned int grade_ui : 1;
+		unsigned int reform_ui : 1;
+		unsigned int enchant_ui : 1;
 	} state;
 	struct {
 		unsigned char no_weapon_damage, no_magic_damage, no_misc_damage;
@@ -546,6 +549,7 @@ END_ZEROED_BLOCK;
 	struct {
 		struct rodex_message tmp;
 		struct rodex_maillist messages;
+		VECTOR_DECL(int64) claim_list;
 		int total;
 		bool new_mail;
 	} rodex;
@@ -676,6 +680,19 @@ END_ZEROED_BLOCK;
 	bool flicker; /// Check RL_FLICKER usage status [Cydh]
 
 	struct macro_detect macro_detect;
+
+	struct {
+		bool loaded; //< Has goldpc initialization finished?
+		struct goldpc_mode *mode; //< the mode this player is currently spending time for
+		int points; //< How many points the player currently have
+		int play_time; //< How many seconds has passed since the player started this unit (not updated in real time)
+		int tid; //< Timer to get points
+		int64 start_tick; //< tick when the timer started
+	} goldpc;
+
+	VECTOR_DECL(int) agency_requests;
+
+	int last_added_quest_id; ///< Most recent quest id added to quest log in this play session
 };
 
 #define EQP_WEAPON EQP_HAND_R
@@ -701,11 +718,13 @@ END_ZEROED_BLOCK;
 #define pc_isidle(sd)         ( (sd)->chat_id != 0 || (sd)->state.vending || (sd)->state.buyingstore || DIFF_TICK(sockt->last_tick, (sd)->idletime) >= battle->bc->idle_no_share )
 #define pc_istrading(sd)      ( (sd)->npc_id || (sd)->state.vending || (sd)->state.buyingstore || (sd)->state.trading )
 #define pc_istrading_except_npc(sd) ( (sd)->state.vending != 0 || (sd)->state.buyingstore != 0 || (sd)->state.trading != 0 )
-#define pc_cant_act(sd)       ( (sd)->npc_id || (sd)->state.vending || (sd)->state.buyingstore || (sd)->chat_id != 0 || ((sd)->sc.opt1 && (sd)->sc.opt1 != OPT1_BURNING) || (sd)->state.trading || (sd)->state.storage_flag || (sd)->state.prevend || (sd)->state.refine_ui == 1 || (sd)->state.lapine_ui == 1 || (sd)->state.grade_ui == 1)
-#define pc_cant_act_except_lapine(sd) ((sd)->npc_id || (sd)->state.vending || (sd)->state.buyingstore || (sd)->chat_id != 0 || ((sd)->sc.opt1 && (sd)->sc.opt1 != OPT1_BURNING) || (sd)->state.trading || (sd)->state.storage_flag || (sd)->state.prevend || (sd)->state.refine_ui == 1)
-#define pc_cant_act_except_npc(sd) ( (sd)->state.vending != 0 || (sd)->state.buyingstore != 0 || (sd)->chat_id != 0 || ((sd)->sc.opt1 != 0 && (sd)->sc.opt1 != OPT1_BURNING) || (sd)->state.trading != 0 || (sd)->state.storage_flag != 0 || (sd)->state.prevend != 0 || (sd)->state.refine_ui == 1 || (sd)->state.lapine_ui == 1)
-#define pc_cant_act_except_npc_chat(sd) ( (sd)->state.vending != 0 || (sd)->state.buyingstore != 0 || ((sd)->sc.opt1 != 0 && (sd)->sc.opt1 != OPT1_BURNING) || (sd)->state.trading != 0 || (sd)->state.storage_flag != 0 || (sd)->state.prevend != 0 || (sd)->state.refine_ui == 1 || (sd)->state.lapine_ui == 1)
-#define pc_cant_act_except_grade(sd)       ( (sd)->npc_id || (sd)->state.vending || (sd)->state.buyingstore || (sd)->chat_id != 0 || ((sd)->sc.opt1 && (sd)->sc.opt1 != OPT1_BURNING) || (sd)->state.trading || (sd)->state.storage_flag || (sd)->state.prevend || (sd)->state.refine_ui == 1 || (sd)->state.lapine_ui == 1)
+#define pc_cant_act(sd)       ( (sd)->npc_id || (sd)->state.vending || (sd)->state.buyingstore || (sd)->chat_id != 0 || ((sd)->sc.opt1 && (sd)->sc.opt1 != OPT1_BURNING) || (sd)->state.trading || (sd)->state.storage_flag || (sd)->state.prevend || (sd)->state.refine_ui == 1 || (sd)->state.lapine_ui == 1 || (sd)->state.grade_ui == 1 || (sd)->state.reform_ui == 1 || (sd)->state.enchant_ui == 1)
+#define pc_cant_act_except_lapine(sd) ((sd)->npc_id || (sd)->state.vending || (sd)->state.buyingstore || (sd)->chat_id != 0 || ((sd)->sc.opt1 && (sd)->sc.opt1 != OPT1_BURNING) || (sd)->state.trading || (sd)->state.storage_flag || (sd)->state.prevend || (sd)->state.refine_ui == 1 || (sd)->state.grade_ui == 1 || (sd)->state.reform_ui == 1 || (sd)->state.enchant_ui == 1)
+#define pc_cant_act_except_npc(sd) ( (sd)->state.vending != 0 || (sd)->state.buyingstore != 0 || (sd)->chat_id != 0 || ((sd)->sc.opt1 != 0 && (sd)->sc.opt1 != OPT1_BURNING) || (sd)->state.trading != 0 || (sd)->state.storage_flag != 0 || (sd)->state.prevend != 0 || (sd)->state.refine_ui == 1 || (sd)->state.lapine_ui == 1 || (sd)->state.grade_ui == 1 || (sd)->state.reform_ui == 1 || (sd)->state.enchant_ui == 1)
+#define pc_cant_act_except_npc_chat(sd) ( (sd)->state.vending != 0 || (sd)->state.buyingstore != 0 || ((sd)->sc.opt1 != 0 && (sd)->sc.opt1 != OPT1_BURNING) || (sd)->state.trading != 0 || (sd)->state.storage_flag != 0 || (sd)->state.prevend != 0 || (sd)->state.refine_ui == 1 || (sd)->state.lapine_ui == 1 || (sd)->state.grade_ui == 1 || (sd)->state.reform_ui == 1 || (sd)->state.enchant_ui == 1)
+#define pc_cant_act_except_grade(sd)       ( (sd)->npc_id || (sd)->state.vending || (sd)->state.buyingstore || (sd)->chat_id != 0 || ((sd)->sc.opt1 && (sd)->sc.opt1 != OPT1_BURNING) || (sd)->state.trading || (sd)->state.storage_flag || (sd)->state.prevend || (sd)->state.refine_ui == 1 || (sd)->state.lapine_ui == 1 || (sd)->state.reform_ui == 1 || (sd)->state.enchant_ui == 1)
+#define pc_cant_act_except_reform(sd)       ( (sd)->npc_id || (sd)->state.vending || (sd)->state.buyingstore || (sd)->chat_id != 0 || ((sd)->sc.opt1 && (sd)->sc.opt1 != OPT1_BURNING) || (sd)->state.trading || (sd)->state.storage_flag || (sd)->state.prevend || (sd)->state.refine_ui == 1 || (sd)->state.lapine_ui == 1 || (sd)->state.grade_ui == 1 || (sd)->state.enchant_ui == 1)
+#define pc_cant_act_except_enchant(sd)       ( (sd)->npc_id || (sd)->state.vending || (sd)->state.buyingstore || (sd)->chat_id != 0 || ((sd)->sc.opt1 && (sd)->sc.opt1 != OPT1_BURNING) || (sd)->state.trading || (sd)->state.storage_flag || (sd)->state.prevend || (sd)->state.refine_ui == 1 || (sd)->state.lapine_ui == 1 || (sd)->state.grade_ui == 1 || (sd)->state.reform_ui == 1)
 
 /* equals pc_cant_act except it doesn't check for chat rooms */
 #define pc_cant_act2(sd)       ( (sd)->npc_id || (sd)->state.buyingstore || ((sd)->sc.opt1 && (sd)->sc.opt1 != OPT1_BURNING) || (sd)->state.trading || (sd)->state.storage_flag || (sd)->state.prevend || (sd)->state.refine_ui == 1 || (sd)->state.lapine_ui == 1)
@@ -726,17 +745,12 @@ END_ZEROED_BLOCK;
 
 #define pc_isfalcon(sd)       ( (sd)->sc.option&OPTION_FALCON )
 #define pc_isinvisible(sd)    ( (sd)->sc.option&OPTION_INVISIBLE )
-#define pc_is50overweight(sd) ( (sd)->weight*100 >= (sd)->max_weight*battle->bc->natural_heal_weight_rate )
+#define pc_overhealweightrate(sd) ( status->dbs->unit_params[pc->class2idx((sd)->status.class)]->natural_heal_weight_rate )
+#define pc_isoverhealweight(sd) ( (sd)->weight * 100 >= (sd)->max_weight * status->dbs->unit_params[pc->class2idx((sd)->status.class)]->natural_heal_weight_rate )
 #define pc_is90overweight(sd) ( (sd)->weight*10 >= (sd)->max_weight*9 )
-#define pc_maxparameter(sd)   ( \
-	((sd)->job & MAPID_BASEMASK) == MAPID_SUMMONER ? battle->bc->max_summoner_parameter : \
-	( ((sd)->job & MAPID_UPPERMASK) == MAPID_KAGEROUOBORO \
-	 || ((sd)->job & MAPID_UPPERMASK) == MAPID_REBELLION \
-	 || ((sd)->job & MAPID_THIRDMASK) == MAPID_SUPER_NOVICE_E \
-	) ? battle->bc->max_extended_parameter : ((sd)->job & JOBL_THIRD) ? \
-	    (((sd)->job & JOBL_BABY) ? battle->bc->max_baby_third_parameter : battle->bc->max_third_parameter ) : \
-	    (((sd)->job & JOBL_BABY) ? battle->bc->max_baby_parameter : battle->bc->max_parameter) \
-	)
+#define pc_maxhp_cap(sd) ( status->get_maxhp_cap_entry(pc->class2idx((sd)->status.class), (sd)->status.base_level)->value )
+#define pc_max_aspd(sd) ( status->dbs->unit_params[pc->class2idx((sd)->status.class)]->max_aspd )
+#define pc_maxstats(sd)   ( status->dbs->unit_params[pc->class2idx((sd)->status.class)]->max_stats )
 /// Generic check for mounts
 #define pc_hasmount(sd)       ( (sd)->sc.option&(OPTION_RIDING|OPTION_WUGRIDER|OPTION_DRAGON|OPTION_MADOGEAR) )
 /// Knight classes Peco / Gryphon

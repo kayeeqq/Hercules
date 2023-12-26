@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2013-2022 Hercules Dev Team
+ * Copyright (C) 2013-2023 Hercules Dev Team
  *
  * Hercules is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #define COMMON_HPMI_H
 
 #include "common/hercules.h"
+#include "common/apipackets.h"
 #include "common/console.h"
 #include "common/core.h"
 #include "common/showmsg.h"
@@ -49,7 +50,7 @@ struct s_HPMDataCheck {
 	int type;
 };
 
-#define SERVER_TYPE_ALL (SERVER_TYPE_LOGIN|SERVER_TYPE_CHAR|SERVER_TYPE_MAP)
+#define SERVER_TYPE_ALL (SERVER_TYPE_LOGIN|SERVER_TYPE_CHAR|SERVER_TYPE_MAP|SERVER_TYPE_API)
 
 enum hp_event_types {
 	HPET_INIT,/* server starts */
@@ -68,6 +69,11 @@ enum HPluginPacketHookingPoints {
 	hpParse_Char,      ///< char-server (client-char)
 	hpParse_FromChar,  ///< login-server (char-login)
 	hpParse_Login,     ///< login-server (client-login)
+	hpParse_ApiLogin,  ///< login-server (api-login)
+	hpParse_LoginApi,  ///< api-server (login-api)
+	hpProxy_ApiLogin,  ///< login-server (api-login)
+	hpProxy_ApiChar,   ///< char-server (api-char)
+	hpProxy_ApiMap,    ///< map-server (api-map)
 	/* */
 	hpPHP_MAX,
 };
@@ -90,6 +96,7 @@ enum HPluginDataTypes {
 	HPDT_BGDATA,         ///< For struct battleground_data.
 	HPDT_AUTOTRADE_VEND, ///< For struct autotrade_vending.
 	HPDT_CLAN,           ///< For struct clan.
+	HPDT_UNIT_PARAMETER, ///< For struct unit_parameters_db.
 };
 
 /* used in macros and conf storage */
@@ -158,6 +165,10 @@ enum HPluginConfType {
 #define addtoCLAN(ptr,data,classid,autofree) (HPMi->addToHPData(HPDT_CLAN,HPMi->pid,&(ptr)->hdata,(data),(classid),(autofree)))
 #define getfromCLAN(ptr,classid) (HPMi->getFromHPData(HPDT_CLAN,HPMi->pid,(ptr)->hdata,(classid)))
 #define removefromCLAN(ptr,classid) (HPMi->removeFromHPData(HPDT_CLAN,HPMi->pid,(ptr)->hdata,(classid)))
+/* unit parameters */
+#define addToUnitParam(ptr,data,classid,autofree) (HPMi->addToHPData(HPDT_UNIT_PARAMETER,HPMi->pid,&(ptr)->hdata,(data),(classid),(autofree)))
+#define getfromUnitParam(ptr,classid) (HPMi->getFromHPData(HPDT_UNIT_PARAMETER,HPMi->pid,(ptr)->hdata,(classid)))
+#define removefromUnitParam(ptr,classid) (HPMi->removeFromHPData(HPDT_UNIT_PARAMETER,HPMi->pid,(ptr)->hdata,(classid)))
 
 /// HPMi->addCommand
 #define addAtcommand(cname,funcname) do { \
@@ -209,6 +220,8 @@ enum HPluginConfType {
 
 /* HPMi->addPCGPermission */
 #define addGroupPermission(pcgname,maskptr) HPMi->addPCGPermission(HPMi->pid,pcgname,&maskptr)
+
+#define addProxyPacket(cmd, structname, receive, point) addPacket(cmd, WFIFO_APICHAR_SIZE + sizeof(struct PACKET_API_ ## structname ## _data), receive, point)
 
 /* Hercules Plugin Mananger Include Interface */
 struct HPMi_interface {

@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -24,6 +24,7 @@
 
 #include "char/char.h"
 #include "char/geoip.h"
+#include "char/int_adventurer_agency.h"
 #include "char/int_auction.h"
 #include "char/int_clan.h"
 #include "char/int_elemental.h"
@@ -1043,6 +1044,7 @@ static int inter_parse_frommap(int fd)
 		  || inter_rodex->parse_frommap(fd)
 		  || inter_clan->parse_frommap(fd)
 		  || inter_achievement->parse_frommap(fd)
+		  || inter_adventurer_agency->parse_frommap(fd)
 		   )
 			break;
 		else

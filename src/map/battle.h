@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -252,14 +252,12 @@ struct Battle_Config {
 	int natural_healsp_interval;
 	int natural_heal_cap;
 	int natural_heal_skill_interval;
-	int natural_heal_weight_rate;
 	int arrow_decrement;
 	int max_aspd;
 	int max_walk_speed; //Maximum walking speed after buffs [Skotlex]
-	int max_hp;
 	int max_sp;
 	int max_lv, aura_lv;
-	int max_parameter, max_baby_parameter;
+	int max_parameter;
 	int max_cart_weight;
 	int skill_log;
 	int battle_log;
@@ -304,9 +302,21 @@ struct Battle_Config {
 	int party_show_share_picker;
 	int show_picker_item_type;
 	int attack_attr_none;
-	int item_rate_mvp, item_rate_common, item_rate_common_boss, item_rate_card, item_rate_card_boss,
-	item_rate_equip, item_rate_equip_boss, item_rate_heal, item_rate_heal_boss, item_rate_use,
-	item_rate_use_boss, item_rate_treasure, item_rate_adddrop, item_rate_add_chain;
+	int item_rate_mvp;
+	int item_rate_common;
+	int item_rate_common_boss;
+	int item_rate_card;
+	int item_rate_card_boss;
+	int item_rate_equip;
+	int item_rate_equip_boss;
+	int item_rate_heal;
+	int item_rate_heal_boss;
+	int item_rate_use;
+	int item_rate_use_boss;
+	int item_rate_treasure;
+	int item_rate_adddrop;
+	int item_rate_add_chain;
+	int item_drop_bonus_max_threshold;
 
 	int logarithmic_drops;
 	int item_drop_common_min,item_drop_common_max; // Added by TyrNemesis^
@@ -349,6 +359,7 @@ struct Battle_Config {
 	int bone_drop;
 	int buyer_name;
 	int dancing_weaponswitch_fix;
+	int keep_dir_free_cell;
 
 	// eAthena additions
 	int night_at_start; // added by [Yor]
@@ -396,7 +407,6 @@ struct Battle_Config {
 
 	int ignore_items_gender; //[Lupus]
 
-	int copyskill_restrict; // [Aru]
 	int berserk_cancels_buffs; // [Aru]
 	int mob_ai; //Configures various mob_ai settings to make them smarter or dumber(official). [Skotlex]
 	int hom_setting; //Configures various homunc settings which make them behave unlike normal characters.. [Skotlex]
@@ -486,10 +496,7 @@ struct Battle_Config {
 
 	// rAthena
 	int max_third_parameter;
-	int max_baby_third_parameter;
-	int max_extended_parameter;
 	int atcommand_max_stat_bypass;
-	int max_third_aspd;
 	int vcast_stat_scale;
 
 	int mvp_tomb_enabled;
@@ -556,7 +563,6 @@ struct Battle_Config {
 
 	int bow_unequip_arrow;
 
-	int max_summoner_parameter; // Summoner Max Stats
 	int mvp_exp_reward_message;
 
 	int mob_eye_range_bonus; //Vulture's Eye and Snake's Eye range bonus
@@ -590,6 +596,7 @@ struct Battle_Config {
 	int ping_time;
 
 	int option_drop_max_loop;
+	int enchant_ui_max_loop;
 
 	int drop_connection_on_quit;
 	int display_rate_messages;
@@ -639,6 +646,11 @@ struct Battle_Config {
 	int grader_max_used;
 	int dynamic_npc_timeout;
 	int dynamic_npc_range;
+
+	int feature_goldpc_enable;
+	int feature_goldpc_default_mode;
+
+	int venom_dust_exp; // Enable exp given by venom dust
 };
 
 /* criteria for battle_config.idletime_criteria */
@@ -696,6 +708,8 @@ struct battle_interface {
 	int64 (*calc_bg_damage) (struct block_list *src, struct block_list *bl, int64 damage, int div_, uint16 skill_id, uint16 skill_lv, int flag);
 	/* normal weapon attack */
 	enum damage_lv (*weapon_attack) (struct block_list *bl, struct block_list *target, int64 tick, int flag);
+	/* returns whether bladestop should start for attacker/target */
+	bool (*should_bladestop_attacker) (struct block_list *src, struct block_list *target);
 	/* check is equipped ammo and this ammo allowed */
 	bool (*check_arrows) (struct map_session_data *sd);
 	/* calculate weapon attack */
@@ -763,6 +777,7 @@ struct battle_interface {
 	int (*calc_drain) (int64 damage, int rate, int per);
 	/* battle_config */
 	bool (*config_read) (const char *filename, bool imported);
+	void (*config_check_deprecated) (const char *filename, struct config_t *config);
 	void (*config_set_defaults) (void);
 	bool (*config_set_value_sub) (int index, int value);
 	bool (*config_set_value) (const char *param, const char *value);

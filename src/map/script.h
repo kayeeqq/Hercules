@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -176,6 +176,7 @@ struct item_data;
 #define script_getvaridx(var) ( (uint32)(int64)((var >> 32) & 0xFFFFFFFF) )
 
 #define not_server_variable(prefix) ( (prefix) != '$' && (prefix) != '.' && (prefix) != '\'')
+#define is_int_variable(name) ( (name)[strlen(name) - 1] != '$' )
 #define is_string_variable(name) ( (name)[strlen(name) - 1] == '$' )
 
 #define BUILDIN(x) bool buildin_ ## x (struct script_state* st)
@@ -352,6 +353,8 @@ enum {
 	MF_NOKNOCKBACK,
 	MF_SRC4INSTANCE,
 	MF_CVC,
+	MF_SPECIALPOPUP,
+	MF_NOSENDMAIL,
 };
 
 enum navigation_service {
@@ -441,6 +444,7 @@ enum script_unit_data_types {
 	UDT_BODY2,
 	UDT_GROUP,
 	UDT_DAMAGE_TAKEN_RATE,
+	UDT_OPTIONS,
 	UDT_MAX
 };
 
@@ -494,6 +498,7 @@ enum script_iteminfo_types {
 	ITEMINFO_ID,
 	ITEMINFO_AEGISNAME,
 	ITEMINFO_NAME,
+	ITEMINFO_FLAG_SELECT_PACKAGE,
 	ITEMINFO_MAX
 };
 
@@ -929,6 +934,7 @@ struct script_interface {
 	void (*error) (const char* src, const char* file, int start_line, const char* error_msg, const char* error_pos);
 	void (*warning) (const char* src, const char* file, int start_line, const char* error_msg, const char* error_pos);
 	/* */
+	struct script_code* (*clone_script) (struct script_code* original);
 	bool (*addScript) (char *name, char *args, bool (*func)(struct script_state *st), bool isDeprecated);
 	int (*conv_num) (struct script_state *st,struct script_data *data);
 	const char* (*conv_str) (struct script_state *st,struct script_data *data);
@@ -1092,6 +1098,7 @@ struct script_interface {
 	void (*array_delete) (struct reg_db *src, struct script_array *sa);
 	void (*array_remove_member) (struct reg_db *src, struct script_array *sa, unsigned int idx);
 	void (*array_add_member) (struct script_array *sa, unsigned int idx);
+	int32 (*array_get_num_member) (struct script_state *st, struct script_data *array_data, int index);
 	unsigned int (*array_size) (struct script_state *st, struct map_session_data *sd, const char *name, struct reg_db *ref);
 	unsigned int (*array_highest_key) (struct script_state *st, struct map_session_data *sd, const char *name, struct reg_db *ref);
 	int (*array_free_db) (union DBKey key, struct DBData *data, va_list ap);

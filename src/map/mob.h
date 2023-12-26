@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -601,7 +601,6 @@ struct mob_interface {
 	bool (*read_optdrops_group) (struct config_setting_t *group, int n);
 	bool (*read_optdrops_db) (void);
 	void (*readdb) (void);
-	bool (*lookup_const) (const struct config_setting_t *it, const char *name, int *value);
 	bool (*get_const) (const struct config_setting_t *it, int *value);
 	int (*db_validate_entry) (struct mob_db *entry, int n, const char *source);
 	int (*read_libconfig) (const char *filename, bool ignore_missing);

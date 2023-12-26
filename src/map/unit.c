@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -174,6 +174,9 @@ static int unit_walk_toxy_sub(struct block_list *bl)
 	struct unit_data *ud = unit->bl2ud(bl);
 	if (ud == NULL)
 		return 2;
+
+	if (status->isdead(bl))
+		return 1;
 
 	struct walkpath_data wpd = {0};
 
@@ -356,6 +359,9 @@ static int unit_walk_toxy_timer(int tid, int64 tick, int id, intptr_t data)
 		return 1;
 
 	if (ud->walkpath.path_pos >= ud->walkpath.path_len)
+		return 1;
+
+	if (status->isdead(bl)) // Should not be able to move
 		return 1;
 
 	enum unit_dir dir = ud->walkpath.path[ud->walkpath.path_pos];
@@ -1328,10 +1334,10 @@ static int unit_resume_running(int tid, int64 tick, int id, intptr_t data)
 	nullpo_ret(ud);
 	if(sd && pc_isridingwug(sd))
 		clif->skill_nodamage(ud->bl,ud->bl,RA_WUGDASH,ud->skill_lv,
-		                     sc_start4(ud->bl,ud->bl,skill->get_sc_type(RA_WUGDASH),100,ud->skill_lv,unit->getdir(ud->bl),0,0,1));
+			sc_start4(ud->bl, ud->bl, skill->get_sc_type(RA_WUGDASH), 100, ud->skill_lv, unit->getdir(ud->bl), 0, 0, 1, RA_WUGDASH));
 	else
 		clif->skill_nodamage(ud->bl,ud->bl,TK_RUN,ud->skill_lv,
-		                     sc_start4(ud->bl,ud->bl,skill->get_sc_type(TK_RUN),100,ud->skill_lv,unit->getdir(ud->bl),0,0,0));
+			sc_start4(ud->bl, ud->bl, skill->get_sc_type(TK_RUN), 100, ud->skill_lv, unit->getdir(ud->bl), 0, 0, 0, TK_RUN));
 
 	if (sd) clif->walkok(sd);
 
@@ -1339,6 +1345,18 @@ static int unit_resume_running(int tid, int64 tick, int id, intptr_t data)
 
 }
 
+/*==========================================
+ * Apply walk delay timer
+ *------------------------------------------*/
+static int unit_set_walkdelay_timer(int tid, int64 tick, int id, intptr_t data)
+{
+	struct block_list* bl = map->id2bl(id);
+	if (bl == NULL)
+		return 1;
+
+	unit->set_walkdelay(bl, tick, (int)data, 0);
+	return 0;
+}
 
 /*==========================================
  * Applies walk delay to character, considering that
@@ -1824,7 +1842,7 @@ static int unit_skilluse_id2(struct block_list *src, int target_id, uint16 skill
 		ud->state.skillcastcancel = 0;
 
 	if (sd == NULL || sd->auto_cast_current.type < AUTOCAST_ABRA || skill->get_cast(skill_id, skill_lv) != 0)
-		ud->canact_tick = tick + casttime + 100;
+		ud->canact_tick = tick + max(casttime, max(status_get_amotion(src), battle_config.min_skill_delay_limit));
 	if( sd )
 	{
 		switch( skill_id )
@@ -1964,7 +1982,7 @@ static int unit_skilluse_pos2(struct block_list *src, short skill_x, short skill
 
 	ud->state.skillcastcancel = castcancel&&casttime>0?1:0;
 	if (sd == NULL || sd->auto_cast_current.type < AUTOCAST_ABRA || skill->get_cast(skill_id, skill_lv) != 0)
-		ud->canact_tick  = tick + casttime + 100;
+		ud->canact_tick = tick + max(casttime, max(status_get_amotion(src), battle_config.min_skill_delay_limit));
 #if 0
 	if (sd) {
 		switch (skill_id) {
@@ -2985,6 +3003,7 @@ static int unit_free(struct block_list *bl, enum clr_type clrtype)
 			VECTOR_CLEAR(sd->storage.item);
 			VECTOR_CLEAR(sd->hatEffectId);
 			VECTOR_CLEAR(sd->title_ids); // Title [Dastgir/Hercules]
+			VECTOR_CLEAR(sd->agency_requests);
 			sd->storage.received = false;
 			if( sd->quest_log != NULL ) {
 				aFree(sd->quest_log);
@@ -3229,6 +3248,7 @@ void unit_defaults(void)
 	unit->is_walking = unit_is_walking;
 	unit->can_move = unit_can_move;
 	unit->resume_running = unit_resume_running;
+	unit->set_walkdelay_timer = unit_set_walkdelay_timer;
 	unit->set_walkdelay = unit_set_walkdelay;
 	unit->skilluse_id2 = unit_skilluse_id2;
 	unit->skilluse_pos = unit_skilluse_pos;

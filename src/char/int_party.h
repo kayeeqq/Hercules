@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -68,10 +68,11 @@ struct inter_party_interface {
 	int (*CharOffline) (int char_id, int party_id);
 	struct party_data *(*create) (const char *name, int item, int item2, const struct party_member *leader);
 	bool (*add_member) (int party_id, const struct party_member *member);
-	bool (*change_option) (int party_id, int account_id, int exp, int item, int map_fd);
+	bool (*change_option) (int party_id, int account_id, int exp, int item);
 	bool (*change_map) (int party_id, int account_id, int char_id, unsigned short map, int online, int lv);
 	bool (*disband) (int party_id);
 	bool (*change_leader) (int party_id, int account_id, int char_id);
+	int (*is_leader) (struct party_data *p, int char_id);
 };
 
 #ifdef HERCULES_CORE

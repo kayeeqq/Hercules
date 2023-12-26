@@ -1,22 +1,22 @@
 /**
-* This file is part of Hercules.
-* http://herc.ws - http://github.com/HerculesWS/Hercules
-*
-* Copyright (C) 2018-2022 Hercules Dev Team
-*
-* Hercules is free software: you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * This file is part of Hercules.
+ * http://herc.ws - http://github.com/HerculesWS/Hercules
+ *
+ * Copyright (C) 2018-2023 Hercules Dev Team
+ *
+ * Hercules is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 #define HERCULES_CORE
 
 #include "map/stylist.h"
@@ -72,11 +72,11 @@ static bool stylist_read_db_libconfig_sub(struct config_setting_t *it, int idx, 
 	nullpo_ret(it);
 	nullpo_ret(source);
 
-	if (!itemdb->lookup_const(it, "Type", &type) || type >= MAX_STYLIST_TYPE || type < 0) {
+	if (!map->setting_lookup_const(it, "Type", &type) || type >= MAX_STYLIST_TYPE || type < 0) {
 		ShowWarning("stylist_read_db_libconfig_sub: Invalid or missing Type (%d) in \"%s\", entry #%d, skipping.\n", type, source, idx);
 		return false;
 	}
-	if (!itemdb->lookup_const(it, "Id", &i32) || i32 < 0) {
+	if (!map->setting_lookup_const(it, "Id", &i32) || i32 < 0) {
 		ShowWarning("stylist_read_db_libconfig_sub: Invalid or missing Id (%d) in \"%s\", entry #%d, skipping.\n", i32, source, idx);
 		return false;
 	}
@@ -91,10 +91,10 @@ static bool stylist_read_db_libconfig_sub(struct config_setting_t *it, int idx, 
 		}
 	}
 
-	if (itemdb->lookup_const(it, "ItemID", &i32))
+	if (map->setting_lookup_const(it, "ItemID", &i32))
 		entry.itemid = i32;
 
-	if (itemdb->lookup_const(it, "BoxItemID", &i32))
+	if (map->setting_lookup_const(it, "BoxItemID", &i32))
 		entry.boxid = i32;
 
 	if (libconfig->setting_lookup_bool(it, "AllowDoram", &i32))
@@ -120,12 +120,8 @@ static bool stylist_validate_requirements(struct map_session_data *sd, int type,
 		return false;
 
 	if (entry->id >= 0) {
-		if (entry->zeny != 0) {
-			if (sd->status.zeny < entry->zeny)
-				return false;
-
-			sd->status.zeny -= entry->zeny;
-			clif->updatestatus(sd, SP_ZENY);
+		if (entry->zeny != 0 && pc->payzeny(sd, entry->zeny, LOG_TYPE_STYLIST, NULL) != 0) {
+			return false;
 		} else if (entry->itemid != 0) {
 			it.nameid = entry->itemid;
 			it.amount = 1;

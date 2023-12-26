@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2013-2022 Hercules Dev Team
+ * Copyright (C) 2013-2023 Hercules Dev Team
  *
  * Hercules is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -60,7 +60,7 @@
 
 HPExport struct hplugin_info pinfo = {
 	"Sample",    // Plugin name
-	SERVER_TYPE_CHAR|SERVER_TYPE_LOGIN|SERVER_TYPE_MAP,// Which server types this plugin works with?
+	SERVER_TYPE_CHAR|SERVER_TYPE_LOGIN|SERVER_TYPE_MAP|SERVER_TYPE_API,// Which server types this plugin works with?
 	"0.1",       // Plugin version
 	HPM_VERSION, // HPM Version (don't change, macro is automatically updated)
 };
@@ -152,7 +152,7 @@ int my_pc_dropitem_post(int retVal, struct map_session_data *sd, int n, int amou
 		return retVal;/* we don't do anything if pc_dropitem didn't return 1 (success) */
 	if (my_pc_dropitem_storage) {/* signs whether pre-hook did this */
 		char output[99];
-		safesnprintf(output, 99, "[ Warning ] you can only drop 1 item at a time, capped from %d to 1", my_pc_dropitem_storage);
+		snprintf(output, 99, "[ Warning ] you can only drop 1 item at a time, capped from %d to 1", my_pc_dropitem_storage);
 		clif->messagecolor_self(sd->fd, COLOR_RED, output);
 	}
 	return 1;
@@ -203,6 +203,7 @@ HPExport void plugin_init (void) {
 		case SERVER_TYPE_LOGIN: printf("Login Server\n"); break;
 		case SERVER_TYPE_CHAR: printf("Char Server\n"); break;
 		case SERVER_TYPE_MAP: printf ("Map Server\n"); break;
+		case SERVER_TYPE_API: printf ("Api Server\n"); break;
 		case SERVER_TYPE_UNKNOWN: printf ("Unknown Server\n"); break;
 	}
 
@@ -255,6 +256,7 @@ HPExport void plugin_init (void) {
 		 **/
 		addHookPrePriv(lclif, parse_CA_CONNECT_INFO_CHANGED, my_lclif_parse_CA_CONNECT_INFO_CHANGED_pre);
 	}
+
 }
 /* triggered when server starts loading, before any server-specific data is set */
 HPExport void server_preinit(void)
@@ -264,9 +266,12 @@ HPExport void server_preinit(void)
 	 * however for battle config to be returned to our script engine we need it to be number (int) so keep use it as int only */
 	addBattleConf("my_setting", parse_my_setting, return_my_setting, false);
 }
+
 /* run when server is ready (online) */
-HPExport void server_online (void) {
+HPExport void server_online (void)
+{
 }
+
 /* run when server is shutting down */
 HPExport void plugin_final (void) {
 	ShowInfo ("%s says ~Bye world\n",pinfo.name);

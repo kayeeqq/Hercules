@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2017-2022 Hercules Dev Team
+ * Copyright (C) 2017-2023 Hercules Dev Team
  *
  * Hercules is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -465,9 +465,8 @@ static int inter_rodex_getitems(int64 mail_id, struct rodex_item *items)
 /*==========================================
  * Update/Delete mail
  *------------------------------------------*/
-static bool inter_rodex_updatemail(int fd, int account_id, int char_id, int64 mail_id, uint8 opentype, int8 flag)
+static bool inter_rodex_updatemail(int account_id, int char_id, int64 mail_id, uint8 opentype, int8 flag)
 {
-	Assert_retr(false, fd >= 0);
 	Assert_retr(false, account_id > 0);
 	Assert_retr(false, char_id > 0);
 	Assert_retr(false, mail_id > 0);
@@ -482,11 +481,13 @@ static bool inter_rodex_updatemail(int fd, int account_id, int char_id, int64 ma
 	case 1: // Get Zeny
 	{
 		const int64 zeny = inter_rodex->getzeny(mail_id);
-		if (SQL_ERROR == SQL->Query(inter->sql_handle, "UPDATE `%s` SET `zeny` = 0, `type` = `type` & (~2) WHERE `mail_id` = '%"PRId64"'", rodex_db, mail_id)) {
-			Sql_ShowDebug(inter->sql_handle);
-			break;
+		if (zeny != -1) {
+			if (SQL_ERROR == SQL->Query(inter->sql_handle, "UPDATE `%s` SET `zeny` = 0, `type` = `type` & (~2) WHERE `mail_id` = '%"PRId64"'", rodex_db, mail_id)) {
+				Sql_ShowDebug(inter->sql_handle);
+				break;
+			}
 		}
-		mapif->rodex_getzenyack(fd, char_id, mail_id, opentype, zeny);
+		mapif->rodex_getzenyack(char_id, mail_id, opentype, zeny);
 		break;
 	}
 	case 2: // Get Items
@@ -495,7 +496,7 @@ static bool inter_rodex_updatemail(int fd, int account_id, int char_id, int64 ma
 		const int count = inter_rodex->getitems(mail_id, &items[0]);
 		if (SQL_ERROR == SQL->Query(inter->sql_handle, "DELETE FROM `%s` WHERE `mail_id` = '%"PRId64"'", rodex_item_db, mail_id))
 			Sql_ShowDebug(inter->sql_handle);
-		mapif->rodex_getitemsack(fd, char_id, mail_id, opentype, count, &items[0]);
+		mapif->rodex_getitemsack(char_id, mail_id, opentype, count, &items[0]);
 		break;
 	}
 	case 3: // Delete Mail

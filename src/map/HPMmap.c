@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2013-2022 Hercules Dev Team
+ * Copyright (C) 2013-2023 Hercules Dev Team
  *
  * Hercules is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,12 +25,14 @@
 #include "common/cbasetypes.h"
 
 #include "common/HPMi.h"
+#include "common/base62.h"
 #include "common/conf.h"
 #include "common/console.h"
 #include "common/core.h"
 #include "common/db.h"
 #include "common/des.h"
 #include "common/ers.h"
+#include "common/extraconf.h"
 #include "common/grfio.h"
 #include "common/md5calc.h"
 #include "common/memmgr.h"
@@ -62,6 +64,8 @@
 #include "map/date.h"
 #include "map/duel.h"
 #include "map/elemental.h"
+#include "map/enchantui.h"
+#include "map/goldpc.h"
 #include "map/grader.h"
 #include "map/guild.h"
 #include "map/homunculus.h"
@@ -72,6 +76,7 @@
 #include "map/log.h"
 #include "map/mail.h"
 #include "map/map.h"
+#include "map/mapiif.h"
 #include "map/mapreg.h"
 #include "map/mercenary.h"
 #include "map/mob.h"
@@ -133,6 +138,7 @@ bool HPM_map_data_store_validate(enum HPluginDataTypes type, struct hplugin_data
 	case HPDT_BGDATA:
 	case HPDT_AUTOTRADE_VEND:
 	case HPDT_CLAN:
+	case HPDT_UNIT_PARAMETER:
 		// Initialized by the caller.
 		return true;
 	case HPDT_UNKNOWN:

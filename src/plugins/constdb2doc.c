@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2016-2022 Hercules Dev Team
+ * Copyright (C) 2016-2023 Hercules Dev Team
  * Copyright (C) 2016 Haru <haru@dotalux.com>
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -19,7 +19,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/// db/constants.conf -> doc/constants.md generator plugin
+/// db/constants.conf -> doc/constants_*.md generator plugin
 
 #include "common/hercules.h"
 #include "common/db.h"
@@ -39,7 +39,11 @@
 #include <time.h>
 #include <sys/stat.h>
 
-#define OUTPUTFILENAME "doc" PATHSEP_STR "constants.md"
+#ifdef RENEWAL
+#define OUTPUTFILENAME "doc" PATHSEP_STR "constants_re.md"
+#else
+#define OUTPUTFILENAME "doc" PATHSEP_STR "constants_pre-re.md"
+#endif
 
 HPExport struct hplugin_info pinfo = {
 	"constdb2doc",   // Plugin name
@@ -109,7 +113,7 @@ void constdb2doc_skilldb(void)
 
 	nullpo_retv(out_fp);
 
-	fprintf(out_fp, "## Skills (db/"DBPATH"skill_db.txt)\n\n");
+	fprintf(out_fp, "## Skills (db/"DBPATH"skill_db.conf)\n\n");
 	for (i = 1; i < MAX_SKILL_DB; i++) {
 		if (skill->dbs->db[i].name[0] != '\0')
 			fprintf(out_fp, "- `%s`: %d\n", skill->dbs->db[i].name, skill->dbs->db[i].nameid);
@@ -123,7 +127,7 @@ void constdb2doc_mobdb(void)
 
 	nullpo_retv(out_fp);
 
-	fprintf(out_fp, "## Mobs (db/"DBPATH"mob_db.txt)\n\n");
+	fprintf(out_fp, "## Mobs (db/"DBPATH"mob_db.conf)\n\n");
 	for (i = 0; i < MAX_MOB_DB; i++) {
 		struct mob_db *md = mob->db(i);
 		if (md == mob->dummy || md->sprite[0] == '\0')

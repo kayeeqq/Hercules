@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2021-2022 Hercules Dev Team
+ * Copyright (C) 2021-2023 Hercules Dev Team
  *
  * Hercules is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -64,7 +64,7 @@ static void macro_captcha_register(struct map_session_data *sd, const int image_
 	memset(cd.image_data, 0, CAPTCHA_BMP_SIZE);
 
 	char captcha_key[50];
-	safesnprintf(captcha_key, 50, "%X", (unsigned int)VECTOR_CAPACITY(macro->captcha_registery));
+	snprintf(captcha_key, 50, "%X", (unsigned int)VECTOR_CAPACITY(macro->captcha_registery));
 	safestrncpy(cd.captcha_key, captcha_key, sizeof(cd.captcha_key));
 
 	VECTOR_PUSH(macro->captcha_registery, cd);
@@ -185,8 +185,8 @@ static void macro_detector_process_answer(struct map_session_data *sd, const cha
 		SET_MACRO_BLOCK_ACTIONS(sd, 0);
 
 		// Grant a small buff
-		sc_start(NULL, &sd->bl, skill->get_sc_type(AL_INCAGI), 100, 10, 600000);
-		sc_start(NULL, &sd->bl, skill->get_sc_type(AL_BLESSING), 100, 10, 600000);
+		sc_start(NULL, &sd->bl, skill->get_sc_type(AL_INCAGI), 100, 10, 600000, 0); // skill_ids are set to 0 so GTB doesn't block for this check.
+		sc_start(NULL, &sd->bl, skill->get_sc_type(AL_BLESSING), 100, 10, 600000, 0); // skill_ids are set to 0 so GTB doesn't block for this check.
 
 		// Notify the client
 		clif->macro_detector_status(sd, MCD_GOOD);
@@ -280,8 +280,8 @@ static void macro_reporter_process(struct map_session_data *ssd, struct map_sess
 
 static bool macro_read_captcha_db_libconfig(void)
 {
-	char filepath[256];
-	safesnprintf(filepath, sizeof(filepath), "%s/%s", map->db_path, "captcha_db.conf");
+	char filepath[280];
+	snprintf(filepath, sizeof(filepath), "%s/%s", map->db_path, "captcha_db.conf");
 
 	struct config_t captcha_db_conf;
 	if (libconfig->load_file(&captcha_db_conf, filepath) == CONFIG_FALSE) {
@@ -316,8 +316,8 @@ static bool macro_read_captcha_db_libconfig_sub(const struct config_setting_t *i
 		return false;
 	}
 
-	char filepath[256];
-	safesnprintf(filepath, sizeof(filepath), "%s/captcha/%s", map->db_path, filename);
+	char filepath[270];
+	snprintf(filepath, sizeof(filepath), "%s/captcha/%s", map->db_path, filename);
 
 	if (!exists(filepath)) {
 		ShowError("%s: File %s does not exist for entry %d in %s\n", __func__, filepath, n, source);
@@ -354,7 +354,7 @@ static bool macro_read_captcha_db_libconfig_sub(const struct config_setting_t *i
 	safestrncpy(cd.captcha_answer, answer, sizeof(cd.captcha_answer));
 
 	char captcha_key[50];
-	safesnprintf(captcha_key, 50, "%X", (unsigned int)VECTOR_CAPACITY(macro->captcha_registery));
+	snprintf(captcha_key, 50, "%X", (unsigned int)VECTOR_CAPACITY(macro->captcha_registery));
 	safestrncpy(cd.captcha_key, captcha_key, sizeof(cd.captcha_key));
 
 	VECTOR_PUSH(macro->captcha_registery, cd);

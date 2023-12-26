@@ -148,6 +148,9 @@
     <ClCompile Include="..\src\common\ers.c">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\common\extraconf.c">
+      <Filter>common</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\common\grfio.c">
       <Filter>common</Filter>
     </ClCompile>
@@ -185,6 +188,9 @@
       <Filter>common</Filter>
     </ClCompile>
     <ClCompile Include="..\src\common\utils.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\common\base62.c">
       <Filter>common</Filter>
     </ClCompile>
     <ClCompile Include="..\src\common\conf.c">
@@ -227,6 +233,15 @@
       <Filter>map</Filter>
     </ClCompile>
     <ClCompile Include="..\src\map\refine.c">
+      <Filter>map</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\map\enchantui.c">
+      <Filter>map</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\map\goldpc.c">
+      <Filter>map</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\map\mapiif.c">
       <Filter>map</Filter>
     </ClCompile>
   </ItemGroup>
@@ -393,6 +408,9 @@
     <ClInclude Include="..\src\common\ers.h">
       <Filter>common</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\common\extraconf.h">
+      <Filter>common</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\common\grfio.h">
       <Filter>common</Filter>
     </ClInclude>
@@ -436,6 +454,9 @@
       <Filter>common</Filter>
     </ClInclude>
     <ClInclude Include="..\src\common\utils.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\common\base62.h">
       <Filter>common</Filter>
     </ClInclude>
     <ClInclude Include="..\src\common\conf.h">
@@ -524,6 +545,15 @@
     </ClInclude>
     <ClInclude Include="..\src\common\packets_struct.h">
       <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\map\enchantui.h">
+      <Filter>map</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\map\goldpc.h">
+      <Filter>map</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\map\mapiif.h">
+      <Filter>map</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

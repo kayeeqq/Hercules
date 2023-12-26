@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -24,6 +24,7 @@
 #include "core.h"
 
 #include "common/HPM.h"
+#include "common/base62.h"
 #include "common/cbasetypes.h"
 #include "common/conf.h"
 #include "common/console.h"
@@ -266,6 +267,7 @@ static void core_defaults(void)
 	rnd_defaults();
 	md5_defaults();
 	thread_defaults();
+	base62_defaults();
 }
 
 /**

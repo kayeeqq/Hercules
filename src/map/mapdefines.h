@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -84,7 +84,7 @@
 #define CHAT_SIZE_MAX (255 + 1)
 // 24 for npc name + 24 for label + 2 for a "::" and 1 for EOS
 #define EVENT_NAME_LENGTH ( NAME_LENGTH * 2 + 3 )
-#define DEFAULT_AUTOSAVE_INTERVAL (5*60*1000)
+#define DEFAULT_MAP_AUTOSAVE_INTERVAL (5*60*1000)
 // Specifies maps where players may hit each other
 #define map_flag_vs(m) ( \
 		map->list[m].flag.pvp \

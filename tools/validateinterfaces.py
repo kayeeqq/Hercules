@@ -1,10 +1,10 @@
-#! /usr/bin/env python2
+#! /usr/bin/env python3
 # -*- coding: utf8 -*-
 #
 # This file is part of Hercules.
 # http://herc.ws - http://github.com/HerculesWS/Hercules
 #
-# Copyright (C) 2014-2022 Hercules Dev Team
+# Copyright (C) 2014-2023 Hercules Dev Team
 # Copyright (C) 2014 Andrei Karas (4144)
 #
 # Hercules is free software: you can redistribute it and/or modify
@@ -92,6 +92,7 @@ skipBeforeFix = (
     "lclif_parse_CA_REQ_HASH",
     "lclif_parse_CA_SSO_LOGIN_REQ",
     "lclif_parse_sub",
+    "lclif_parse_CA_APISERVERCONNECT",
     "log_atcommand_sub_sql",
     "log_branch_sub_sql",
     "log_chat_sub_sql",
@@ -366,7 +367,7 @@ def reportMethods(tracker):
 
 def checkLostFile(tracker, cFile):
 #    print "Checking: " + cFile
-    methodRe = re.compile("^([\w0-9* _]*)([ ]|[*])(?P<ifname>[a-z_]+)_(?P<method>[\w_]+)(|[ ])[(]")
+    methodRe = re.compile("^([a-zA-Z0-9* _]*)([ ]|[*])(?P<ifname>[a-z_]+)_(?P<method>[\w_]+)(|[ ])[(]")
     with open(cFile, "r") as r:
         for line in r:
             if line.find("(") < 1 or len(line) < 3 or line[0] == "\t" or line[0] == " " or line.find("_defaults") > 0:

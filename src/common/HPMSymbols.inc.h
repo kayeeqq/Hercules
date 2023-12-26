@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2013-2022 Hercules Dev Team
+ * Copyright (C) 2013-2023 Hercules Dev Team
  *
  * Hercules is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,9 +35,21 @@ struct account_interface *account;
 #ifdef MAP_ACHIEVEMENT_H /* achievement */
 struct achievement_interface *achievement;
 #endif // MAP_ACHIEVEMENT_H
+#ifdef API_ACLIF_H /* aclif */
+struct aclif_interface *aclif;
+#endif // API_ACLIF_H
+#ifdef API_ALOGINIF_H /* aloginif */
+struct aloginif_interface *aloginif;
+#endif // API_ALOGINIF_H
+#ifdef API_API_H /* api */
+struct api_interface *api;
+#endif // API_API_H
 #ifdef MAP_ATCOMMAND_H /* atcommand */
 struct atcommand_interface *atcommand;
 #endif // MAP_ATCOMMAND_H
+#ifdef COMMON_BASE62_H /* base62 */
+struct base62_interface *base62;
+#endif // COMMON_BASE62_H
 #ifdef MAP_BATTLE_H /* battle */
 struct battle_interface *battle;
 #endif // MAP_BATTLE_H
@@ -47,6 +59,9 @@ struct battleground_interface *bg;
 #ifdef MAP_BUYINGSTORE_H /* buyingstore */
 struct buyingstore_interface *buyingstore;
 #endif // MAP_BUYINGSTORE_H
+#ifdef CHAR_CAPIIF_H /* capiif */
+struct capiif_interface *capiif;
+#endif // CHAR_CAPIIF_H
 #ifdef MAP_CHANNEL_H /* channel */
 struct channel_interface *channel;
 #endif // MAP_CHANNEL_H
@@ -86,9 +101,18 @@ struct duel_interface *duel;
 #ifdef MAP_ELEMENTAL_H /* elemental */
 struct elemental_interface *elemental;
 #endif // MAP_ELEMENTAL_H
+#ifdef MAP_ENCHANTUI_H /* enchantui */
+struct enchantui_interface *enchantui;
+#endif // MAP_ENCHANTUI_H
+#ifdef COMMON_EXTRACONF_H /* extraconf */
+struct extraconf_interface *extraconf;
+#endif // COMMON_EXTRACONF_H
 #ifdef CHAR_GEOIP_H /* geoip */
 struct geoip_interface *geoip;
 #endif // CHAR_GEOIP_H
+#ifdef MAP_GOLDPC_H /* goldpc */
+struct goldpc_interface *goldpc;
+#endif // MAP_GOLDPC_H
 #ifdef MAP_GRADER_H /* grader */
 struct grader_interface *grader;
 #endif // MAP_GRADER_H
@@ -101,15 +125,30 @@ struct guild_interface *guild;
 #ifdef MAP_STORAGE_H /* gstorage */
 struct guild_storage_interface *gstorage;
 #endif // MAP_STORAGE_H
+#ifdef API_HANDLERS_H /* handlers */
+struct handlers_interface *handlers;
+#endif // API_HANDLERS_H
 #ifdef MAP_HOMUNCULUS_H /* homun */
 struct homunculus_interface *homun;
 #endif // MAP_HOMUNCULUS_H
+#ifdef API_HTTPPARSER_H /* httpparser */
+struct httpparser_interface *httpparser;
+#endif // API_HTTPPARSER_H
+#ifdef API_HTTPSENDER_H /* httpsender */
+struct httpsender_interface *httpsender;
+#endif // API_HTTPSENDER_H
+#ifdef API_IMAGEPARSER_H /* imageparser */
+struct imageparser_interface *imageparser;
+#endif // API_IMAGEPARSER_H
 #ifdef MAP_INSTANCE_H /* instance */
 struct instance_interface *instance;
 #endif // MAP_INSTANCE_H
 #ifdef CHAR_INT_ACHIEVEMENT_H /* inter_achievement */
 struct inter_achievement_interface *inter_achievement;
 #endif // CHAR_INT_ACHIEVEMENT_H
+#ifdef CHAR_INT_ADVENTURER_AGENCY_H /* inter_adventurer_agency */
+struct inter_adventurer_agency_interface *inter_adventurer_agency;
+#endif // CHAR_INT_ADVENTURER_AGENCY_H
 #ifdef CHAR_INT_AUCTION_H /* inter_auction */
 struct inter_auction_interface *inter_auction;
 #endif // CHAR_INT_AUCTION_H
@@ -149,6 +188,9 @@ struct inter_rodex_interface *inter_rodex;
 #ifdef CHAR_INT_STORAGE_H /* inter_storage */
 struct inter_storage_interface *inter_storage;
 #endif // CHAR_INT_STORAGE_H
+#ifdef CHAR_INT_USERCONFIG_H /* inter_userconfig */
+struct inter_userconfig_interface *inter_userconfig;
+#endif // CHAR_INT_USERCONFIG_H
 #ifdef MAP_INTIF_H /* intif */
 struct intif_interface *intif;
 #endif // MAP_INTIF_H
@@ -161,6 +203,15 @@ struct ircbot_interface *ircbot;
 #ifdef MAP_ITEMDB_H /* itemdb */
 struct itemdb_interface *itemdb;
 #endif // MAP_ITEMDB_H
+#ifdef API_JSONPARSER_H /* jsonparser */
+struct jsonparser_interface *jsonparser;
+#endif // API_JSONPARSER_H
+#ifdef API_JSONWRITER_H /* jsonwriter */
+struct jsonwriter_interface *jsonwriter;
+#endif // API_JSONWRITER_H
+#ifdef LOGIN_LAPIIF_H /* lapiif */
+struct lapiif_interface *lapiif;
+#endif // LOGIN_LAPIIF_H
 #ifdef LOGIN_LOGIN_H /* lchrif */
 struct lchrif_interface *lchrif;
 #endif // LOGIN_LOGIN_H
@@ -194,6 +245,9 @@ struct map_interface *map;
 #ifdef CHAR_MAPIF_H /* mapif */
 struct mapif_interface *mapif;
 #endif // CHAR_MAPIF_H
+#ifdef MAP_MAPIIF_H /* mapiif */
+struct mapiif_interface *mapiif;
+#endif // MAP_MAPIIF_H
 #ifdef COMMON_MAPINDEX_H /* mapindex */
 struct mapindex_interface *mapindex;
 #endif // COMMON_MAPINDEX_H
@@ -330,10 +384,26 @@ HPExport const char *HPM_shared_symbols(int server_type)
 	if ((server_type&(SERVER_TYPE_MAP)) != 0 && !HPM_SYMBOL("achievement", achievement))
 		return "achievement";
 #endif // MAP_ACHIEVEMENT_H
+#ifdef API_ACLIF_H /* aclif */
+	if ((server_type&(SERVER_TYPE_API)) != 0 && !HPM_SYMBOL("aclif", aclif))
+		return "aclif";
+#endif // API_ACLIF_H
+#ifdef API_ALOGINIF_H /* aloginif */
+	if ((server_type&(SERVER_TYPE_API)) != 0 && !HPM_SYMBOL("aloginif", aloginif))
+		return "aloginif";
+#endif // API_ALOGINIF_H
+#ifdef API_API_H /* api */
+	if ((server_type&(SERVER_TYPE_API)) != 0 && !HPM_SYMBOL("api", api))
+		return "api";
+#endif // API_API_H
 #ifdef MAP_ATCOMMAND_H /* atcommand */
 	if ((server_type&(SERVER_TYPE_MAP)) != 0 && !HPM_SYMBOL("atcommand", atcommand))
 		return "atcommand";
 #endif // MAP_ATCOMMAND_H
+#ifdef COMMON_BASE62_H /* base62 */
+	if ((server_type&(SERVER_TYPE_ALL)) != 0 && !HPM_SYMBOL("base62", base62))
+		return "base62";
+#endif // COMMON_BASE62_H
 #ifdef MAP_BATTLE_H /* battle */
 	if ((server_type&(SERVER_TYPE_MAP)) != 0 && !HPM_SYMBOL("battle", battle))
 		return "battle";
@@ -346,6 +416,10 @@ HPExport const char *HPM_shared_symbols(int server_type)
 	if ((server_type&(SERVER_TYPE_MAP)) != 0 && !HPM_SYMBOL("buyingstore", buyingstore))
 		return "buyingstore";
 #endif // MAP_BUYINGSTORE_H
+#ifdef CHAR_CAPIIF_H /* capiif */
+	if ((server_type&(SERVER_TYPE_CHAR)) != 0 && !HPM_SYMBOL("capiif", capiif))
+		return "capiif";
+#endif // CHAR_CAPIIF_H
 #ifdef MAP_CHANNEL_H /* channel */
 	if ((server_type&(SERVER_TYPE_MAP)) != 0 && !HPM_SYMBOL("channel", channel))
 		return "channel";
@@ -398,10 +472,22 @@ HPExport const char *HPM_shared_symbols(int server_type)
 	if ((server_type&(SERVER_TYPE_MAP)) != 0 && !HPM_SYMBOL("elemental", elemental))
 		return "elemental";
 #endif // MAP_ELEMENTAL_H
+#ifdef MAP_ENCHANTUI_H /* enchantui */
+	if ((server_type&(SERVER_TYPE_MAP)) != 0 && !HPM_SYMBOL("enchantui", enchantui))
+		return "enchantui";
+#endif // MAP_ENCHANTUI_H
+#ifdef COMMON_EXTRACONF_H /* extraconf */
+	if ((server_type&(SERVER_TYPE_ALL)) != 0 && !HPM_SYMBOL("extraconf", extraconf))
+		return "extraconf";
+#endif // COMMON_EXTRACONF_H
 #ifdef CHAR_GEOIP_H /* geoip */
 	if ((server_type&(SERVER_TYPE_CHAR)) != 0 && !HPM_SYMBOL("geoip", geoip))
 		return "geoip";
 #endif // CHAR_GEOIP_H
+#ifdef MAP_GOLDPC_H /* goldpc */
+	if ((server_type&(SERVER_TYPE_MAP)) != 0 && !HPM_SYMBOL("goldpc", goldpc))
+		return "goldpc";
+#endif // MAP_GOLDPC_H
 #ifdef MAP_GRADER_H /* grader */
 	if ((server_type&(SERVER_TYPE_MAP)) != 0 && !HPM_SYMBOL("grader", grader))
 		return "grader";
@@ -418,10 +504,26 @@ HPExport const char *HPM_shared_symbols(int server_type)
 	if ((server_type&(SERVER_TYPE_MAP)) != 0 && !HPM_SYMBOL("gstorage", gstorage))
 		return "gstorage";
 #endif // MAP_STORAGE_H
+#ifdef API_HANDLERS_H /* handlers */
+	if ((server_type&(SERVER_TYPE_API)) != 0 && !HPM_SYMBOL("handlers", handlers))
+		return "handlers";
+#endif // API_HANDLERS_H
 #ifdef MAP_HOMUNCULUS_H /* homun */
 	if ((server_type&(SERVER_TYPE_MAP)) != 0 && !HPM_SYMBOL("homun", homun))
 		return "homun";
 #endif // MAP_HOMUNCULUS_H
+#ifdef API_HTTPPARSER_H /* httpparser */
+	if ((server_type&(SERVER_TYPE_API)) != 0 && !HPM_SYMBOL("httpparser", httpparser))
+		return "httpparser";
+#endif // API_HTTPPARSER_H
+#ifdef API_HTTPSENDER_H /* httpsender */
+	if ((server_type&(SERVER_TYPE_API)) != 0 && !HPM_SYMBOL("httpsender", httpsender))
+		return "httpsender";
+#endif // API_HTTPSENDER_H
+#ifdef API_IMAGEPARSER_H /* imageparser */
+	if ((server_type&(SERVER_TYPE_API)) != 0 && !HPM_SYMBOL("imageparser", imageparser))
+		return "imageparser";
+#endif // API_IMAGEPARSER_H
 #ifdef MAP_INSTANCE_H /* instance */
 	if ((server_type&(SERVER_TYPE_MAP)) != 0 && !HPM_SYMBOL("instance", instance))
 		return "instance";
@@ -430,6 +532,10 @@ HPExport const char *HPM_shared_symbols(int server_type)
 	if ((server_type&(SERVER_TYPE_CHAR)) != 0 && !HPM_SYMBOL("inter_achievement", inter_achievement))
 		return "inter_achievement";
 #endif // CHAR_INT_ACHIEVEMENT_H
+#ifdef CHAR_INT_ADVENTURER_AGENCY_H /* inter_adventurer_agency */
+	if ((server_type&(SERVER_TYPE_CHAR)) != 0 && !HPM_SYMBOL("inter_adventurer_agency", inter_adventurer_agency))
+		return "inter_adventurer_agency";
+#endif // CHAR_INT_ADVENTURER_AGENCY_H
 #ifdef CHAR_INT_AUCTION_H /* inter_auction */
 	if ((server_type&(SERVER_TYPE_CHAR)) != 0 && !HPM_SYMBOL("inter_auction", inter_auction))
 		return "inter_auction";
@@ -482,6 +588,10 @@ HPExport const char *HPM_shared_symbols(int server_type)
 	if ((server_type&(SERVER_TYPE_CHAR)) != 0 && !HPM_SYMBOL("inter_storage", inter_storage))
 		return "inter_storage";
 #endif // CHAR_INT_STORAGE_H
+#ifdef CHAR_INT_USERCONFIG_H /* inter_userconfig */
+	if ((server_type&(SERVER_TYPE_CHAR)) != 0 && !HPM_SYMBOL("inter_userconfig", inter_userconfig))
+		return "inter_userconfig";
+#endif // CHAR_INT_USERCONFIG_H
 #ifdef MAP_INTIF_H /* intif */
 	if ((server_type&(SERVER_TYPE_MAP)) != 0 && !HPM_SYMBOL("intif", intif))
 		return "intif";
@@ -498,6 +608,18 @@ HPExport const char *HPM_shared_symbols(int server_type)
 	if ((server_type&(SERVER_TYPE_MAP)) != 0 && !HPM_SYMBOL("itemdb", itemdb))
 		return "itemdb";
 #endif // MAP_ITEMDB_H
+#ifdef API_JSONPARSER_H /* jsonparser */
+	if ((server_type&(SERVER_TYPE_API)) != 0 && !HPM_SYMBOL("jsonparser", jsonparser))
+		return "jsonparser";
+#endif // API_JSONPARSER_H
+#ifdef API_JSONWRITER_H /* jsonwriter */
+	if ((server_type&(SERVER_TYPE_API)) != 0 && !HPM_SYMBOL("jsonwriter", jsonwriter))
+		return "jsonwriter";
+#endif // API_JSONWRITER_H
+#ifdef LOGIN_LAPIIF_H /* lapiif */
+	if ((server_type&(SERVER_TYPE_LOGIN)) != 0 && !HPM_SYMBOL("lapiif", lapiif))
+		return "lapiif";
+#endif // LOGIN_LAPIIF_H
 #ifdef LOGIN_LOGIN_H /* lchrif */
 	if ((server_type&(SERVER_TYPE_LOGIN)) != 0 && !HPM_SYMBOL("lchrif", lchrif))
 		return "lchrif";
@@ -542,6 +664,10 @@ HPExport const char *HPM_shared_symbols(int server_type)
 	if ((server_type&(SERVER_TYPE_CHAR)) != 0 && !HPM_SYMBOL("mapif", mapif))
 		return "mapif";
 #endif // CHAR_MAPIF_H
+#ifdef MAP_MAPIIF_H /* mapiif */
+	if ((server_type&(SERVER_TYPE_MAP)) != 0 && !HPM_SYMBOL("mapiif", mapiif))
+		return "mapiif";
+#endif // MAP_MAPIIF_H
 #ifdef COMMON_MAPINDEX_H /* mapindex */
 	if ((server_type&(SERVER_TYPE_MAP|SERVER_TYPE_CHAR)) != 0 && !HPM_SYMBOL("mapindex", mapindex))
 		return "mapindex";

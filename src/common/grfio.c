@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -453,9 +453,9 @@ static void grfio_localpath_create(char *buffer, size_t size, const char *filena
 	len = strlen(data_dir);
 
 	if (data_dir[0] == '\0' || data_dir[len-1] == '/' || data_dir[len-1] == '\\')
-		safesnprintf(buffer, size, "%s%s", data_dir, filename);
+		snprintf(buffer, size, "%s%s", data_dir, filename);
 	else
-		safesnprintf(buffer, size, "%s/%s", data_dir, filename);
+		snprintf(buffer, size, "%s/%s", data_dir, filename);
 
 	// normalize path
 	for (i = 0; buffer[i] != '\0'; ++i)
@@ -469,7 +469,7 @@ static void *grfio_reads(const char *fname, int *size)
 	struct grf_filelist *entry = grfio_filelist_find(fname);
 	if (entry == NULL || entry->gentry <= 0) {
 		// LocalFileCheck
-		char lfname[256];
+		char lfname[2048];
 		FILE *in;
 		grfio_localpath_create(lfname, sizeof(lfname), (entry && entry->fnd) ? entry->fnd : fname);
 
@@ -477,14 +477,14 @@ static void *grfio_reads(const char *fname, int *size)
 		if (in != NULL) {
 			int declen;
 			unsigned char *buf = NULL;
-			fseek(in,0,SEEK_END);
-			declen = (int)ftell(in);
+			hseek(in,0,SEEK_END);
+			declen = (int)htell(in);
 			if (declen == -1) {
 				ShowError("An error occurred in fread grfio_reads, fname=%s \n",fname);
 				fclose(in);
 				return NULL;
 			}
-			fseek(in,0,SEEK_SET);
+			hseek(in,0,SEEK_SET);
 			buf = aMalloc(declen+1); // +1 for resnametable zero-termination
 			buf[declen] = '\0';
 			if (fread(buf, 1, declen, in) != (size_t)declen) {
@@ -517,7 +517,7 @@ static void *grfio_reads(const char *fname, int *size)
 			int fsize = entry->srclen_aligned;
 			unsigned char *buf = aMalloc(fsize);
 			unsigned char *buf2 = NULL;
-			if (fseek(in, entry->srcpos, SEEK_SET) != 0
+			if (hseek(in, entry->srcpos, SEEK_SET) != 0
 			 || fread(buf, 1, fsize, in) != (size_t)fsize) {
 				ShowError("An error occurred in fread in grfio_reads, grfname=%s\n",grfname);
 				aFree(buf);
@@ -609,7 +609,6 @@ static bool grfio_is_full_encrypt(const char *fname)
  */
 static int grfio_entryread(const char *grfname, int gentry)
 {
-	long grf_size;
 	unsigned char grf_header[0x2e] = { 0 };
 	int entry,entrys,ofs,grf_version;
 	unsigned char *grf_filelist;
@@ -623,16 +622,16 @@ static int grfio_entryread(const char *grfname, int gentry)
 	}
 	ShowInfo("GRF data file found: '%s'\n", grfname);
 
-	fseek(fp,0,SEEK_END);
-	grf_size = ftell(fp);
-	fseek(fp,0,SEEK_SET);
+	hseek(fp,0,SEEK_END);
+	int64 grf_size = htell(fp);
+	hseek(fp,0,SEEK_SET);
 
 	if (fread(grf_header,1,0x2e,fp) != 0x2e) {
 		ShowError("Couldn't read all grf_header element of %s \n", grfname);
 		fclose(fp);
 		return 2; // 2:file format error
 	}
-	if (strcmp((const char*)grf_header, "Master of Magic") != 0 || fseek(fp, getlong(grf_header+0x1e), SEEK_CUR) != 0) {
+	if (strcmp((const char*)grf_header, "Master of Magic") != 0 || hseek(fp, getlong(grf_header+0x1e), SEEK_CUR) != 0) {
 		fclose(fp);
 		ShowError("GRF %s read error\n", grfname);
 		return 2; // 2:file format error
@@ -642,7 +641,7 @@ static int grfio_entryread(const char *grfname, int gentry)
 
 	if (grf_version == 0x01) {
 		// ****** Grf version 01xx ******
-		long list_size = grf_size - ftell(fp);
+		int64 list_size = grf_size - htell(fp);
 		grf_filelist = aMalloc(list_size);
 		if (fread(grf_filelist,1,list_size,fp) != (size_t)list_size) {
 			ShowError("Couldn't read all grf_filelist element of %s \n", grfname);
@@ -704,7 +703,7 @@ static int grfio_entryread(const char *grfname, int gentry)
 		rSize = getlong(eheader); // Read Size
 		eSize = getlong(eheader+4); // Extend Size
 
-		if ((long)rSize > grf_size-ftell(fp)) {
+		if ((long)rSize > grf_size-htell(fp)) {
 			fclose(fp);
 			ShowError("Illegal data format: GRF compress entry size\n");
 			return 4;
@@ -781,7 +780,7 @@ static int grfio_entryread(const char *grfname, int gentry)
 static bool grfio_parse_restable_row(const char *row)
 {
 	char w1[256], w2[256];
-	char src[256], dst[256];
+	char src[261], dst[261];
 	char local[256];
 	struct grf_filelist *entry = NULL;
 
@@ -792,8 +791,8 @@ static bool grfio_parse_restable_row(const char *row)
 	if (strstr(w2, ".gat") == NULL && strstr(w2, ".rsw") == NULL)
 		return false; // we only need the maps' GAT and RSW files
 
-	safesnprintf(src, 256, "data\\%s", w1);
-	safesnprintf(dst, 256, "data\\%s", w2);
+	snprintf(src, 261, "data\\%s", w1);
+	snprintf(dst, 261, "data\\%s", w2);
 
 	entry = grfio_filelist_find(dst);
 	if (entry != NULL) {

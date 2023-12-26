@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2017-2022 Hercules Dev Team
+ * Copyright (C) 2017-2023 Hercules Dev Team
  *
  * Hercules is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@
 #include "common/nullpo.h"
 #include "common/sql.h"
 #include "common/memmgr.h"
+#include "common/showmsg.h"
 
 
 // NOTE : These values are hardcoded into the client
@@ -63,11 +64,11 @@ static void rodex_refresh_stamps(struct map_session_data *sd)
 	// Note : Weirdly, iRO starts this with maximum messages of the day and decrements
 	//        but our clients starts this at 0 and increments
 	if (sd->sc.data[SC_DAILYSENDMAILCNT] == NULL) {
-		sc_start2(NULL, &sd->bl, SC_DAILYSENDMAILCNT, 100, today, 0, INFINITE_DURATION);
+		sc_start2(NULL, &sd->bl, SC_DAILYSENDMAILCNT, 100, today, 0, INFINITE_DURATION, 0);
 	} else {
 		int sc_date = sd->sc.data[SC_DAILYSENDMAILCNT]->val1;
 		if (sc_date != today) {
-			sc_start2(NULL, &sd->bl, SC_DAILYSENDMAILCNT, 100, today, 0, INFINITE_DURATION);
+			sc_start2(NULL, &sd->bl, SC_DAILYSENDMAILCNT, 100, today, 0, INFINITE_DURATION, 0);
 		}
 	}
 }
@@ -80,7 +81,7 @@ static void rodex_add_item(struct map_session_data *sd, int16 idx, int16 amount)
 {
 	nullpo_retv(sd);
 
-	if (idx < 0 || idx >= sd->status.inventorySize) {
+	if (idx < 0 || idx >= sd->status.inventorySize || sd->inventory_data[idx] == NULL) {
 		clif->rodex_add_item_result(sd, idx, amount, RODEX_ADD_ITEM_FATAL_ERROR);
 		return;
 	}
@@ -237,6 +238,11 @@ static int rodex_send_mail(struct map_session_data *sd, const char *receiver_nam
 		return RODEX_SEND_MAIL_FATAL_ERROR;
 	}
 
+	if (map->list[sd->bl.m].flag.nosendmail != 0) {
+		rodex->clean(sd, 1);
+		return RODEX_SEND_MAIL_FATAL_ERROR;
+	}
+
 	if (zeny < 0) {
 		rodex->clean(sd, 1);
 		return RODEX_SEND_MAIL_FATAL_ERROR;
@@ -262,9 +268,9 @@ static int rodex_send_mail(struct map_session_data *sd, const char *receiver_nam
 			return RODEX_SEND_MAIL_COUNT_ERROR;
 		}
 
-		sc_start2(NULL, &sd->bl, SC_DAILYSENDMAILCNT, 100, sd->sc.data[SC_DAILYSENDMAILCNT]->val1, sd->sc.data[SC_DAILYSENDMAILCNT]->val2 + 1, INFINITE_DURATION);
+		sc_start2(NULL, &sd->bl, SC_DAILYSENDMAILCNT, 100, sd->sc.data[SC_DAILYSENDMAILCNT]->val1, sd->sc.data[SC_DAILYSENDMAILCNT]->val2 + 1, INFINITE_DURATION, 0);
 	} else {
-		sc_start2(NULL, &sd->bl, SC_DAILYSENDMAILCNT, 100, date_get_date(), 1, INFINITE_DURATION);
+		sc_start2(NULL, &sd->bl, SC_DAILYSENDMAILCNT, 100, date_get_date(), 1, INFINITE_DURATION, 0);
 	}
 
 	for (i = 0; i < RODEX_MAX_ITEM; i++) {
@@ -445,6 +451,15 @@ static void rodex_getZenyAck(struct map_session_data *sd, int64 mail_id, int8 op
 		return;
 	}
 
+	// Updates the in-memory copy of this mail
+	// It should never be null, but if it ends up being, that would simply mean that this
+	// mail is gone from the user data, and that's fine, as the char-server did its work.
+	struct rodex_message *msg = rodex->get_mail(sd, mail_id);
+	if (msg != NULL) {
+		msg->type &= ~MAIL_TYPE_ZENY;
+		msg->zeny = 0;
+	}
+
 	if (pc->getzeny(sd, (int)zeny, LOG_TYPE_MAIL, NULL) != 0) {
 		clif->rodex_request_zeny(sd, opentype, mail_id, RODEX_GET_ZENY_FATAL_ERROR);
 		return;
@@ -472,8 +487,6 @@ static void rodex_get_zeny(struct map_session_data *sd, int8 opentype, int64 mai
 		return;
 	}
 
-	msg->type &= ~MAIL_TYPE_ZENY;
-	msg->zeny = 0;
 	intif->rodex_updatemail(sd, mail_id, opentype, 1);
 }
 
@@ -482,6 +495,16 @@ static void rodex_getItemsAck(struct map_session_data *sd, int64 mail_id, int8 o
 {
 	nullpo_retv(sd);
 	nullpo_retv(items);
+
+	if (VECTOR_LENGTH(sd->rodex.claim_list) < 1) {
+		ShowError("rodex_getItemsAck: No mail ID queued for claiming.\n");
+		return;
+	}
+
+	if (VECTOR_INDEX(sd->rodex.claim_list, 0) != mail_id) {
+		ShowError("rodex_getItemsAck: Mail ID mismatch. Expected %"PRId64", got %"PRId64"\n", VECTOR_INDEX(sd->rodex.claim_list, 0), mail_id);
+		return;
+	}
 
 	for (int i = 0; i < count; ++i) {
 		const struct item *it = &items[i].item;
@@ -492,11 +515,19 @@ static void rodex_getItemsAck(struct map_session_data *sd, int64 mail_id, int8 o
 
 		if (pc->additem(sd, it, it->amount, LOG_TYPE_MAIL) != 0) {
 			clif->rodex_request_items(sd, opentype, mail_id, RODEX_GET_ITEM_FULL_ERROR);
+			VECTOR_ERASE(sd->rodex.claim_list, 0);
 			return;
 		}
 	}
 
 	clif->rodex_request_items(sd, opentype, mail_id, RODEX_GET_ITEMS_SUCCESS);
+
+	// Remove the mail ID from the queue
+	VECTOR_ERASE(sd->rodex.claim_list, 0);
+
+	// Claim the next mail if there is one
+	if (VECTOR_LENGTH(sd->rodex.claim_list) > 0)
+		rodex->get_items(sd, opentype, VECTOR_INDEX(sd->rodex.claim_list, 0));
 }
 
 /// Gets attached item
@@ -558,6 +589,18 @@ static void rodex_get_items(struct map_session_data *sd, int8 opentype, int64 ma
 		return;
 	}
 
+	// Queue the mail ID to be claimed
+	int i = 0;
+	ARR_FIND(0, VECTOR_LENGTH(sd->rodex.claim_list), i, VECTOR_INDEX(sd->rodex.claim_list, i) == mail_id);
+	if (i == VECTOR_LENGTH(sd->rodex.claim_list)) {
+		VECTOR_ENSURE(sd->rodex.claim_list, 1, 1);
+		VECTOR_PUSH(sd->rodex.claim_list, mail_id);
+	}
+
+	// If another mail is being claimed, wait for it to finish
+	if (VECTOR_LENGTH(sd->rodex.claim_list) > 1 && VECTOR_INDEX(sd->rodex.claim_list, 0) != mail_id)
+		return;
+
 	msg->type &= ~MAIL_TYPE_ITEM;
 	msg->items_count = 0;
 	intif->rodex_updatemail(sd, mail_id, opentype, 2);
@@ -573,9 +616,10 @@ static void rodex_clean(struct map_session_data *sd, int8 flag)
 {
 	nullpo_retv(sd);
 
-	if (flag == 0)
+	if (flag == 0) {
 		VECTOR_CLEAR(sd->rodex.messages);
-
+		VECTOR_CLEAR(sd->rodex.claim_list);
+	}
 	sd->state.workinprogress &= ~2;
 	memset(&sd->rodex.tmp, 0x0, sizeof(sd->rodex.tmp));
 

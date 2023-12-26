@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -42,10 +42,8 @@ struct loginif_interface *loginif;
 static void loginif_reset(void) __attribute__ ((noreturn));
 static void loginif_reset(void)
 {
-	int id;
 	// TODO kick everyone out and reset everything or wait for connect and try to reacquire locks [FlavioJS]
-	for( id = 0; id < ARRAYLENGTH(chr->server); ++id )
-		mapif->server_reset(id);
+	mapif->server_reset();
 	sockt->flush_fifos();
 	exit(EXIT_FAILURE);
 }
@@ -72,16 +70,13 @@ static void loginif_on_disconnect(void)
 /// Called when all the connection steps are completed.
 static void loginif_on_ready(void)
 {
-	int i;
-
 	loginif->check_shutdown();
 
 	//Send online accounts to login server.
 	chr->send_accounts_tologin(INVALID_TIMER, timer->gettick(), 0, 0);
 
 	// if no map-server already connected, display a message...
-	ARR_FIND(0, ARRAYLENGTH(chr->server), i, chr->server[i].fd > 0 && VECTOR_LENGTH(chr->server[i].maps));
-	if (i == ARRAYLENGTH(chr->server))
+	if (chr->map_server.fd <= 0 || VECTOR_LENGTH(chr->map_server.maps) == 0)
 		ShowStatus("Awaiting maps from map-server.\n");
 }
 
@@ -188,6 +183,17 @@ static void loginif_connect_to_server(void)
 	WFIFOSET(chr->login_fd,86);
 }
 
+// this packet need only for api server
+static void loginif_set_char_online(int char_id, int account_id)
+{
+	Assert_retv(chr->login_fd != -1);
+	WFIFOHEAD(chr->login_fd, 10);
+	WFIFOW(chr->login_fd, 0) = 0x2721;
+	WFIFOL(chr->login_fd, 2) = account_id;
+	WFIFOL(chr->login_fd, 6) = char_id;
+	WFIFOSET(chr->login_fd, 10);
+}
+
 void loginif_defaults(void) {
 	loginif = &loginif_s;
 
@@ -204,4 +210,5 @@ void loginif_defaults(void) {
 	loginif->auth = loginif_auth;
 	loginif->send_users_count = loginif_send_users_count;
 	loginif->connect_to_server = loginif_connect_to_server;
+	loginif->set_char_online = loginif_set_char_online;
 }

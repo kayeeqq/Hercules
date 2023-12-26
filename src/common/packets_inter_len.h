@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  *
  * Hercules is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -152,7 +152,7 @@ packetLen(0x3080, 56)
 packetLen(0x3081, 14)
 packetLen(0x3082, -1)
 packetLen(0x3083, 6)
-packetLen(0x3084, 0)
+packetLen(0x3084, 10)
 packetLen(0x3085, 0)
 packetLen(0x3086, 0)
 packetLen(0x3087, 0)

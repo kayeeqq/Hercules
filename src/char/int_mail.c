@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -337,7 +337,11 @@ static bool inter_mail_return_message(int char_id, int mail_id, int *new_mail)
 		safestrncpy(msg.dest_name, temp_, NAME_LENGTH);
 
 		// set reply message title
-		safesnprintf(temp_, MAIL_TITLE_LENGTH, "RE:%s", msg.title);
+		PRAGMA_GCC7(GCC diagnostic push)
+		PRAGMA_GCC7(GCC diagnostic ignored "-Wformat-truncation")
+		// Note: truncation of the last three characters may happen and is safe to ignore
+		snprintf(temp_, MAIL_TITLE_LENGTH, "RE:%s", msg.title);
+		PRAGMA_GCC7(GCC diagnostic pop)
 		safestrncpy(msg.title, temp_, MAIL_TITLE_LENGTH);
 
 		msg.status = MAIL_NEW;

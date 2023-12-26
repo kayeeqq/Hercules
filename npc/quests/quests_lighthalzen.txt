@@ -9,7 +9,7 @@
 //= This file is part of Hercules.
 //= http://herc.ws - http://github.com/HerculesWS/Hercules
 //=
-//= Copyright (C) 2012-2022 Hercules Dev Team
+//= Copyright (C) 2012-2023 Hercules Dev Team
 //= Copyright (C) Joseph
 //= Copyright (C) Euphy
 //= Copyright (C) Gepard
@@ -1781,14 +1781,15 @@ OnTouch:
 		mes "Oh crap!";
 		mes "Gotta scram!";
 		mes "Eat my dust, good guy!";
-		next;
 		if (rand(1,4) == 1) {
 			enablenpc "Suspicious Guy#lhz_03";
 			disablenpc "Suspicious Guy#lhz_01";
+			disablenpc("Suspicious Guy#lhz_02");
 		}
 		else {
 			enablenpc"Suspicious Guy#lhz_02";
 			disablenpc "Suspicious Guy#lhz_01";
+			disablenpc("Suspicious Guy#lhz_03");
 		}
 		close;
 	}
@@ -1857,10 +1858,12 @@ OnTouch:
 		if (rand(1,4) == 1) {
 			enablenpc "Suspicious Guy#lhz_03";
 			disablenpc "Suspicious Guy#lhz_02";
+			disablenpc("Suspicious Guy#lhz_01");
 		}
 		else {
 			enablenpc "Suspicious Guy#lhz_01";
 			disablenpc "Suspicious Guy#lhz_02";
+			disablenpc("Suspicious Guy#lhz_03");
 		}
 		close;
 	}
@@ -2039,10 +2042,12 @@ OnTouch:
 		if (rand(1,2) == 1) {
 			enablenpc "Suspicious Guy#lhz_01";
 			disablenpc "Suspicious Guy#lhz_03";
+			disablenpc("Suspicious Guy#lhz_02");
 		}
 		else {
 			enablenpc "Suspicious Guy#lhz_02";
 			disablenpc "Suspicious Guy#lhz_03";
+			disablenpc("Suspicious Guy#lhz_01");
 		}
 		close;
 	}
@@ -9634,7 +9639,7 @@ lhz_in01,187,31,0	script	#Sneak	HIDDEN_NPC,4,3,{
 OnTouch:
 	if((lhz_boss > 27) && (lhz_boss < 35))
 	{
-		@sneaktime = gettimetick(0) % 100;
+		@sneaktime = gettimetick(GETTIMETICK_SYSTEM_MS) % 100;
 		if((@sneaktime > 10 && @sneaktime < 59) || (@sneaktime < -10 && @sneaktime > -59))
 		{
 			mes "^3355FFAs you approach";

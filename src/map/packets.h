@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2013-2022 Hercules Dev Team
+ * Copyright (C) 2013-2023 Hercules Dev Team
  *
  * Hercules is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -108,7 +108,7 @@ packet(0x0146,clif->pNpcCloseClicked,2);
 packet(0x0149,clif->pGMReqNoChat,2,6,7);
 packet(0x014d,clif->pGuildCheckMaster,0);
 packet(0x014f,clif->pGuildRequestInfo,2);
-packet(0x0151,clif->pGuildRequestEmblem,2);
+packet(0x0151,clif->pGuildRequestEmblem1);
 packet(0x0153,clif->pGuildChangeEmblem,2,4);
 packet(0x0155,clif->pGuildChangeMemberPosition,2);
 packet(0x0159,clif->pGuildLeave,2,6,10,14);
@@ -1727,7 +1727,7 @@ packet(0x96e,clif->ackmergeitems);
 // 2014-04-30aRagexeRE
 #if PACKETVER >= 20140430
 // new packets
-	packet(0x0a16,clif->pDull/*,XXX*/); // CZ_DYNAMICNPC_CREATE_REQUEST
+	packet(0x0a16,clif->pDynamicnpcCreateRequest); // CZ_DYNAMICNPC_CREATE_REQUEST
 #endif
 
 /* Roulette System [Yommy/Hercules] */
@@ -1965,6 +1965,10 @@ packet(0x96e,clif->ackmergeitems);
 	packet(0x0b1c,clif->pPing);
 #endif
 
+#if PACKETVER_MAIN_NUM >= 20190227 || PACKETVER_RE_NUM >= 20190227 || PACKETVER_ZERO_NUM >= 20190313
+	packet(0x0b1e,clif->pGuildRequestEmblem2);
+#endif
+
 #if PACKETVER_MAIN_NUM >= 20190522 || PACKETVER_RE_NUM >= 20190508 || PACKETVER_ZERO_NUM >= 20190605
 	packet(0x0b21,clif->pHotkey2);
 	packet(0x0b22,clif->pHotkeyRowShift2); // CZ_SHORTCUTKEYBAR_ROTATE
@@ -1984,6 +1988,7 @@ packet(0x96e,clif->ackmergeitems);
 #endif
 
 #if PACKETVER >= 20190724
+	packet(0x0b46,clif->pGuildRequestEmblem3);
 	packet(0x0b4c,clif->pCashShopLimitedReq);
 #endif
 
@@ -2010,6 +2015,11 @@ packet(0x96e,clif->ackmergeitems);
 	packet(0x0a6c,clif->pMacroReporterSelect);
 #endif
 
+#if PACKETVER_MAIN_NUM >= 20171213 || PACKETVER_RE_NUM >= 20171213 || PACKETVER_ZERO_NUM >= 20171214
+	packet(0x0ae6,clif->pAdventuterAgencyJoinReq);
+	packet(0x0af8, clif->pAdventuterAgencyJoinResult);
+#endif
+
 #if PACKETVER >= 20191224
 	packet(0x0b66,clif->pRepairItem2);
 #endif
@@ -2032,8 +2042,25 @@ packet(0x96e,clif->ackmergeitems);
 	packet(0x0b5c, clif->pGradeEnchantClose);
 #endif // PACKETVER_MAIN_NUM >= 20191016 || PACKETVER_RE_NUM >= 20191016 || PACKETVER_ZERO_NUM >= 20191008
 
-#if PACKETVER_MAIN_NUM >= 20220216
+#if PACKETVER_MAIN_NUM >= 20220216 || PACKETVER_ZERO_NUM >= 20221024
 	packet(0x0bb0, clif->pGuildMembersNear);
 #endif  // PACKETVER_MAIN_NUM >= 20220216
+
+#if PACKETVER_MAIN_NUM >= 20200916 || PACKETVER_RE_NUM >= 20211103 || PACKETVER_ZERO_NUM >= 20221024
+	packet(0x0b90, clif->pItemReformClose);
+	packet(0x0b91, clif->pItemReformAck);
+#endif // PACKETVER_MAIN_NUM >= 20200916 || PACKETVER_RE_NUM >= 20211103 || PACKETVER_ZERO_NUM >= 20221024
+
+#if PACKETVER_MAIN_NUM >= 20201118 || PACKETVER_RE_NUM >= 20211103 || PACKETVER_ZERO_NUM >= 20221024
+	packet(0x0b9b, clif->pEnchantUINormalRequest);
+	packet(0x0b9c, clif->pEnchantUIPerfectRequest);
+	packet(0x0b9d, clif->pEnchantUIUpgradeRequest);
+	packet(0x0b9e, clif->pEnchantUIResetRequest);
+	packet(0x0ba0, clif->pEnchantUIClose);
+#endif // PACKETVER_MAIN_NUM >= 20201118 || PACKETVER_RE_NUM >= 20211103 || PACKETVER_ZERO_NUM >= 20221024
+
+#if PACKETVER_MAIN_NUM >= 20220216 || PACKETVER_ZERO_NUM >= 20220316
+	packet(0x0baf, clif->pUsePackageItem);
+#endif  // PACKETVER_MAIN_NUM >= 20220216 || PACKETVER_ZERO_NUM >= 20220316
 
 #endif /* MAP_PACKETS_H */

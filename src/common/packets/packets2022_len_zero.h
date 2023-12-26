@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2018-2022 Hercules Dev Team
+ * Copyright (C) 2018-2023 Hercules Dev Team
  * Copyright (C) 2018-2022 Andrei Karas (4144)
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -1287,6 +1287,16 @@ packetLen(0x020d, -1)
 // Packet: 0x020e
 packetLen(0x020e, 32)
 
+// Packet: 0x020f
+#if PACKETVER >= 20221024
+packetLen(0x020f, 10)
+#endif
+
+// Packet: 0x0210
+#if PACKETVER >= 20221024
+packetLen(0x0210, 22)
+#endif
+
 // Packet: 0x0212
 packetLen(0x0212, 26)
 
@@ -1933,7 +1943,9 @@ packetLen(0x02f5, 7)
 packetLen(0x02f6, 7)
 
 // Packet: 0x02f7
-#if PACKETVER >= 20220316
+#if PACKETVER >= 20221024
+packetLen(0x02f7, 47)
+#elif PACKETVER >= 20220316
 // removed
 #elif PACKETVER >= 20220203
 packetLen(0x02f7, 47)
@@ -3865,6 +3877,21 @@ packetLen(0x0a5c, 18)
 // Packet: 0x0a5d
 packetLen(0x0a5d, 6)
 
+// Packet: 0x0a5e
+#if PACKETVER >= 20220817
+packetLen(0x0a5e, 26)
+#endif
+
+// Packet: 0x0a5f
+#if PACKETVER >= 20220817
+packetLen(0x0a5f, 8)
+#endif
+
+// Packet: 0x0a60
+#if PACKETVER >= 20220817
+packetLen(0x0a60, 3)
+#endif
+
 // Packet: 0x0a68
 packetLen(0x0a68, 3)
 
@@ -4838,6 +4865,38 @@ packetLen(0x0bb9, 27)
 // Packet: 0x0bba
 #if PACKETVER >= 20220518
 packetLen(0x0bba, -1)
+#endif
+
+// Packet: 0x0bbb
+#if PACKETVER >= 20220817
+packetLen(0x0bbb, -1)
+#endif
+
+// Packet: 0x0bbc
+#if PACKETVER >= 20220817
+packetLen(0x0bbc, 22)
+#endif
+
+// Packet: 0x0bbd
+#if PACKETVER >= 20220817
+packetLen(0x0bbd, 6)
+#endif
+
+// Packet: 0x0bbe
+#if PACKETVER >= 20221005
+packetLen(0x0bbe, 6)
+#elif PACKETVER >= 20220817
+packetLen(0x0bbe, 3)
+#endif
+
+// Packet: 0x0bbf
+#if PACKETVER >= 20221005
+packetLen(0x0bbf, 12)
+#endif
+
+// Packet: 0x0bc0
+#if PACKETVER >= 20221005
+packetLen(0x0bc0, 3)
 #endif
 
 

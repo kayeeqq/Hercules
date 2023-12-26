@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2022 Hercules Dev Team
+ * Copyright (C) 2012-2023 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -41,7 +41,7 @@ struct config_setting_t;
  * Defines
  **/
 #define ATCOMMAND_LENGTH 50
-#define MAX_MSG 1530
+#define MAX_MSG 1550
 #define msg_txt(idx) atcommand->msg(idx)
 #define msg_sd(sd,msg_number) atcommand->msgsd((sd),(msg_number))
 #define msg_fd(fd,msg_number) atcommand->msgfd((fd),(msg_number))
@@ -148,6 +148,7 @@ struct atcommand_interface {
 	int (*mutearea_sub) (struct block_list *bl,va_list ap);
 	void (*getring) (struct map_session_data* sd);
 	void (*channel_help) (int fd, const char *command, bool can_create);
+	void (*quest_help) (int fd);
 	/* */
 	void (*commands_sub) (struct map_session_data* sd, const int fd, AtCommandType type);
 	void (*cmd_db_clear) (void);

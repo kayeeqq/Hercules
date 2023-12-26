@@ -4,7 +4,7 @@
 # This file is part of Hercules.
 # http://herc.ws - http://github.com/HerculesWS/Hercules
 #
-# Copyright (C) 2012-2022 Hercules Dev Team
+# Copyright (C) 2012-2023 Hercules Dev Team
 # Copyright (C) Athena Dev Teams
 #
 # Hercules is free software: you can redistribute it and/or modify
@@ -26,8 +26,10 @@ AC_PREREQ([2.69])
 AC_CONFIG_SRCDIR([src/common/cbasetypes.h])
 AC_CONFIG_FILES([Makefile src/common/Makefile])
 AC_CONFIG_FILES([3rdparty/mt19937ar/Makefile 3rdparty/libconfig/Makefile 3rdparty/libbacktrace/Makefile 3rdparty/libbacktrace/backtrace-supported.h])
+AC_CONFIG_FILES([3rdparty/http-parser/Makefile 3rdparty/multipart-parser/Makefile 3rdparty/cJSON/Makefile 3rdparty/llhttp/Makefile 3rdparty/libgif/Makefile])
 AC_CONFIG_FILES([src/char/Makefile src/login/Makefile])
 AC_CONFIG_FILES([src/map/Makefile src/plugins/Makefile])
+AC_CONFIG_FILES([src/api/Makefile])
 AC_CONFIG_FILES([src/test/Makefile])
 AC_CONFIG_FILES([tools/HPMHookGen/Makefile])
 AC_CONFIG_FILES([tools/doxygen/Makefile])
@@ -135,6 +137,19 @@ AC_ARG_ENABLE(
 	),
 	[enable_cashshop_preview_patch=1],
 	[enable_cashshop_preview_patch=0]
+)
+
+#
+# old cash shop preview patch
+#
+AC_ARG_ENABLE(
+	[old-cashshop-preview-patch],
+	AC_HELP_STRING(
+		[--enable-old-cashshop-preview-patch],
+		[Enable Nemo patch ExtendOldCashShopPreview.]
+	),
+	[enable_old_cashshop_preview_patch=1],
+	[enable_old_cashshop_preview_patch=0]
 )
 
 
@@ -379,7 +394,7 @@ AC_ARG_ENABLE(
 )
 
 #
-# RDTSC as Tick Source 
+# RDTSC as Tick Source
 #
 AC_ARG_ENABLE(
 	[rdtsc],
@@ -653,6 +668,44 @@ AC_ARG_WITH(
 	[manual_MYSQL_LIBS="no"]
 )
 
+
+# Select http parser
+AC_ARG_WITH(
+	[http_parser],
+	AC_HELP_STRING(
+		[--with-http_parser=ARG],
+		[select http parser. Allowed values: http-parser, llhttp)]
+	),
+	[
+		case $withval in
+		http-parser* )
+			HTTP_PARSER_NAME="http-parser"
+			CPPFLAGS="$CPPFLAGS -DUSE_HTTP_PARSER"
+			USE_HTTP_PARSER=yes
+			USE_LLHTTP=no
+			AC_MSG_RESULT([[Use http-parser as http library]])
+			;;
+		llhttp* )
+			HTTP_PARSER_NAME="llhttp"
+			USE_HTTP_PARSER=no
+			USE_LLHTTP=yes
+			AC_MSG_RESULT([[Use llhttp as http library]])
+			;;
+		*)
+			AC_MSG_ERROR([[unknown http_parser selected 'withval'. Allowed values: http-parser, llhttp. ... stopping]])
+			;;
+		esac
+	],
+	[
+		HTTP_PARSER_NAME="http-parser"
+		CPPFLAGS="$CPPFLAGS -DUSE_HTTP_PARSER"
+		USE_HTTP_PARSER=yes
+		USE_LLHTTP=no
+		AC_MSG_RESULT([[Use http-parser as http library]])
+	]
+)
+
+CPPFLAGS="$CPPFLAGS -DHTTP_PARSER_INCLUDE=$HTTP_PARSER_INCLUDE"
 
 ###############################################################################
 # Check for programs and types.
@@ -1036,6 +1089,9 @@ AC_DEFUN([AC_CHECK_COMPILER_WFLAG],
 			[
 				AC_MSG_RESULT([yes])
 				CFLAGS="$OLD_CFLAGS -W$1"
+				if test "$1" == "shorten-64-to-32"; then
+					FLAG_WNO_shorten_64_to_32="-Wno-shorten-64-to-32"
+				fi
 				# Optionally, run a test
 				if test "x$2" != "x"; then
 					AC_MSG_CHECKING([whether $CC can actually use -W$1])
@@ -1045,10 +1101,16 @@ AC_DEFUN([AC_CHECK_COMPILER_WFLAG],
 						[
 							AC_MSG_RESULT([no])
 							CFLAGS="$OLD_CFLAGS"
+							if test "$1" == "shorten-64-to-32"; then
+								FLAG_WNO_shorten_64_to_32="-Wno-shorten-64-to-32"
+							fi
 						]
 						[
 							AC_MSG_RESULT([yes])
 							CFLAGS="$OLD_CFLAGS -W$1"
+							if test "$1" == "shorten-64-to-32"; then
+								FLAG_WNO_shorten_64_to_32="-Wno-shorten-64-to-32"
+							fi
 						],
 					)
 				fi
@@ -1056,6 +1118,9 @@ AC_DEFUN([AC_CHECK_COMPILER_WFLAG],
 			[
 				AC_MSG_RESULT([no])
 				CFLAGS="$OLD_CFLAGS"
+				if test "$1" == "shorten-64-to-32"; then
+					FLAG_WNO_shorten_64_to_32="-Wno-shorten-64-to-32"
+				fi
 			]
 		)
 	]
@@ -1166,6 +1231,7 @@ AC_CHECK_COMPILER_WFLAG(string-compare)
 AC_CHECK_COMPILER_WFLAG(zero-length-bounds)
 AC_CHECK_COMPILER_WFLAG(absolute-value)
 AC_CHECK_COMPILER_WFLAG(shift-overflow=2)
+AC_CHECK_COMPILER_WFLAG(enum-int-mismatch)
 #AC_CHECK_COMPILER_WFLAG(unreachable-code)
 #AC_CHECK_COMPILER_WFLAG(unused-const-variable=2)
 #AC_CHECK_COMPILER_WFLAG(write-strings)
@@ -1207,6 +1273,39 @@ if test "x$CFLAGS" != "x$SAVED_OLD_CFLAGS"; then
 		[
 			AC_MSG_RESULT([no])
 			CFLAGS="$SAVED_OLD_CFLAGS"
+		]
+	)
+fi
+
+# Certain versions of gcc implement -Wformat-truncation in a naive way,
+# disregarding the actual values that an integer can take in every code path
+# and assuming a worst case of INT_MAX. That makes it not very useful as it
+# produces meaningless warnings.
+SAVED_OLD_CFLAGS="$CFLAGS"
+AC_CHECK_COMPILER_WNOFLAG(format-truncation)
+if test "x$CFLAGS" != "x$SAVED_OLD_CFLAGS"; then
+	AC_MSG_CHECKING([whether $CC has a too naive -Wformat-truncation implementation])
+	NEW_CFLAGS="$CFLAGS"
+	CFLAGS="$SAVED_OLD_CFLAGS"
+	CFLAGS="$CFLAGS -Werror"
+	AC_COMPILE_IFELSE(
+		[AC_LANG_SOURCE([
+			#include <stdio.h>
+			char foo(void) {
+				[char buf[3];]
+				for (int i = 0; i < 4; i++) {
+					snprintf(buf, sizeof(buf), "a%d", i);
+				}
+				[return buf[1];]
+			}
+		])],
+		[
+			AC_MSG_RESULT([no])
+			CFLAGS="$SAVED_OLD_CFLAGS"
+		],
+		[
+			AC_MSG_RESULT([yes])
+			CFLAGS="$NEW_CFLAGS"
 		]
 	)
 fi
@@ -1317,6 +1416,7 @@ fi
 my_shared_test_flags=""
 AC_SUBST([WITH_PLUGINS])
 AC_SUBST([SOFLAGS])
+AC_SUBST([FLAG_WNO_shorten_64_to_32])
 
 
 #
@@ -1455,6 +1555,18 @@ case $enable_cashshop_preview_patch in
 esac
 
 #
+# old cash shop preview patch
+#
+case $enable_old_cashshop_preview_patch in
+	0)
+		#default value
+		;;
+	1)
+		CPPFLAGS="$CPPFLAGS -DENABLE_OLD_CASHSHOP_PREVIEW_PATCH"
+		;;
+esac
+
+#
 # Epoll
 #
 case $have_linux_epoll in
@@ -1523,7 +1635,7 @@ else
 		)],
 		[
 			BACKTRACE_FILE="nounwind.lo"
-		 	backtrace_supported=no
+			backtrace_supported=no
 		]
 	)
 	AC_SUBST(BACKTRACE_FILE)
@@ -1723,6 +1835,8 @@ else
 	fi
 fi
 AC_SUBST(USE_LIBBACKTRACE)
+AC_SUBST(USE_HTTP_PARSER)
+AC_SUBST(USE_LLHTTP)
 
 #
 # Buildbot
@@ -1803,7 +1917,12 @@ Darwin*)
 	DLLEXT=".dylib"
 	;;
 esac
-AC_SUBST([DLLEXT])
+
+case "${host}" in
+	*-*-mingw*)
+		DLLEXT=".dll"
+		;;
+esac
 
 AC_MSG_CHECKING([for MinGW])
 if test -n "`$CC --version 2>/dev/null | grep -i mingw`" ; then
@@ -1813,10 +1932,12 @@ if test -n "`$CC --version 2>/dev/null | grep -i mingw`" ; then
 		CPPFLAGS="$CPPFLAGS -DFD_SETSIZE=4096"
 	fi
 	LIBS="$LIBS -lws2_32"
+	DLLEXT=".dll"
 else
 	AC_MSG_RESULT([no])
 fi
 
+AC_SUBST([DLLEXT])
 
 
 #
