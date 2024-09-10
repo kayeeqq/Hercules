@@ -2614,6 +2614,140 @@ deleted.
 
 ---------------------------------------
 //=====================================
+1.1 - Message formatting commands (tags)
+//=====================================
+---------------------------------------
+
+*mesnavigation("<label>", "<map>"{, <x>{, <y>{, <show_window>{, <mode>{, <services_flag>{, <monster_id>}}}}}});
+
+Generates and returns a <NAVI> tag with the given parameters. A <NAVI> tag when written to certain windows,
+such as the one from "mes" command, will create a highlighted and clickable text, which when clicked,
+starts the navigation system for the specified values.
+
+It is important to note that for most "<modes>" values, it is expected that your client has proper navigation
+files which includes the target NPC/monster, or they will fail.
+
+If the current client doesn't support NAVI tags, returns a fall back text which generally looks like:
+	<label> (<map_name> <x>, <y>)
+
+Parameters:
+- label: (string, required)
+	The visible and clickable text. (example: "Hat maker")
+
+- map: (string, required)
+	Target map name. (example: "prontera")
+	Note: when service_flag is NAV_WINDOW_SEARCH (-222) this becomes the search string.
+
+- x: (int, optional, defaults to 0)
+	Target map X position
+	Note: does nothing when used with modes NAV_MODE_MAP or NAV_MODE_MOB
+
+- y: (int, optional, defaults to 0)
+	Target map Y position
+	Note: does nothing when used with modes NAV_MODE_MAP or NAV_MODE_MOB
+
+- show_window: (bool, optional, defaults to false)
+	Whether to open the navigation UI (true) or not (false) when clicking the label.
+
+- mode: (int, optional, defaults to NAV_MODE_ALL (0))
+	The kind of navigation being performed. This mainly affects the messages shown by the client when you reach the map.
+	- NAV_MODE_ALL (0): "You have reached your destination"
+	- NAV_MODE_MAP (1): "You have reached the target map"
+	- NAV_MODE_NPC (2): "You have reached the map the NPC is at" / "You have reached the target NPC"
+	- NAV_MODE_MOB (3): "You have reached the map where the monster appears"
+
+	Notes:
+	- NAV_MODE_NPC requires client navigation files to have a NPC in the exact position or an error is shown
+	- NAV_MODE_MOB requires client navigation files to have <monster_id> spawn in the given map or an error is shown.
+
+- services_flag: (int, optional, defaults to NAV_KAFRA_AND_AIRSHIP (101))
+	The kinds of services that may be used when calculating the route.
+
+	The following values may be summed up:
+	- NAV_AIRSHIP_ONLY (1): Include airships
+	- NAV_SCROLL_ONLY (10): Include scrolls
+	- NAV_KAFRA_ONLY (100): Include kafras
+
+	Summed values:
+	- NAV_AIRSHIP_AND_SCROLL (11)
+	- NAV_KAFRA_AND_AIRSHIP (101)
+	- NAV_KAFRA_AND_SCROLL (110)
+	- NAV_ALL (111)
+
+	Special values:
+	- NAV_WINDOW_SEARCH (-222)
+		This is a special value that can't be summed with others and when used,
+		"map" becomes a search string in the navigation UI. And client performs a search
+		with the special keyword "$$DB".
+		It is only known to work together with mode = NAV_MODE_MOB and using monster Sprite Name
+		as "map".
+		When using NAV_WINDOW_SEARCH, prefer using mesmobspawn instead.
+
+- monster_id: (int, optional, defaults to 0)
+	To be used with mode = NAV_MODE_MOB. The ID of the monster being looked for.
+
+---------------------------------------
+
+*mesmobspawn(<monster_id>{, "<label>"})
+
+Generates and returns a <NAVI> tag that opens the Navigation UI listing the places where <monster_id> monster spawns.
+
+This will only work if your client navigation files are properly configured with the <monster_id> spawns.
+
+If the current client doesn't support this feature, returns the value of <label>.
+
+Parameters:
+- monster_id: (int, required)
+	The ID of the monster being looked for.
+
+- label: (string, optional, defaults to <monster_id> name)
+	The visible and clickable text. (example: "Target monster")
+
+---------------------------------------
+
+*mesurl("<label>", "url"{, <width>, <height>})
+
+Generates and returns a <URL> tag. When presented in certain places (like with "mes" and "mesf"),
+this will display a clickable text (<label>) which when clicked, opens <url> in the in-game browser
+or default browser (depending on client version).
+
+If the current client doesn't support this feature, returns a basic string in the following format:
+	<label> (<url>)
+
+Parameters:
+- label: (string, required)
+	The visible and clickable text. (example: "My site")
+
+- url: (string, required)
+	The site that will open when <label> is clicked
+
+- width: (int, optional, defaults to -1)
+	The width of the browser window (when using in-game browser).
+	When not provided (or -1), width/height is not specified.
+
+- height: (int, optional, defaults to -1)
+	The height of the browser window (when using in-game browser).
+	When not provided (or -1), width/height is not specified.
+
+---------------------------------------
+
+*mestipbox("<label>", <tip_id>)
+
+Generates and returns a <TIPBOX> tag. When presented in certain places (like with "mes" and "mesf"),
+this will display a clickable text (<label>) which when clicked, opens the TipBox UI with the given <tip_id>.
+
+If the current client doesn't support this feature, returns a simple string with "<label>"
+
+Parameters:
+- label: (string, required)
+	The visible and clickable text. (example: "Super Tip")
+
+- tip_id: (int, required)
+	The tip ID (as set in TipBox lua file)
+	If 0, it shows a random tipbox
+
+---------------------------------------
+//=====================================
 1 - End of Basic-Related Commands
 //=====================================
 ---------------------------------------
@@ -2866,56 +3000,25 @@ Lets say the ID of a party was saved as a global variable:
 
 ---------------------------------------
 
-*getpartymember(<party id>{, <type>})
+*getpartymember(<party_id>, <type>, <array>)
 
-This command will find all members of a specified party and returns their
-names (or character id or account id depending on the value of "type")
-into an array of temporary global variables. There's actually quite a few
-commands like this which will fill a special variable with data upon
-execution and not do anything else.
+This command will find all members of a specified <party_id>, copy their
+names (or character id or account id) depending on the <type> into <array>
+and returns the number of party members that were found.
 
-Upon executing this,
+Valid <type> are:
 
-$@partymembername$[] is a global temporary string array which contains all
-                     the names of these party members.
-                     (only set when type is 0 or not specified)
+	PT_MEMBER_NAME		- Party member names
+	PT_MEMBER_CHARID	- Party member character ID
+	PT_MEMBER_ACCID		- Party member account ID
 
-$@partymembercid[]   is a global temporary number array which contains the
-                     character id of these party members.
-                     (only set when type is 1)
+Make sure to use string variable for PT_MEMBER_NAME and
+int variable for PT_MEMBER_CHARID and PT_MEMBER_ACCID
 
-$@partymemberaid[]   is a global temporary number array which contains the
-                     account id of these party members.
-                     (only set when type is 2)
-
-$@partymembercount   is the number of party members that were found.
-
-The party members will (apparently) be found regardless of whether they
-are online or offline. Note that the names come in no particular order.
-
-Be sure to use $@partymembercount to go through this array, and not
-'getarraysize', because it is not cleared between runs of 'getpartymember'.
-If someone with 7 party members invokes this script, the array would have
-7 elements. But if another person calls up the NPC, and he has a party of
-5, the server will not clear the array for you, overwriting the values
-instead. So in addition to returning the 5 member names, the 6th and 7th
-elements from the last call remain, and you will get 5+2 members, of which
-the last 2 don't belong to the new guy's party. $@partymembercount will
-always contain the correct number, (5) unlike 'getarraysize()' which will
-return 7 in this case.
-
-Example 1: list party member names
+Example 1: Listing party member names
 
 	// get the party member names
-	getpartymember(getcharid(CHAR_ID_PARTY), 0);
-
-	// It's a good idea to copy the global temporary $@partymember*****
-	// variables to your own scope variables because if you have pauses in
-	// this script (sleep, sleep2, next, close2, input, menu, select, or
-	// prompt), another player could click this NPC, trigger
-	// 'getpartymember', and overwrite the $@partymember***** variables.
-	.@count = $@partymembercount;
-	copyarray(.@name$[0], $@partymembername$[0], $@partymembercount);
+	.@count = getpartymember(getcharid(CHAR_ID_PARTY), PT_MEMBER_NAME, .@name$);
 
 	// list the party member names
 	for (.@i = 0; .@i < .@count; ++.@i) {
@@ -2923,61 +3026,19 @@ Example 1: list party member names
 	}
 	close();
 
-
-Example 2: check party count (with a next() pause), before warping to event
-
-	.register_num = 5; // How many party members are required?
+Example 2: Get online count
 
 	// get the charID and accountID of character's party members
-	getpartymember(getcharid(CHAR_ID_PARTY), 1);
-	getpartymember(getcharid(CHAR_ID_PARTY), 2);
+	// we only need to count the member once so we assign that
+	// to the our second command call
+	getpartymember(getcharid(CHAR_ID_PARTY), PT_MEMBER_CHARID, .@charid);
+	.@count = getpartymember(getcharid(CHAR_ID_PARTY), PT_MEMBER_ACCID, .@accid);
 
-	if ($@partymembercount != .register_num) {
-		mes("Please form a party of "+ .register_num +" to continue");
-		close();
-	}
-
-	// loop through both and use 'isloggedin' to count online party members
-	for (.@i = 0; .@i < $@partymembercount; ++.@i)
-		if (isloggedin($@partymemberaid[.@i], $@partymembercid[.@i]))
+	for (.@i = 0; .@i < .@count; ++.@i) {
+		if (isloggedin(.@accid[.@i], .@charid[.@i]))
 			.@count_online++;
-	// We search accountID & charID because a single party can have
-	// multiple characters from the same account. Without searching
-	// through the charID, if a player has 2 characters from the same
-	// account inside the party but only 1 char online, it would count
-	// their online char twice.
-
-	if (.@count_online != .register_num) {
-		mes("All your party members must be online to continue");
-		close();
 	}
-
-	// copy the array to prevent players cheating the system
-	copyarray(.@partymembercid, $@partymembercid, .register_num);
-
-	mes("Are you ready?");
-	next(); // careful here
-	select("Yes");
-
-	// When a script hits a next, menu, sleep or input that pauses the
-	// script, players can invite or /leave and make changes in their
-	// party. To prevent this, we call getpartymember again and compare
-	// with the original values.
-
-	getpartymember(getcharid(CHAR_ID_PARTY), 1);
-	if ($@partymembercount != .register_num) {
-		mes("You've made changes to your party !");
-		close();
-	}
-	for (.@i = 0; .@i < $@partymembercount; ++.@i) {
-		if (.@partymembercid[.@i] != $@partymembercid[.@i]) {
-			mes("You've made changes to your party !");
-			close();
-		}
-	}
-
-	// Finally, it's safe to start the event!
-	warpparty("event_map", 0, 0, getcharid(CHAR_ID_PARTY), true);
+	end;
 
 ---------------------------------------
 
@@ -4086,33 +4147,23 @@ Example:
 
 ---------------------------------------
 
-*getguildmember(<guild id>{, <type>});
+*getguildmember(<guild id>, <type>, <array>);
 
-This command will find all members of a specified guild and returns their names
-(or character id or account id depending on the value of "type") into an array
-of temporary global variables.
+This command will find all members of a specified <guild_id>, copy their
+names (or character id or account id) depending on the <type> into <array>
+and returns the number of guild members that were found.
 
-Upon executing this,
+Valid <type> are:
 
-$@guildmembername$[] is a global temporary string array which contains all the
-                     names of these guild members.
-                     (only set when type is 0 or not specified)
-
-$@guildmembercid[]   is a global temporary number array which contains the
-                     character id of these guild members.
-                     (only set when type is 1)
-
-$@guildmemberaid[]   is a global temporary number array which contains the
-                     account id of these guild members.
-                     (only set when type is 2)
-
-$@guildmembercount   is the number of guild members that were found.
+	GD_MEMBER_NAME		- Guild member names
+	GD_MEMBER_CHARID	- Guild member character ID
+	GD_MEMBER_ACCID		- Guild member account ID
 
 The guild members will be found regardless of whether they are online or offline.
-Note that the names come in no particular order.
+Note that the results come in no particular order.
 
-Be sure to use $@guildmembercount to go through this array, and not
-getarraysize(), because it is not cleared between runs of getguildmember().
+Make sure to use string variable for GD_MEMBER_NAME and
+int variable for GD_MEMBER_CHARID and GD_MEMBER_ACCID
 
 For usage examples, see getpartymember().
 
@@ -9718,6 +9769,9 @@ For examples of usage, see /doc/sample/npc_rodex.txt
 rodex_sendmail2 and rodex_sendmail_acc2 are more flexible versions.
 Check getitem2 command for more information of the extra parameters.
 
+Important: rodex_sendmail_acc (and rodex_sendmail_acc2) requires clients from 2016-03-23 or newer.
+  Additionally, it requires enabling "rodex_use_accountmail" on conf/map/battle/feature.conf.
+
 ---------------------------------------
 //=====================================
 7 - Instance-Related Commands
@@ -10994,13 +11048,15 @@ Opens refinery user interface for the player
 returns true on success and false on failure
 
 ---------------------------------------
-*openlapineddukddakboxui(<item_id>)
+*openlapineddukddakboxui({<item_id>})
+*openlapineddukddakboxui({<item_name>})
 
 Opens lapine ddukddak user interface for the player
 returns true on success and false on failure
 
 ---------------------------------------
-*openlapineupgradeui(<item_id>)
+*openlapineupgradeui({<item_id>})
+*openlapineupgradeui({<item_name>})
 
 Opens lapine ddukddak upgrade user interface for the player
 returns true on success and false on failure
@@ -11131,3 +11187,23 @@ When <played_time> is not provided, it defaults to -1, and the current played ti
           If keeping the GoldPC mode between sessions is desired, you may use OnPCLoginEvent.
 
 Check out some examples in `doc/sample/goldpc.txt`.
+
+
+---------------------------------------
+
+*getitemgroupitems(<item_id_array>, <item_group_id>)
+
+Fills the array <item_id_array> with the IDs of the items from the <item_group_id> item group, without duplicates.
+
+Returns the amount of items inserted into the array.
+
+Note: The array will not be automatically cleared. It's recommended to use the returned value to loop over the array instead of relying on getarraysize.
+
+The possible values for <item_group_id> can be found in `db/(pre-)re/item_group.conf`
+
+Example:
+
+	.@count = getitemgroupitems(.@item_list[0], Old_Card_Album);
+	for (.@i = 0; .@i < .@count; ++.@i) {
+		mesf("^1E56BD\t%s^000000", getitemname(.@item_list[.@i]));
+	}

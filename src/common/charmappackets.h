@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2020 Hercules Dev Team
+ * Copyright (C) 2012-2024 Hercules Dev Team
  * Copyright (C) 2020-2022 Andrei Karas (4144)
  * Copyright (C) Athena Dev Teams
  *
@@ -23,6 +23,7 @@
 #define COMMON_CHARMAPPACKETS_H
 
 #include "common/hercules.h"
+#include "common/packetsmacro.h"
 
 /* Packets Structs */
 #if !defined(sun) && (!defined(__NETBSD__) || __NetBSD_Version__ >= 600000000) // NetBSD 5 and Solaris don't like pragma pack but accept the packed attribute

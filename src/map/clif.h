@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2023 Hercules Dev Team
+ * Copyright (C) 2012-2024 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -72,6 +72,8 @@ enum macro_report_status;
 enum grade_level;
 enum grade_ui_result;
 enum item_reform_status;
+enum navigation_mode;
+enum navigation_service;
 
 /**
  * Defines
@@ -963,6 +965,9 @@ struct clif_interface {
 	unsigned short (*decrypt_cmd) ( int cmd, struct map_session_data *sd );
 	/* client-specific logic */
 	void (*format_itemlink) (struct StringBuf *buf, const struct item *it);
+	void (*format_navigation) (struct StringBuf *buf, const char *label, const char *mapname, int x, int y, enum navigation_mode mode, enum navigation_service services_flag, bool show_window, int monster_id);
+	void (*format_url) (struct StringBuf *buf, const char *label, const char *url, int width, int height);
+	void (*format_tipbox) (struct StringBuf *buf, const char *label, int tip_id);
 	/* auth */
 	void (*authok) (struct map_session_data *sd);
 	void (*auth_error) (int fd, int errorCode);
@@ -1209,7 +1214,8 @@ struct clif_interface {
 	void (*useskill) (struct block_list* bl, int src_id, int dst_id, int dst_x, int dst_y, uint16 skill_id, uint16 skill_lv, int casttime);
 	void (*produce_effect) (struct map_session_data* sd,int flag,int nameid);
 	void (*devotion) (struct block_list *src, struct map_session_data *tsd);
-	void (*spiritball) (struct block_list *bl, enum spirit_ball_types spirit, enum send_target target);
+	void (*soulballs) (struct block_list *bl, int soulballs, enum send_target target);
+	void (*spiritballs) (struct block_list *bl, int spiritballs, enum send_target target);
 	void (*spiritball_single) (int fd, struct map_session_data *sd);
 	void (*bladestop) (struct block_list *src, int dst_id, int active);
 	void (*mvp_effect) (struct map_session_data *sd);
@@ -1582,7 +1588,8 @@ struct clif_interface {
 	void (*pChangeCart) (int fd,struct map_session_data *sd);
 	void (*pStatusUp) (int fd,struct map_session_data *sd);
 	void (*pSkillUp) (int fd,struct map_session_data *sd);
-	void (*useSkillToIdReal) (int fd, struct map_session_data *sd, int skill_id, int skill_lv, int target_id);
+	void (*useSkillToIdReal) (int fd, struct map_session_data *sd, int skill_id, int skill_lv, int target_id, bool skip_combo_check);
+	int (*combo_delay_timer)(int tid, int64 tick, int id, intptr_t data);
 	void (*pUseSkillToId) (int fd, struct map_session_data *sd);
 	void (*pStartUseSkillToId) (int fd, struct map_session_data *sd);
 	void (*pStopUseSkillToId) (int fd, struct map_session_data *sd);

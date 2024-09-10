@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2023 Hercules Dev Team
+ * Copyright (C) 2012-2024 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -22,7 +22,7 @@
 #define CONFIG_CORE_H
 
 /// Hercules version. From tag vYYYY.MM(+PPP) -> YYYYMMPPP
-#define HERCULES_VERSION 202311000
+#define HERCULES_VERSION 202408000
 
 /// Max number of items on @autolootid list
 #define AUTOLOOTITEM_SIZE 10
@@ -99,6 +99,10 @@
 
 /// Uncomment for use with Nemo patch ExtendOldCashShopPreview
 //#define ENABLE_OLD_CASHSHOP_PREVIEW_PATCH
+
+/// Uncomment to allow RE clients to enable RoDEX "Account Mail".
+/// RE clients requires Nemo patch for RoDEX Account Mail to work.
+//#define ENABLE_RODEX_ACCOUNT_MAIL_RE_PATCH
 
 /// Uncomment to allow flinch animation and walk delay to be synced
 /// Reduces positional lag when getting hit

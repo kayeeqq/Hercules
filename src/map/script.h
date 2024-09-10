@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2023 Hercules Dev Team
+ * Copyright (C) 2012-2024 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -357,6 +357,19 @@ enum {
 	MF_NOSENDMAIL,
 };
 
+enum navigation_mode {
+	NAV_MODE_ALL     = 0,
+	NAV_MODE_MAP     = 1,
+	NAV_MODE_NPC     = 2,
+	NAV_MODE_MOB     = 3,
+	/**
+	 * 4 is in client accepted range but it is not implemented
+	 * So also marking it as "MAX" so we prevent code from sending bad values.
+	 */
+	NAV_MODE_UNKNOWN = 4,
+	NAV_MODE_MAX     = 4,
+};
+
 enum navigation_service {
 	NAV_NONE               = 0,
 	NAV_AIRSHIP_ONLY       = 1,
@@ -365,7 +378,10 @@ enum navigation_service {
 	NAV_KAFRA_ONLY         = 100,
 	NAV_KAFRA_AND_AIRSHIP  = NAV_KAFRA_ONLY + NAV_AIRSHIP_ONLY, // 101
 	NAV_KAFRA_AND_SCROLL   = NAV_KAFRA_ONLY + NAV_SCROLL_ONLY, // 110
-	NAV_ALL                = NAV_AIRSHIP_ONLY + NAV_SCROLL_ONLY + NAV_KAFRA_ONLY // 111-255
+	NAV_ALL                = NAV_AIRSHIP_ONLY + NAV_SCROLL_ONLY + NAV_KAFRA_ONLY, // 111-255
+
+	/** Special value that simply opens the window with a $$DB search instead of a real navigation */
+	NAV_WINDOW_SEARCH      = -222,
 };
 
 /**
@@ -601,6 +617,18 @@ enum script_hominfo_types {
 	HOMINFO_RENAME,
 	HOMINFO_LEVEL,
 	HOMINFO_MAX
+};
+
+enum guildmember_type {
+	GD_MEMBER_NAME,
+	GD_MEMBER_CHARID,
+	GD_MEMBER_ACCID,
+};
+
+enum partymember_type {
+	PT_MEMBER_NAME,
+	PT_MEMBER_CHARID,
+	PT_MEMBER_ACCID,
 };
 
 /**
@@ -1080,6 +1108,7 @@ struct script_interface {
 	int (*buildin_query_sql_sub) (struct script_state *st, struct Sql *handle);
 	int (*buildin_instance_warpall_sub) (struct block_list *bl, va_list ap);
 	int (*buildin_mobuseskill_sub) (struct block_list *bl, va_list ap);
+	bool (*format_navigation) (struct script_state *st, const char *label, const char *mapname, int x, int y, enum navigation_mode mode, enum navigation_service services_flag, bool show_window, int monster_id);
 	bool (*buildin_rodex_sendmail_sub) (struct script_state *st, struct rodex_message *msg);
 	int (*cleanfloor_sub) (struct block_list *bl, va_list ap);
 	int (*run_func) (struct script_state *st);

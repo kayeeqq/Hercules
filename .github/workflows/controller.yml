@@ -35,10 +35,6 @@ jobs:
     needs: build
     if: ${{ !failure() && !cancelled() }}
     uses: ./.github/workflows/gccold2.yml
-  gccold3:
-    needs: build
-    if: ${{ !failure() && !cancelled() }}
-    uses: ./.github/workflows/gccold3.yml
   gccsnapshot_test:
     needs: build
     if: ${{ !failure() && !cancelled() }}
@@ -51,3 +47,15 @@ jobs:
     needs: build
     if: ${{ !failure() && !cancelled() }}
     uses: ./.github/workflows/mysql.yml
+  macos_latest:
+    needs: build
+    if: ${{ !failure() && !cancelled() }}
+    uses: ./.github/workflows/macos_latest.yml
+  macos_m1:
+    needs: build
+    if: ${{ !failure() && !cancelled() }}
+    uses: ./.github/workflows/macos_m1.yml
+  windows:
+    needs: build
+    if: ${{ !failure() && !cancelled() }}
+    uses: ./.github/workflows/windows.yml

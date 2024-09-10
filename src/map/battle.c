@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2023 Hercules Dev Team
+ * Copyright (C) 2012-2024 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -269,11 +269,10 @@ static int battle_delay_damage_sub(int tid, int64 tick, int id, intptr_t data)
 		if (target != NULL && !status->isdead(target)) {
 			//Check to see if you haven't teleported. [Skotlex]
 			if (src != NULL && (
-			    battle_config.fix_warp_hit_delay_abuse ?
-			    (dat->skill_id == MO_EXTREMITYFIST || target->m != src->m || check_distance_bl(src, target, dat->distance))
-			    :
-			    ((target->type != BL_PC || BL_UCAST(BL_PC, target)->invincible_timer == INVALID_TIMER)
-			    && (dat->skill_id == MO_EXTREMITYFIST || (target->m == src->m && check_distance_bl(src, target, dat->distance))))
+				(dat->skill_id == MO_EXTREMITYFIST && (target->m != src->m || !battle_config.snap_dodge)) // Extremity fist always hits
+				|| (battle_config.fix_warp_hit_delay_abuse && target->m != src->m)
+				|| ((target->type != BL_PC || BL_UCAST(BL_PC, target)->invincible_timer == INVALID_TIMER)
+					&& (target->m == src->m && check_distance_bl(src, target, dat->distance)))
 			)) {
 				map->freeblock_lock();
 				status_fix_damage(src, target, dat->damage, dat->delay);
@@ -1490,6 +1489,7 @@ static int64 battle_calc_defense(int attack_type, struct block_list *src, struct
 #else
 				vit_def = def2;
 #endif
+				vit_def = (vit_def * tstatus->def_percent) / 100;
 				if((battle->check_undead(sstatus->race,sstatus->def_ele) || sstatus->race==RC_DEMON) && //This bonus already doesn't work vs players
 					src->type == BL_MOB && (i=pc->checkskill(tsd,AL_DP)) > 0)
 					vit_def += i*(int)(3 +(tsd->status.base_level+1)*0.04);   // [orn]
@@ -1505,6 +1505,8 @@ static int64 battle_calc_defense(int attack_type, struct block_list *src, struct
 #else
 				vit_def = def2;
 #endif
+				vit_def = (vit_def * tstatus->def_percent) / 100;
+				def1 = (def1 * tstatus->def_percent) / 100;
 			}
 
 			if (battle_config.weapon_defense_type) {
@@ -4013,6 +4015,10 @@ static struct Damage battle_calc_magic_attack(struct block_list *src, struct blo
 					default:
 						MATK_RATE(battle->calc_skillratio(BF_MAGIC, src, target, skill_id, skill_lv, skillratio, mflag));
 				}
+
+				// Aegis: It seems like most percentual matk bonuses, besides matk_percent, are used additively.
+				MATK_RATE(sstatus->matk_percent);
+
 				//Constant/misc additions from skills
 				if (skill_id == WZ_FIREPILLAR)
 					MATK_ADD(100+50*skill_lv);
@@ -5304,6 +5310,20 @@ static struct Damage battle_calc_weapon_attack(struct block_list *src, struct bl
 						ShowError("0 enemies targeted by %d:%s, divide per 0 avoided!\n", skill_id, skill->get_name(skill_id));
 				}
 
+				bool skip_atk_rate_bonus;
+				switch (skill_id) {
+				case MO_EXTREMITYFIST:
+					skip_atk_rate_bonus = true;
+					break;
+				default:
+					skip_atk_rate_bonus = false;
+					break;
+				}
+
+				if (skip_atk_rate_bonus)
+					break;
+
+				int temp_atk_rate = sstatus->atk_percent;
 				//Add any bonuses that modify the base baseatk+watk (pre-skills)
 				if(sd) {
 #ifndef RENEWAL
@@ -5315,13 +5335,13 @@ static struct Damage battle_calc_weapon_attack(struct block_list *src, struct bl
 					if(flag.cri && sc && sc->data[SC_MTF_CRIDAMAGE])
 						ATK_ADDRATE(sc->data[SC_MTF_CRIDAMAGE]->val1);// temporary it should be 'bonus.crit_atk_rate'
 #ifndef RENEWAL
-
 					if(sd->status.party_id && (temp=pc->checkskill(sd,TK_POWER)) > 0){
 						if ((i = party->foreachsamemap(party->sub_count, sd, 0, sd->status.char_id)) > 0)
-							ATK_ADDRATE(2*temp*i);
+							temp_atk_rate += 2 * temp * i;
 					}
 #endif
 				}
+				ATK_RATE(temp_atk_rate);
 				break;
 			} //End default case
 		} //End switch(skill_id)
@@ -7524,6 +7544,7 @@ static const struct config_data_old battle_data[] = {
 	{ "max_heal_lv",                        &battle_config.max_heal_lv,                     11,     1,      INT_MAX,        },
 	{ "max_heal",                           &battle_config.max_heal,                        9999,   0,      INT_MAX,        },
 	{ "combo_delay_rate",                   &battle_config.combo_delay_rate,                100,    0,      INT_MAX,        },
+	{ "combo_cache_skill",                  &battle_config.combo_cache_skill,               0,      0,      1,              },
 	{ "item_check",                         &battle_config.item_check,                      0,      0,      0xF,            },
 	{ "item_use_interval",                  &battle_config.item_use_interval,               100,    0,      INT_MAX,        },
 	{ "wedding_modifydisplay",              &battle_config.wedding_modifydisplay,           0,      0,      1,              },
@@ -7758,8 +7779,8 @@ static const struct config_data_old battle_data[] = {
 	{ "client_sort_storage",                &battle_config.client_sort_storage,             0,      0,      1,              },
 	{ "features/buying_store",              &battle_config.feature_buying_store,            1,      0,      1,              },
 	{ "features/search_stores",             &battle_config.feature_search_stores,           1,      0,      1,              },
-	{ "searchstore_querydelay",             &battle_config.searchstore_querydelay,         10,      0,      INT_MAX,        },
-	{ "searchstore_maxresults",             &battle_config.searchstore_maxresults,         30,      1,      INT_MAX,        },
+	{ "searchstore_querydelay",             &battle_config.searchstore_querydelay,          10,     0,      INT_MAX,        },
+	{ "searchstore_maxresults",             &battle_config.searchstore_maxresults,          30,     1,      INT_MAX,        },
 	{ "display_party_name",                 &battle_config.display_party_name,              0,      0,      1,              },
 	{ "send_party_options",                 &battle_config.send_party_options,              0x31F9, 0,      0x1FFFF,        },
 	{ "cashshop_show_points",               &battle_config.cashshop_show_points,            0,      0,      1,              },
@@ -7799,10 +7820,10 @@ static const struct config_data_old battle_data[] = {
 	{ "guild_notice_changemap",             &battle_config.guild_notice_changemap,          7,      0,      7,              },
 	{ "features/banking",                   &battle_config.feature_banking,                 1,      0,      1,              },
 	{ "features/auction",                   &battle_config.feature_auction,                 0,      0,      2,              },
-	{ "idletime_criteria",                  &battle_config.idletime_criteria,            0x25,      1,      INT_MAX,        },
+	{ "idletime_criteria",                  &battle_config.idletime_criteria,               0x25,   1,      INT_MAX,        },
 	{ "mon_trans_disable_in_gvg",           &battle_config.mon_trans_disable_in_gvg,        0,      0,      1,              },
 	{ "case_sensitive_aegisnames",          &battle_config.case_sensitive_aegisnames,       1,      0,      1,              },
-	{ "search_freecell_map_margin",         &battle_config.search_freecell_map_margin,     15,      0,      INT_MAX,        },
+	{ "search_freecell_map_margin",         &battle_config.search_freecell_map_margin,      15,     0,      INT_MAX,        },
 	{ "guild_castle_invite",                &battle_config.guild_castle_invite,             0,      0,      1,              },
 	{ "guild_castle_expulsion",             &battle_config.guild_castle_expulsion,          0,      0,      1,              },
 	{ "song_timer_reset",                   &battle_config.song_timer_reset,                0,      0,      1,              },
@@ -7866,30 +7887,30 @@ static const struct config_data_old battle_data[] = {
 	{ "hit_min_limit",                      &battle_config.hit_min,                         1,      1,      INT_MAX,        },
 	{ "hit_max_limit",                      &battle_config.hit_max,                         SHRT_MAX, 1,    INT_MAX,        },
 	{ "autoloot_adjust",                    &battle_config.autoloot_adjust,                 0,      0,      1,              },
-	{ "hom_bonus_exp_from_master",          &battle_config.hom_bonus_exp_from_master,      10,      0,      100,            },
+	{ "hom_bonus_exp_from_master",          &battle_config.hom_bonus_exp_from_master,       10,     0,      100,            },
 	{ "allowed_actions_when_dead",          &battle_config.allowed_actions_when_dead,       0,      0,      3,              },
 	{ "teleport_close_storage",             &battle_config.teleport_close_storage,          1,      0,      1,              },
 	{ "features/show_attendance_window",    &battle_config.show_attendance_window,          1,      0,      1,              },
-	{ "elem_natural_heal_hp",               &battle_config.elem_natural_heal_hp,           6000, NATURAL_HEAL_INTERVAL, INT_MAX,},
-	{ "elem_natural_heal_sp",               &battle_config.elem_natural_heal_sp,           8000, NATURAL_HEAL_INTERVAL, INT_MAX,},
-	{ "elem_natural_heal_cap",              &battle_config.elem_natural_heal_cap,          1000,    1,      INT_MAX,        },
-	{ "hom_natural_heal_hp",                &battle_config.hom_natural_heal_hp,            2000, NATURAL_HEAL_INTERVAL, INT_MAX,},
-	{ "hom_natural_heal_sp",                &battle_config.hom_natural_heal_sp,            4000, NATURAL_HEAL_INTERVAL, INT_MAX,},
-	{ "hom_natural_heal_cap",               &battle_config.hom_natural_heal_cap,           1000,    1,      INT_MAX,        },
-	{ "merc_natural_heal_hp",               &battle_config.merc_natural_heal_hp,           6000, NATURAL_HEAL_INTERVAL, INT_MAX,},
-	{ "merc_natural_heal_sp",               &battle_config.merc_natural_heal_sp,           8000, NATURAL_HEAL_INTERVAL, INT_MAX,},
-	{ "merc_natural_heal_cap",              &battle_config.merc_natural_heal_cap,          1000,    1,      INT_MAX,        },
-	{ "macro_detect_retry",                 &battle_config.macro_detect_retry,                1,    1,      INT_MAX,        },
-	{ "macro_detect_timeout",               &battle_config.macro_detect_timeout,              0,    0,      INT_MAX,        },
-	{ "roulette_gold_step",                 &battle_config.roulette_gold_step,               10,   1,      INT_MAX,        },
-	{ "roulette_silver_step",               &battle_config.roulette_silver_step,             10,   1,      INT_MAX,        },
-	{ "roulette_bronze_step",               &battle_config.roulette_bronze_step,             1,    1,      INT_MAX,        },
-	{ "features/grader_max_used",           &battle_config.grader_max_used,                   0,    0,      MAX_ITEM_GRADE, },
-	{ "dynamic_npc_timeout",                &battle_config.dynamic_npc_timeout,               0,    0,      INT_MAX,        },
-	{ "dynamic_npc_range",                  &battle_config.dynamic_npc_range,                 0,    0,      INT_MAX,        },
-	{ "features/goldpc/enable",             &battle_config.feature_goldpc_enable,             0,    0,      1,              },
-	{ "features/goldpc/default_mode",       &battle_config.feature_goldpc_default_mode,       1,    0,      INT_MAX,        },
-	{ "venom_dust_exp",                     &battle_config.venom_dust_exp,                    0,    0,      1,              },
+	{ "elem_natural_heal_hp",               &battle_config.elem_natural_heal_hp,            6000, NATURAL_HEAL_INTERVAL, INT_MAX,},
+	{ "elem_natural_heal_sp",               &battle_config.elem_natural_heal_sp,            8000, NATURAL_HEAL_INTERVAL, INT_MAX,},
+	{ "elem_natural_heal_cap",              &battle_config.elem_natural_heal_cap,           1000,   1,      INT_MAX,        },
+	{ "hom_natural_heal_hp",                &battle_config.hom_natural_heal_hp,             2000, NATURAL_HEAL_INTERVAL, INT_MAX,},
+	{ "hom_natural_heal_sp",                &battle_config.hom_natural_heal_sp,             4000, NATURAL_HEAL_INTERVAL, INT_MAX,},
+	{ "hom_natural_heal_cap",               &battle_config.hom_natural_heal_cap,            1000,   1,      INT_MAX,        },
+	{ "merc_natural_heal_hp",               &battle_config.merc_natural_heal_hp,            6000, NATURAL_HEAL_INTERVAL, INT_MAX,},
+	{ "merc_natural_heal_sp",               &battle_config.merc_natural_heal_sp,            8000, NATURAL_HEAL_INTERVAL, INT_MAX,},
+	{ "merc_natural_heal_cap",              &battle_config.merc_natural_heal_cap,           1000,   1,      INT_MAX,        },
+	{ "macro_detect_retry",                 &battle_config.macro_detect_retry,              1,      1,      INT_MAX,        },
+	{ "macro_detect_timeout",               &battle_config.macro_detect_timeout,            0,      0,      INT_MAX,        },
+	{ "roulette_gold_step",                 &battle_config.roulette_gold_step,              10,     1,      INT_MAX,        },
+	{ "roulette_silver_step",               &battle_config.roulette_silver_step,            10,     1,      INT_MAX,        },
+	{ "roulette_bronze_step",               &battle_config.roulette_bronze_step,            1,      1,      INT_MAX,        },
+	{ "features/grader_max_used",           &battle_config.grader_max_used,                 0,      0,      MAX_ITEM_GRADE, },
+	{ "dynamic_npc_timeout",                &battle_config.dynamic_npc_timeout,             0,      0,      INT_MAX,        },
+	{ "dynamic_npc_range",                  &battle_config.dynamic_npc_range,               0,      0,      INT_MAX,        },
+	{ "features/goldpc/enable",             &battle_config.feature_goldpc_enable,           0,      0,      1,              },
+	{ "features/goldpc/default_mode",       &battle_config.feature_goldpc_default_mode,     1,      0,      INT_MAX,        },
+	{ "venom_dust_exp",                     &battle_config.venom_dust_exp,                  0,      0,      1,              },
 };
 
 static bool battle_set_value_sub(int index, int value)
@@ -8013,6 +8034,18 @@ static void battle_adjust_conf(void)
 		battle_config.mvp_exp_reward_message = 0;
 	}
 #endif
+
+#if !(PACKETVER_MAIN_NUM >= 20160323 || (PACKETVER_RE_NUM >= 20160316 && defined(ENABLE_RODEX_ACCOUNT_MAIL_RE_PATCH)) || defined(PACKETVER_ZERO))
+	if (battle_config.feature_rodex_use_accountmail == 1) {
+#ifndef BUILDBOT /* Don't show these warnings to CI */
+		ShowWarning("conf/map/battle/feature.conf:features/rodex_use_accountmail RoDEX account mail is enabled but it requires 2016-03-16 RagexeRE / 2016-03-23 Ragexe or newer, disabling...\n");
+#ifdef PACKETVER_RE
+		ShowWarning("conf/map/battle/feature.conf:features/rodex_use_accountmail For RE clients, you should also enable ENABLE_RODEX_ACCOUNT_MAIL_RE_PATCH\n");
+#endif // PACKETVER_RE
+#endif // !BUILDBOT
+		battle_config.feature_rodex_use_accountmail = 0;
+	}
+#endif // date check
 
 #if !(PACKETVER_MAIN_NUM >= 20161130 || PACKETVER_RE_NUM >= 20161109 || defined(PACKETVER_ZERO))
 	if (battle_config.enable_refinery_ui == 1) {

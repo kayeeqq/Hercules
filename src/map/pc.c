@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2023 Hercules Dev Team
+ * Copyright (C) 2012-2024 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -63,6 +63,7 @@
 #include "common/HPM.h"
 #include "common/memmgr.h"
 #include "common/mmo.h" // NAME_LENGTH, MAX_CARTS, NEW_CARTS
+#include "common/msgtable.h"
 #include "common/nullpo.h"
 #include "common/random.h"
 #include "common/showmsg.h"
@@ -202,7 +203,7 @@ static int pc_spiritball_timer(int tid, int64 tick, int id, intptr_t data)
 		memmove(sd->spirit_timer+i, sd->spirit_timer+i+1, (sd->spiritball-i)*sizeof(int));
 	sd->spirit_timer[sd->spiritball] = INVALID_TIMER;
 
-	clif->spiritball(&sd->bl, BALL_TYPE_SPIRIT, AREA);
+	clif->spiritballs(&sd->bl, sd->spiritball, AREA);
 
 	return 0;
 }
@@ -267,7 +268,7 @@ static int pc_addspiritball_sub(struct map_session_data *sd)
 	if ((sd->job & MAPID_THIRDMASK) == MAPID_ROYAL_GUARD)
 		clif->millenniumshield(&sd->bl,sd->spiritball);
 	else
-		clif->spiritball(&sd->bl, BALL_TYPE_SPIRIT, AREA);
+		clif->spiritballs(&sd->bl, sd->spiritball, AREA);
 	return 0;
 }
 
@@ -313,7 +314,7 @@ static int pc_delspiritball_sub(struct map_session_data *sd)
 	if ((sd->job & MAPID_THIRDMASK) == MAPID_ROYAL_GUARD)
 		clif->millenniumshield(&sd->bl,sd->spiritball);
 	else
-		clif->spiritball(&sd->bl, BALL_TYPE_SPIRIT, AREA);
+		clif->spiritballs(&sd->bl, sd->spiritball, AREA);
 	return 0;
 }
 
@@ -339,7 +340,7 @@ static void pc_addsoulball(struct map_session_data *sd, int max)
 
 	sd->soulball = cap_value(sd->soulball + 1, 0, max);
 	sc_start(&sd->bl, &sd->bl, SC_SOULENERGY, 100, sd->soulball, skill->get_time2(SP_SOULCOLLECT, 1), 0);
-	clif->spiritball(&sd->bl, BALL_TYPE_SOUL, AREA);
+	clif->soulballs(&sd->bl, sd->soulball, AREA);
 }
 
 /**
@@ -369,7 +370,7 @@ static void pc_delsoulball(struct map_session_data *sd, int count, bool type)
 	}
 
 	if (type == 0)
-		clif->spiritball(&sd->bl, BALL_TYPE_SOUL, AREA);
+		clif->soulballs(&sd->bl, sd->soulball, AREA);
 }
 
 static int pc_check_banding(struct block_list *bl, va_list ap)
@@ -1411,7 +1412,7 @@ static bool pc_authok(struct map_session_data *sd, int login_id2, time_t expirat
 
 		if (battle_config.display_version == 1) {
 			char buf[256];
-			sprintf(buf, msg_sd(sd,1295), sysinfo->vcstype(), sysinfo->vcsrevision_src(), sysinfo->vcsrevision_scripts()); // %s revision '%s' (src) / '%s' (scripts)
+			sprintf(buf, msg_sd(sd, MSGTBL_VERSION_REVISION_INFO), sysinfo->vcstype(), sysinfo->vcsrevision_src(), sysinfo->vcsrevision_scripts()); // %s revision '%s' (src) / '%s' (scripts)
 			clif->message(sd->fd, buf);
 		}
 
@@ -1519,21 +1520,33 @@ static int pc_reg_received(struct map_session_data *sd)
 	if ((i = pc->checkskill(sd,RG_PLAGIARISM)) > 0) {
 		sd->cloneskill_id = pc_readglobalreg(sd,script->add_variable("CLONE_SKILL"));
 		if (sd->cloneskill_id > 0 && (idx = skill->get_index(sd->cloneskill_id)) > 0) {
+			int learned_lv = sd->status.skill[idx].lv;
+			bool is_own_skill = pc->is_own_skill(sd, sd->cloneskill_id);
 			sd->status.skill[idx].id = sd->cloneskill_id;
 			sd->status.skill[idx].lv = pc_readglobalreg(sd,script->add_variable("CLONE_SKILL_LV"));
 			if (sd->status.skill[idx].lv > i)
 				sd->status.skill[idx].lv = i;
-			sd->status.skill[idx].flag = SKILL_FLAG_PLAGIARIZED;
+
+			if (is_own_skill)
+				sd->status.skill[idx].flag = learned_lv + SKILL_FLAG_REPLACED_LV_0;
+			else
+				sd->status.skill[idx].flag = SKILL_FLAG_PLAGIARIZED;
 		}
 	}
 	if ((i = pc->checkskill(sd,SC_REPRODUCE)) > 0) {
 		sd->reproduceskill_id = pc_readglobalreg(sd,script->add_variable("REPRODUCE_SKILL"));
 		if( sd->reproduceskill_id > 0 && (idx = skill->get_index(sd->reproduceskill_id)) > 0) {
+			int learned_lv = sd->status.skill[idx].lv;
+			bool is_own_skill = pc->is_own_skill(sd, sd->reproduceskill_id);
 			sd->status.skill[idx].id = sd->reproduceskill_id;
 			sd->status.skill[idx].lv = pc_readglobalreg(sd,script->add_variable("REPRODUCE_SKILL_LV"));
 			if( i < sd->status.skill[idx].lv)
 				sd->status.skill[idx].lv = i;
-			sd->status.skill[idx].flag = SKILL_FLAG_PLAGIARIZED;
+
+			if (is_own_skill)
+				sd->status.skill[idx].flag = learned_lv + SKILL_FLAG_REPLACED_LV_0;
+			else
+				sd->status.skill[idx].flag = SKILL_FLAG_PLAGIARIZED;
 		}
 	}
 
@@ -1592,7 +1605,7 @@ static int pc_reg_received(struct map_session_data *sd)
 
 	if (pc_isinvisible(sd)) {
 		sd->vd.class = INVISIBLE_CLASS;
-		clif->message(sd->fd, msg_sd(sd,11)); // Invisible: On
+		clif->message(sd->fd, msg_sd(sd, MSGTBL_INVISIBLE_ON)); // Invisible: On
 		// decrement the number of pvp players on the map
 		map->list[sd->bl.m].users_pvp--;
 
@@ -1643,8 +1656,10 @@ static void pc_calc_skilltree_clear(struct map_session_data *sd)
 	nullpo_retv(sd);
 
 	for (i = 0; i < MAX_SKILL_DB; i++) {
-		if (sd->status.skill[i].flag != SKILL_FLAG_PLAGIARIZED && sd->status.skill[i].flag != SKILL_FLAG_PERM_GRANTED) //Don't touch these
-			sd->status.skill[i].id = 0; //First clear skills.
+		if (sd->status.skill[i].flag == SKILL_FLAG_PLAGIARIZED || sd->status.skill[i].flag == SKILL_FLAG_PERM_GRANTED
+		    || sd->status.skill[i].id == sd->cloneskill_id || sd->status.skill[i].id == sd->reproduceskill_id) //Don't touch these
+			continue;
+		sd->status.skill[i].id = 0; //First clear skills.
 		/* permanent skills that must be re-checked */
 		if (sd->status.skill[i].flag == SKILL_FLAG_PERMANENT) {
 			switch (skill->dbs->db[i].nameid) {
@@ -1678,7 +1693,8 @@ static int pc_calc_skilltree(struct map_session_data *sd)
 	pc->calc_skilltree_clear(sd);
 
 	for (int i = 0; i < MAX_SKILL_DB; i++) {
-		if (sd->status.skill[i].flag == SKILL_FLAG_TEMPORARY || sd->status.skill[i].flag >= SKILL_FLAG_REPLACED_LV_0) {
+		if ((sd->status.skill[i].flag >= SKILL_FLAG_REPLACED_LV_0 && sd->status.skill[i].id != sd->cloneskill_id && sd->status.skill[i].id != sd->reproduceskill_id)
+		    || sd->status.skill[i].flag == SKILL_FLAG_TEMPORARY) {
 			// Restore original level of skills after deleting earned skills.
 			sd->status.skill[i].lv = (sd->status.skill[i].flag == SKILL_FLAG_TEMPORARY) ? 0 : sd->status.skill[i].flag - SKILL_FLAG_REPLACED_LV_0;
 			sd->status.skill[i].flag = SKILL_FLAG_PERMANENT;
@@ -4591,7 +4607,7 @@ static int pc_payzeny(struct map_session_data *sd, int zeny, enum e_log_pick_typ
 
 		if (sd->state.showzeny) {
 			char output[255];
-			sprintf(output, msg_sd(sd, 885), zeny); // Removed %dz.
+			sprintf(output, msg_sd(sd, MSGTBL_REMOVED_AMOUNT), zeny); // Removed %dz.
 			clif_disp_onlyself(sd, output);
 		}
 	}
@@ -4641,7 +4657,7 @@ static int pc_paycash(struct map_session_data *sd, int price, int points)
 
 	if (battle_config.cashshop_show_points) {
 		char output[128];
-		sprintf(output, msg_sd(sd,504), points, cash, sd->kafraPoints, sd->cashPoints);
+		sprintf(output, msg_sd(sd, MSGTBL_USED_KAFRA_CASH_POINTS), points, cash, sd->kafraPoints, sd->cashPoints);
 		clif_disp_onlyself(sd, output);
 	}
 
@@ -4667,7 +4683,7 @@ static int pc_getcash(struct map_session_data *sd, int cash, int points)
 
 		if( battle_config.cashshop_show_points )
 		{
-			sprintf(output, msg_sd(sd,505), cash, sd->cashPoints);
+			sprintf(output, msg_sd(sd, MSGTBL_GAINED_CASHPOINTS), cash, sd->cashPoints);
 			clif_disp_onlyself(sd, output);
 		}
 		return cash;
@@ -4690,7 +4706,7 @@ static int pc_getcash(struct map_session_data *sd, int cash, int points)
 
 		if( battle_config.cashshop_show_points )
 		{
-			sprintf(output, msg_sd(sd,506), points, sd->kafraPoints);
+			sprintf(output, msg_sd(sd, MSGTBL_GAINED_KAFRAPOINTS), points, sd->kafraPoints);
 			clif_disp_onlyself(sd, output);
 		}
 		return points;
@@ -4730,7 +4746,7 @@ static int pc_getzeny(struct map_session_data *sd, int zeny, enum e_log_pick_typ
 
 		if (sd->state.showzeny) {
 			char output[255];
-			sprintf(output, msg_sd(sd, 886), zeny); // Gained %dz.
+			sprintf(output, msg_sd(sd, MSGTBL_GAINED_AMOUNT), zeny); // Gained %dz.
 			clif_disp_onlyself(sd, output);
 		}
 	}
@@ -4965,13 +4981,13 @@ static int pc_dropitem(struct map_session_data *sd, int n, int amount)
 		return 0;
 
 	if( map->list[sd->bl.m].flag.nodrop ) {
-		clif->message (sd->fd, msg_sd(sd,271)); // You can't drop items in this map
+		clif->message (sd->fd, msg_sd(sd, MSGTBL_CANT_DROP_ITEMS_IN_MAP)); // You can't drop items in this map
 		return 0;
 	}
 
 	if( !pc->candrop(sd,&sd->status.inventory[n]) )
 	{
-		clif->message (sd->fd, msg_sd(sd,263)); // This item cannot be dropped.
+		clif->message (sd->fd, msg_sd(sd, MSGTBL_CANT_DROP_ITEM)); // This item cannot be dropped.
 		return 0;
 	}
 
@@ -5076,7 +5092,7 @@ static int pc_isUseitem(struct map_session_data *sd, int n)
 
 	if ((item->item_usage.flag&INR_SITTING) && (pc_issit(sd) == 1) && (pc_get_group_level(sd) < item->item_usage.override)) {
 		clif->msgtable(sd, MSG_CANT_USE_WHEN_SITDOWN);
-		//clif->messagecolor_self(sd->fd, COLOR_WHITE, msg_txt(1474));
+		//clif->messagecolor_self(sd->fd, COLOR_WHITE, msg_txt(MSGTBL_NOT_USE_ITEM_SITTING));
 		return 0; // You cannot use this item while sitting.
 	}
 
@@ -5086,7 +5102,7 @@ static int pc_isUseitem(struct map_session_data *sd, int n)
 #if PACKETVER >= 20080311
 				clif->skill_mapinfomessage(sd, 3);
 #else
-				clif->messagecolor_self(sd->fd, COLOR_CYAN, msg_sd(sd, 51));
+				clif->messagecolor_self(sd->fd, COLOR_CYAN, msg_sd(sd, MSGTBL_ITEM_DISABLED_IN_AREA));
 #endif
 				return 0;
 			}
@@ -5135,7 +5151,7 @@ static int pc_isUseitem(struct map_session_data *sd, int n)
 #if PACKETVER >= 20080311
 				clif->skill_mapinfomessage(sd, 0);
 #else
-				clif->messagecolor_self(sd->fd, COLOR_RED, msg_sd(sd, 49));
+				clif->messagecolor_self(sd->fd, COLOR_RED, msg_sd(sd, MSGTBL_TELEPORT_DISABLED_IN_AREA));
 #endif
 				return 0;
 			}
@@ -5150,14 +5166,14 @@ static int pc_isUseitem(struct map_session_data *sd, int n)
 		case ITEMID_WOB_LOCAL:    // Blue Butterfly Wing
 		case ITEMID_SIEGE_TELEPORT_SCROLL:
 			if( sd->duel_group && !battle_config.duel_allow_teleport ) {
-				clif->message(sd->fd, msg_sd(sd,863)); // "Duel: Can't use this item in duel."
+				clif->message(sd->fd, msg_sd(sd, MSGTBL_ITEM_LOCKED_DUEL)); // "Duel: Can't use this item in duel."
 				return 0;
 			}
 			if (nameid != ITEMID_WING_OF_FLY && nameid != ITEMID_GIANT_FLY_WING && map->list[sd->bl.m].flag.noreturn) {
 #if PACKETVER >= 20080311
 				clif->skill_mapinfomessage(sd, 0);
 #else
-				clif->messagecolor_self(sd->fd, COLOR_RED, msg_sd(sd, 49));
+				clif->messagecolor_self(sd->fd, COLOR_RED, msg_sd(sd, MSGTBL_TELEPORT_DISABLED_IN_AREA));
 #endif
 				return 0;
 			}
@@ -5170,7 +5186,7 @@ static int pc_isUseitem(struct map_session_data *sd, int n)
 #if PACKETVER >= 20080311
 				clif->skill_mapinfomessage(sd, 3);
 #else
-				clif->messagecolor_self(sd->fd, COLOR_CYAN, msg_sd(sd, 51));
+				clif->messagecolor_self(sd->fd, COLOR_CYAN, msg_sd(sd, MSGTBL_ITEM_DISABLED_IN_AREA));
 #endif
 				return 0;
 			}
@@ -5197,7 +5213,7 @@ static int pc_isUseitem(struct map_session_data *sd, int n)
 #if PACKETVER >= 20080311
 				clif->skill_mapinfomessage(sd, 3);
 #else
-				clif->messagecolor_self(sd->fd, COLOR_CYAN, msg_sd(sd, 51));
+				clif->messagecolor_self(sd->fd, COLOR_CYAN, msg_sd(sd, MSGTBL_ITEM_DISABLED_IN_AREA));
 #endif
 				return 0;
 			}
@@ -5213,7 +5229,7 @@ static int pc_isUseitem(struct map_session_data *sd, int n)
 			return 0;
 		}
 		if (!pc->inventoryblank(sd)) {
-			clif->messagecolor_self(sd->fd, COLOR_RED, msg_sd(sd,1477));
+			clif->messagecolor_self(sd->fd, COLOR_RED, msg_sd(sd, MSGTBL_INVENTORY_FULL));
 			return 0;
 		}
 	}
@@ -5304,13 +5320,13 @@ static int pc_useitem(struct map_session_data *sd, int n)
 #if PACKETVER >= 20110308
 		clif->msgtable(sd, MSG_BUSY);
 #else
-		clif->messagecolor_self(sd->fd, COLOR_WHITE, msg_sd(sd, 48));
+		clif->messagecolor_self(sd->fd, COLOR_WHITE, msg_sd(sd, MSGTBL_WORK_IN_PROGRESS_TRY_AGAIN));
 #endif
 		return 0;
 	}
 
 	if (battle_config.storage_use_item == 0 && sd->state.storage_flag != STORAGE_FLAG_CLOSED) {
-		clif->messagecolor_self(sd->fd, COLOR_RED, msg_sd(sd, 1475));
+		clif->messagecolor_self(sd->fd, COLOR_RED, msg_sd(sd, MSGTBL_NOT_USE_ITEM_STORAGE_OPEN));
 		return 0; // You cannot use this item while storage is open.
 	}
 
@@ -5331,7 +5347,7 @@ static int pc_useitem(struct map_session_data *sd, int n)
 #if PACKETVER >= 20110308
 		clif->msgtable(sd, MSG_BUSY);
 #else
-		clif->messagecolor_self(sd->fd, COLOR_WHITE, msg_sd(sd, 48));
+		clif->messagecolor_self(sd->fd, COLOR_WHITE, msg_sd(sd, MSGTBL_WORK_IN_PROGRESS_TRY_AGAIN));
 #endif
 		return 0;
 	}
@@ -5388,7 +5404,7 @@ static int pc_useitem(struct map_session_data *sd, int n)
 					clif->msgtable_num(sd, MSG_ITEM_REUSE_LIMIT_SECOND, delay_tick + 1); // [%d] seconds left until you can use
 #else
 					char delay_msg[100];
-					sprintf(delay_msg, msg_sd(sd, 26), delay_tick + 1);
+					sprintf(delay_msg, msg_sd(sd, MSGTBL_SECONDS_UNTIL_USE), delay_tick + 1);
 					clif->messagecolor_self(sd->fd, COLOR_YELLOW, delay_msg); // [%d] seconds left until you can use
 #endif
 					return 0; // Delay has not expired yet
@@ -5416,7 +5432,7 @@ static int pc_useitem(struct map_session_data *sd, int n)
 #if PACKETVER >= 20080311
 			clif->skill_mapinfomessage(sd, 3);
 #else
-			clif->messagecolor_self(sd->fd, COLOR_CYAN, msg_sd(sd, 50));
+			clif->messagecolor_self(sd->fd, COLOR_CYAN, msg_sd(sd, MSGTBL_SKILL_DISABLED_IN_AREA));
 #endif
 			if( battle_config.item_restricted_consumption_type && sd->status.inventory[n].expire_time == 0 ) {
 				clif->useitemack(sd,n,sd->status.inventory[n].amount-1,true);
@@ -5584,7 +5600,7 @@ static int pc_cart_additem(struct map_session_data *sd, struct item *item_data, 
 
 	if (!itemdb_cancartstore(item_data, pc_get_group_level(sd)) || (item_data->bound > IBT_ACCOUNT && !pc_can_give_bound_items(sd))) {
 		// Check item trade restrictions
-		clif->message (sd->fd, msg_sd(sd,264)); // This item cannot be stored.
+		clif->message (sd->fd, msg_sd(sd, MSGTBL_CANT_STORE_ITEM)); // This item cannot be stored.
 		return 1;/* TODO: there is no official response to this? */
 	}
 
@@ -5789,9 +5805,9 @@ static int pc_show_steal(struct block_list *bl, va_list ap)
 	nullpo_ret(sd);
 
 	if((item=itemdb->exists(itemid))==NULL)
-		sprintf(output, msg_sd(sd, 887), sd->status.name, itemid); // %s stole an Unknown Item (id: %i).
+		sprintf(output, msg_sd(sd, MSGTBL_STOLE_UNKNOWN_ITEM), sd->status.name, itemid); // %s stole an Unknown Item (id: %i).
 	else
-		sprintf(output, msg_sd(sd, 888), sd->status.name, item->jname); // %s stole %s.
+		sprintf(output, msg_sd(sd, MSGTBL_STOLE_ITEM), sd->status.name, item->jname); // %s stole %s.
 	clif->message(tsd->fd, output);
 
 	return 0;
@@ -6077,7 +6093,7 @@ static int pc_setpos(struct map_session_data *sd, unsigned short map_index, int 
 
 		// Make sure that vending is allowed here.
 		if (sd->state.vending != 0 && map->list[map_id].flag.novending != 0) {
-			clif->message(sd->fd, msg_sd(sd, 276)); // "You can't open a shop on this map"
+			clif->message(sd->fd, msg_sd(sd, MSGTBL_CANT_OPEN_SHOP_IN_MAP)); // "You can't open a shop on this map"
 			vending->close(sd);
 		}
 
@@ -6101,7 +6117,7 @@ static int pc_setpos(struct map_session_data *sd, unsigned short map_index, int 
 	}
 
 	if (sd->state.vending != 0 && map->getcell(map_id, &sd->bl, x, y, CELL_CHKNOVENDING) != 0) {
-		clif->message(sd->fd, msg_sd(sd, 204)); // "You can't open a shop on this cell."
+		clif->message(sd->fd, msg_sd(sd, MSGTBL_CANT_OPEN_SHOP_IN_CELL)); // "You can't open a shop on this cell."
 		vending->close(sd);
 	}
 
@@ -6420,12 +6436,12 @@ static int pc_jobid2mapid(int class)
 		case JOB_WANDERER_T:            return MAPID_MINSTRELWANDERER_T;
 		case JOB_BABY_MINSTREL:
 		case JOB_BABY_WANDERER:         return MAPID_BABY_MINSTRELWANDERER;
-#define ENUM_VALUE(name, id) case JOB_ ## name: return MAPID_ ## name;
+#define JOB_ENUM_VALUE(name, id, msgtbl) case JOB_ ## name: return MAPID_ ## name;
 #include "common/class.h"
-#undef ENUM_VALUE
-#define ENUM_VALUE(name, id) case JOB_ ## name: return -1;
+#undef JOB_ENUM_VALUE
+#define JOB_ENUM_VALUE(name, id, msgtbl) case JOB_ ## name: return -1;
 #include "common/class_hidden.h"
-#undef ENUM_VALUE
+#undef JOB_ENUM_VALUE
 		default:
 			return -1;
 	}
@@ -6443,9 +6459,9 @@ static int pc_mapid2jobid(unsigned int class, int sex)
 		case MAPID_MINSTRELWANDERER:      return sex ? JOB_MINSTREL : JOB_WANDERER;
 		case MAPID_MINSTRELWANDERER_T:    return sex ? JOB_MINSTREL_T : JOB_WANDERER_T;
 		case MAPID_BABY_MINSTRELWANDERER: return sex ? JOB_BABY_MINSTREL : JOB_BABY_WANDERER;
-#define ENUM_VALUE(name, id) case MAPID_ ## name: return JOB_ ## name;
+#define JOB_ENUM_VALUE(name, id, msgtbl) case MAPID_ ## name: return JOB_ ## name;
 #include "common/class.h"
-#undef ENUM_VALUE
+#undef JOB_ENUM_VALUE
 		default:
 			return -1;
 	}
@@ -6457,268 +6473,14 @@ static int pc_mapid2jobid(unsigned int class, int sex)
 static const char *pc_job_name(int class)
 {
 	switch (class) {
-	case JOB_NOVICE:   // 550
-	case JOB_SWORDMAN: // 551
-	case JOB_MAGE:     // 552
-	case JOB_ARCHER:   // 553
-	case JOB_ACOLYTE:  // 554
-	case JOB_MERCHANT: // 555
-	case JOB_THIEF:    // 556
-		return msg_txt(550 - JOB_NOVICE + class);
+#define JOB_ENUM_VALUE(name, id, msgtbl) case JOB_ ## name: return msg_txt(MSGTBL_ ## msgtbl);
+#include "common/class.h"
+#include "common/class_hidden.h"
+#include "common/class_special.h"
+#undef JOB_ENUM_VALUE
 
-	case JOB_KNIGHT:     // 557
-	case JOB_PRIEST:     // 558
-	case JOB_WIZARD:     // 559
-	case JOB_BLACKSMITH: // 560
-	case JOB_HUNTER:     // 561
-	case JOB_ASSASSIN:   // 562
-		return msg_txt(557 - JOB_KNIGHT + class);
-
-	case JOB_KNIGHT2:
-		return msg_txt(557);
-
-	case JOB_CRUSADER:  // 563
-	case JOB_MONK:      // 564
-	case JOB_SAGE:      // 565
-	case JOB_ROGUE:     // 566
-	case JOB_ALCHEMIST: // 567
-	case JOB_BARD:      // 568
-	case JOB_DANCER:    // 569
-		return msg_txt(563 - JOB_CRUSADER + class);
-
-	case JOB_CRUSADER2:
-		return msg_txt(563);
-
-	case JOB_WEDDING:      // 570
-	case JOB_SUPER_NOVICE: // 571
-	case JOB_GUNSLINGER:   // 572
-	case JOB_NINJA:        // 573
-	case JOB_XMAS:         // 574
-		return msg_txt(570 - JOB_WEDDING + class);
-
-	case JOB_SUMMER:
-		return msg_txt(621);
-
-	case JOB_NOVICE_HIGH:   // 575
-	case JOB_SWORDMAN_HIGH: // 576
-	case JOB_MAGE_HIGH:     // 577
-	case JOB_ARCHER_HIGH:   // 578
-	case JOB_ACOLYTE_HIGH:  // 579
-	case JOB_MERCHANT_HIGH: // 580
-	case JOB_THIEF_HIGH:    // 581
-		return msg_txt(575 - JOB_NOVICE_HIGH + class);
-
-	case JOB_LORD_KNIGHT:    // 582
-	case JOB_HIGH_PRIEST:    // 583
-	case JOB_HIGH_WIZARD:    // 584
-	case JOB_WHITESMITH:     // 585
-	case JOB_SNIPER:         // 586
-	case JOB_ASSASSIN_CROSS: // 587
-		return msg_txt(582 - JOB_LORD_KNIGHT + class);
-
-	case JOB_LORD_KNIGHT2:
-		return msg_txt(582);
-
-	case JOB_PALADIN:   // 588
-	case JOB_CHAMPION:  // 589
-	case JOB_PROFESSOR: // 590
-	case JOB_STALKER:   // 591
-	case JOB_CREATOR:   // 592
-	case JOB_CLOWN:     // 593
-	case JOB_GYPSY:     // 594
-		return msg_txt(588 - JOB_PALADIN + class);
-
-	case JOB_PALADIN2:
-		return msg_txt(588);
-
-	case JOB_BABY:          // 595
-	case JOB_BABY_SWORDMAN: // 596
-	case JOB_BABY_MAGE:     // 597
-	case JOB_BABY_ARCHER:   // 598
-	case JOB_BABY_ACOLYTE:  // 599
-	case JOB_BABY_MERCHANT: // 600
-	case JOB_BABY_THIEF:    // 601
-		return msg_txt(595 - JOB_BABY + class);
-
-	case JOB_BABY_KNIGHT:     // 602
-	case JOB_BABY_PRIEST:     // 603
-	case JOB_BABY_WIZARD:     // 604
-	case JOB_BABY_BLACKSMITH: // 605
-	case JOB_BABY_HUNTER:     // 606
-	case JOB_BABY_ASSASSIN:   // 607
-		return msg_txt(602 - JOB_BABY_KNIGHT + class);
-
-	case JOB_BABY_KNIGHT2:
-		return msg_txt(602);
-
-	case JOB_BABY_CRUSADER:  // 608
-	case JOB_BABY_MONK:      // 609
-	case JOB_BABY_SAGE:      // 610
-	case JOB_BABY_ROGUE:     // 611
-	case JOB_BABY_ALCHEMIST: // 612
-	case JOB_BABY_BARD:      // 613
-	case JOB_BABY_DANCER:    // 614
-		return msg_txt(608 - JOB_BABY_CRUSADER + class);
-
-	case JOB_BABY_CRUSADER2:
-		return msg_txt(608);
-
-	case JOB_SUPER_BABY:
-		return msg_txt(615);
-
-	case JOB_TAEKWON:
-		return msg_txt(616);
-	case JOB_STAR_GLADIATOR:
-	case JOB_STAR_GLADIATOR2:
-		return msg_txt(617);
-	case JOB_SOUL_LINKER:
-		return msg_txt(618);
-
-	case JOB_GANGSI:         // 622
-	case JOB_DEATH_KNIGHT:   // 623
-	case JOB_DARK_COLLECTOR: // 624
-		return msg_txt(622 - JOB_GANGSI + class);
-
-	case JOB_RUNE_KNIGHT:      // 625
-	case JOB_WARLOCK:          // 626
-	case JOB_RANGER:           // 627
-	case JOB_ARCH_BISHOP:      // 628
-	case JOB_MECHANIC:         // 629
-	case JOB_GUILLOTINE_CROSS: // 630
-		return msg_txt(625 - JOB_RUNE_KNIGHT + class);
-
-	case JOB_RUNE_KNIGHT_T:      // 656
-	case JOB_WARLOCK_T:          // 657
-	case JOB_RANGER_T:           // 658
-	case JOB_ARCH_BISHOP_T:      // 659
-	case JOB_MECHANIC_T:         // 660
-	case JOB_GUILLOTINE_CROSS_T: // 661
-		return msg_txt(656 - JOB_RUNE_KNIGHT_T + class);
-
-	case JOB_ROYAL_GUARD:   // 631
-	case JOB_SORCERER:      // 632
-	case JOB_MINSTREL:      // 633
-	case JOB_WANDERER:      // 634
-	case JOB_SURA:          // 635
-	case JOB_GENETIC:       // 636
-	case JOB_SHADOW_CHASER: // 637
-		return msg_txt(631 - JOB_ROYAL_GUARD + class);
-
-	case JOB_ROYAL_GUARD_T:   // 662
-	case JOB_SORCERER_T:      // 663
-	case JOB_MINSTREL_T:      // 664
-	case JOB_WANDERER_T:      // 665
-	case JOB_SURA_T:          // 666
-	case JOB_GENETIC_T:       // 667
-	case JOB_SHADOW_CHASER_T: // 668
-		return msg_txt(662 - JOB_ROYAL_GUARD_T + class);
-
-	case JOB_RUNE_KNIGHT2:
-		return msg_txt(625);
-
-	case JOB_RUNE_KNIGHT_T2:
-		return msg_txt(656);
-
-	case JOB_ROYAL_GUARD2:
-		return msg_txt(631);
-
-	case JOB_ROYAL_GUARD_T2:
-		return msg_txt(662);
-
-	case JOB_RANGER2:
-		return msg_txt(627);
-
-	case JOB_RANGER_T2:
-		return msg_txt(658);
-
-	case JOB_MECHANIC2:
-		return msg_txt(629);
-
-	case JOB_MECHANIC_T2:
-		return msg_txt(660);
-
-	case JOB_BABY_RUNE:     // 638
-	case JOB_BABY_WARLOCK:  // 639
-	case JOB_BABY_RANGER:   // 640
-	case JOB_BABY_BISHOP:   // 641
-	case JOB_BABY_MECHANIC: // 642
-	case JOB_BABY_CROSS:    // 643
-	case JOB_BABY_GUARD:    // 644
-	case JOB_BABY_SORCERER: // 645
-	case JOB_BABY_MINSTREL: // 646
-	case JOB_BABY_WANDERER: // 647
-	case JOB_BABY_SURA:     // 648
-	case JOB_BABY_GENETIC:  // 649
-	case JOB_BABY_CHASER:   // 650
-		return msg_txt(638 - JOB_BABY_RUNE + class);
-
-	case JOB_BABY_RUNE2:
-		return msg_txt(638);
-
-	case JOB_BABY_GUARD2:
-		return msg_txt(644);
-
-	case JOB_BABY_RANGER2:
-		return msg_txt(640);
-
-	case JOB_BABY_MECHANIC2:
-		return msg_txt(642);
-
-	case JOB_SUPER_NOVICE_E: // 651
-	case JOB_SUPER_BABY_E:   // 652
-		return msg_txt(651 - JOB_SUPER_NOVICE_E + class);
-
-	case JOB_KAGEROU: // 653
-	case JOB_OBORO:   // 654
-		return msg_txt(653 - JOB_KAGEROU + class);
-
-	case JOB_REBELLION:
-		return msg_txt(655);
-
-	case JOB_SUMMONER:
-		return msg_txt(669);
-
-	case JOB_BABY_SUMMONER:
-		return msg_txt(670);
-
-	case JOB_BABY_NINJA:
-		return msg_txt(671);
-
-	case JOB_BABY_KAGEROU:
-	case JOB_BABY_OBORO:
-		return msg_txt(672 - JOB_BABY_KAGEROU + class);
-
-	case JOB_BABY_TAEKWON:
-		return msg_txt(674);
-
-	case JOB_BABY_STAR_GLADIATOR:
-	case JOB_BABY_STAR_GLADIATOR2:
-		return msg_txt(675);
-
-	case JOB_BABY_SOUL_LINKER:
-		return msg_txt(676);
-
-	case JOB_BABY_GUNSLINGER:
-		return msg_txt(677);
-
-	case JOB_BABY_REBELLION:
-		return msg_txt(678);
-
-	case JOB_STAR_EMPEROR:
-		return msg_txt(679);
-
-	case JOB_BABY_STAR_EMPEROR:
-		return msg_txt(680);
-
-	case JOB_SOUL_REAPER:
-		return msg_txt(681);
-
-	case JOB_BABY_SOUL_REAPER:
-		return msg_txt(682);
-
-
-	default:
-		return msg_txt(620); // "Unknown Job"
+		default:
+			return msg_txt(MSGTBL_UNKNOWN_JOB);
 	}
 }
 
@@ -7211,7 +6973,7 @@ static bool pc_gainexp(struct map_session_data *sd, struct block_list *src, uint
 	if(sd->state.showexp) {
 		char output[256];
 		sprintf(output,
-			msg_sd(sd, 889), // Experience Gained Base:%llu (%.2f%%) Job:%llu (%.2f%%)
+			msg_sd(sd, MSGTBL_EXPERIENCE_GAINED), // Experience Gained Base:%llu (%.2f%%) Job:%llu (%.2f%%)
 			(unsigned long long)base_exp, nextbp * 100.0f, (unsigned long long)job_exp, nextjp * 100.0f);
 		clif_disp_onlyself(sd, output);
 	}
@@ -7584,7 +7346,7 @@ static int pc_skillup(struct map_session_data *sd, uint16 skill_id)
 			clif->msgtable_num(sd, MSG_UPGRADESKILLERROR_MORE_SECONDJOBSKILL, sd->sktree.third);
 #endif
 		} else if (pc->calc_skillpoint(sd) < 9) {  /* TODO: official response? */
-			clif->messagecolor_self(sd->fd, COLOR_RED, msg_sd(sd, 164)); // "You need to learn the basic skills first."
+			clif->messagecolor_self(sd->fd, COLOR_RED, msg_sd(sd, MSGTBL_BASIC_SKILLS_REQUIRED)); // "You need to learn the basic skills first."
 		}
 	}
 	return 0;
@@ -9076,7 +8838,7 @@ static int jobchange_killclone(struct block_list *bl, va_list ap)
 static int pc_jobchange(struct map_session_data *sd, int class, int upper)
 {
 	int i, fame_flag=0;
-	int job, idx = 0;
+	int job = 0;
 
 	nullpo_ret(sd);
 
@@ -9115,31 +8877,8 @@ static int pc_jobchange(struct map_session_data *sd, int class, int upper)
 		pc_setglobalreg(sd, script->add_variable("jobchange_level_3rd"), sd->change_level_3rd);
 	}
 
-	if(sd->cloneskill_id) {
-		idx = skill->get_index(sd->cloneskill_id);
-		if( sd->status.skill[idx].flag == SKILL_FLAG_PLAGIARIZED ) {
-			sd->status.skill[idx].id = 0;
-			sd->status.skill[idx].lv = 0;
-			sd->status.skill[idx].flag = 0;
-			clif->deleteskill(sd, sd->cloneskill_id, false);
-		}
-		sd->cloneskill_id = 0;
-		pc_setglobalreg(sd, script->add_variable("CLONE_SKILL"), 0);
-		pc_setglobalreg(sd, script->add_variable("CLONE_SKILL_LV"), 0);
-	}
-
-	if(sd->reproduceskill_id) {
-		idx = skill->get_index(sd->reproduceskill_id);
-		if( sd->status.skill[idx].flag == SKILL_FLAG_PLAGIARIZED ) {
-			sd->status.skill[idx].id = 0;
-			sd->status.skill[idx].lv = 0;
-			sd->status.skill[idx].flag = 0;
-			clif->deleteskill(sd, sd->reproduceskill_id, false);
-		}
-		sd->reproduceskill_id = 0;
-		pc_setglobalreg(sd, script->add_variable("REPRODUCE_SKILL"),0);
-		pc_setglobalreg(sd, script->add_variable("REPRODUCE_SKILL_LV"),0);
-	}
+	pc->clear_existing_cloneskill(sd, true);
+	pc->clear_existing_reproduceskill(sd, true);
 
 	if ((job & MAPID_UPPERMASK) != (sd->job & MAPID_UPPERMASK)) { //Things to remove when changing class tree.
 		const int class_idx = pc->class2idx(sd->status.class);
@@ -11284,7 +11023,7 @@ static int map_day_timer(int tid, int64 tick, int id, intptr_t data)
 
 	map->night_flag = 0; // 0=day, 1=night [Yor]
 	map->foreachpc(pc->daynight_timer_sub);
-	safestrncpy(tmp_soutput, (data == 0) ? msg_txt(502) : msg_txt(60), sizeof(tmp_soutput)); // The day has arrived!
+	safestrncpy(tmp_soutput, (data == 0) ? msg_txt(MSGTBL_DAY_MODE_ACTIVATED2) : msg_txt(MSGTBL_DAY_MODE_ACTIVATED), sizeof(tmp_soutput)); // The day has arrived!
 	clif->broadcast(NULL, tmp_soutput, (int)strlen(tmp_soutput) + 1, BC_DEFAULT, ALL_CLIENT);
 	return 0;
 }
@@ -11305,7 +11044,7 @@ static int map_night_timer(int tid, int64 tick, int id, intptr_t data)
 
 	map->night_flag = 1; // 0=day, 1=night [Yor]
 	map->foreachpc(pc->daynight_timer_sub);
-	safestrncpy(tmp_soutput, (data == 0) ? msg_txt(503) : msg_txt(59), sizeof(tmp_soutput)); // The night has fallen...
+	safestrncpy(tmp_soutput, (data == 0) ? msg_txt(MSGTBL_NIGHT_MODE_ACTIVATED2) : msg_txt(MSGTBL_NIGHT_MODE_ACTIVATED), sizeof(tmp_soutput)); // The night has fallen...
 	clif->broadcast(NULL, tmp_soutput, (int)strlen(tmp_soutput) + 1, BC_DEFAULT, ALL_CLIENT);
 	return 0;
 }
@@ -12232,7 +11971,7 @@ static void pc_bank_withdraw(struct map_session_data *sd, int money)
 		return;
 	} else if (limit_check > MAX_ZENY) {
 		/* no official response for this scenario exists. */
-		clif->messagecolor_self(sd->fd, COLOR_RED, msg_sd(sd,1482));
+		clif->messagecolor_self(sd->fd, COLOR_RED, msg_sd(sd, MSGTBL_CANNOT_WITHDRAW_MONEY));
 		return;
 	}
 
@@ -12254,20 +11993,25 @@ static void pc_scdata_received(struct map_session_data *sd)
 	if (sd->expiration_time != 0) { // don't display if it's unlimited or unknow value
 		time_t exp_time = sd->expiration_time;
 		char tmpstr[1024];
-		strftime(tmpstr, sizeof(tmpstr) - 1, msg_sd(sd,501), localtime(&exp_time)); // "Your account time limit is: %d-%m-%Y %H:%M:%S."
+		strftime(tmpstr, sizeof(tmpstr) - 1, msg_sd(sd, MSGTBL_ACCOUNT_EXPIRE_TIME), localtime(&exp_time)); // "Your account time limit is: %d-%m-%Y %H:%M:%S."
 		clif->wis_message(sd->fd, map->wisp_server_name, tmpstr, (int)strlen(tmpstr));
 
 		pc->expire_check(sd);
 	}
 
-	if( sd->state.standalone ) {
-		clif->pLoadEndAck(0,sd);
-		pc->autotrade_populate(sd);
-		pc->autotrade_start(sd);
-	}
 
 	if (sd->sc.data[SC_SOULENERGY] != NULL)
 		sd->soulball = sd->sc.data[SC_SOULENERGY]->val1;
+
+	sd->state.scloaded = 1;
+	if (sd->state.standalone) {
+		clif->pLoadEndAck(0,sd);
+		pc->autotrade_populate(sd);
+		pc->autotrade_start(sd);
+	} else if (sd->state.loadendack_before_scloaded != 0) {
+		clif->pLoadEndAck(sd->fd, sd);
+		sd->state.loadendack_before_scloaded = 0;
+	}
 }
 static int pc_expiration_timer(int tid, int64 tick, int id, intptr_t data)
 {
@@ -12689,19 +12433,19 @@ static void pc_check_supernovice_call(struct map_session_data *sd, const char *m
 		// 10.0%, 20.0%, ..., 90.0%
 		switch (sd->state.snovice_call_flag) {
 		case 0:
-			if (strstr(message, msg_txt(1479))) // "Dear angel, can you hear my voice?"
+			if (strstr(message, msg_txt(MSGTBL_DEAR_ANGEL_MSG))) // "Dear angel, can you hear my voice?"
 				sd->state.snovice_call_flag = 1;
 			break;
 		case 1:
 		{
 			char buf[256];
-			snprintf(buf, 256, msg_txt(1480), sd->status.name);
+			snprintf(buf, 256, msg_txt(MSGTBL_SUPER_NOVICE_MSG), sd->status.name);
 			if (strstr(message, buf)) // "I am %s Super Novice~"
 				sd->state.snovice_call_flag = 2;
 		}
 			break;
 		case 2:
-			if (strstr(message, msg_txt(1481))) // "Help me out~ Please~ T_T"
+			if (strstr(message, msg_txt(MSGTBL_HELP_ME_MSG))) // "Help me out~ Please~ T_T"
 				sd->state.snovice_call_flag = 3;
 			break;
 		case 3:
@@ -12813,7 +12557,7 @@ static bool pc_expandInventory(struct map_session_data *sd, int adjustSize)
 {
 	nullpo_retr(false, sd);
 	const int invSize = sd->status.inventorySize;
-	if (adjustSize > MAX_INVENTORY || invSize + adjustSize <= FIXED_INVENTORY_SIZE || invSize + adjustSize > MAX_INVENTORY) {
+	if (adjustSize > MAX_INVENTORY || invSize + adjustSize < FIXED_INVENTORY_SIZE || invSize + adjustSize > MAX_INVENTORY) {
 		clif->inventoryExpandResult(sd, EXPAND_INVENTORY_RESULT_MAX_SIZE);
 		return false;
 	}
@@ -12854,6 +12598,96 @@ void pc_crimson_marker_clear(struct map_session_data *sd)
 		if (sd->c_marker[i] && (bl = map->id2bl(sd->c_marker[i])))
 			status_change_end(bl, SC_CRIMSON_MARKER, INVALID_TIMER);
 		sd->c_marker[i] = 0;
+	}
+}
+
+/**
+ * Checks if a skill is a permanent skill that one has prerequisites for or has learned.
+ *
+ * NOTE: Unfortunately even uninitialized skills have the flag SKILL_FLAG_PERMANENT, so we have to distinguish by id as well.
+ *       Ideally a more saner zero value should be used for e_skill_flag.
+ * WARNING: This function relies on the skill tree being already calculated / filled.
+ *
+ * @param sd The player to check for.
+ * @param skill_id The skill to check for.
+ * @return True if the player meets the skill prerequisites or has it, false otherwise.
+ */
+static bool pc_is_own_skill(struct map_session_data *sd, uint16 skill_id)
+{
+	nullpo_retr(false, sd);
+
+	int idx = skill->get_index(skill_id);
+	if (idx <= 0)
+		return false; // skill not found
+	if (sd->status.skill[idx].id != skill_id)
+		return false; // not meeting pre-requisites for skill or skill id to index mapping faulty.
+	if (sd->status.skill[idx].flag != SKILL_FLAG_PERMANENT)
+		return false; // script granted or temporary.
+
+	return true;
+}
+
+/**
+ * Clears / removes the existing cloned skill from RG_PLAGIARISM
+ *
+ * @param sd The player to clear the cloned skill from.
+ * @param clear_vars If true, the remembered clone_skill level and ID will be cleared, otherwise it will not be touched.
+ */
+static void pc_clear_existing_cloneskill(struct map_session_data *sd, bool clear_vars)
+{
+	nullpo_retv(sd);
+
+	if (sd->cloneskill_id != 0) {
+		int idx = skill->get_index(sd->cloneskill_id);
+		if (sd->status.skill[idx].flag == SKILL_FLAG_PLAGIARIZED) {
+			sd->status.skill[idx].id = 0;
+			sd->status.skill[idx].lv = 0;
+			sd->status.skill[idx].flag = 0;
+			clif->deleteskill(sd, sd->cloneskill_id, false);
+		} else if (sd->status.skill[idx].flag >= SKILL_FLAG_REPLACED_LV_0) {
+			sd->status.skill[idx].lv = sd->status.skill[idx].flag - SKILL_FLAG_REPLACED_LV_0;
+			sd->status.skill[idx].flag = SKILL_FLAG_PERMANENT;
+			// CAREFUL! This assumes you will only ever use SKILL_FLAG_REPLACED_LV_0 logic when copying SKILL_FLAG_PERMANENT skills!!!
+			clif->addskill(sd, sd->cloneskill_id);
+		}
+	}
+
+	if (clear_vars) {
+		sd->cloneskill_id = 0;
+		pc_setglobalreg(sd, script->add_variable("CLONE_SKILL"), 0);
+		pc_setglobalreg(sd, script->add_variable("CLONE_SKILL_LV"), 0);
+	}
+}
+
+/**
+ * Clears / removes the existing reproduced skill from SC_REPRODUCE
+ *
+ * @param sd The player to clear the reproduced skill from.
+ * @param clear_vars If true, the remembered reproduced skill level and ID will be cleared, otherwise it will not be touched.
+ */
+static void pc_clear_existing_reproduceskill(struct map_session_data *sd, bool clear_vars)
+{
+	nullpo_retv(sd);
+
+	if (sd->reproduceskill_id != 0) {
+		int idx = skill->get_index(sd->reproduceskill_id);
+		if (sd->status.skill[idx].flag == SKILL_FLAG_PLAGIARIZED) {
+			sd->status.skill[idx].id = 0;
+			sd->status.skill[idx].lv = 0;
+			sd->status.skill[idx].flag = 0;
+			clif->deleteskill(sd, sd->reproduceskill_id, false);
+		} else if (sd->status.skill[idx].flag >= SKILL_FLAG_REPLACED_LV_0) {
+			sd->status.skill[idx].lv = sd->status.skill[idx].flag - SKILL_FLAG_REPLACED_LV_0;
+			sd->status.skill[idx].flag = SKILL_FLAG_PERMANENT;
+			// CAREFUL! This assumes you will only ever use SKILL_FLAG_REPLACED_LV_0 logic when copying SKILL_FLAG_PERMANENT skills!!!
+			clif->addskill(sd, sd->reproduceskill_id);
+		}
+	}
+
+	if (clear_vars) {
+		sd->reproduceskill_id = 0;
+		pc_setglobalreg(sd, script->add_variable("REPRODUCE_SKILL"), 0);
+		pc_setglobalreg(sd, script->add_variable("REPRODUCE_SKILL_LV"), 0);
 	}
 }
 
@@ -13283,4 +13117,8 @@ void pc_defaults(void)
 	pc->auto_exp_insurance = pc_auto_exp_insurance;
 
 	pc->crimson_marker_clear = pc_crimson_marker_clear;
+
+	pc->is_own_skill = pc_is_own_skill;
+	pc->clear_existing_cloneskill = pc_clear_existing_cloneskill;
+	pc->clear_existing_reproduceskill = pc_clear_existing_reproduceskill;
 }

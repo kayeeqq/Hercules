@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2023 Hercules Dev Team
+ * Copyright (C) 2012-2024 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -437,16 +437,6 @@ enum elements {
 	ELE_UNDEAD,
 	ELE_MAX,
 	ELE_ALL = 0xFF
-};
-
-/**
- * Types of Ball Types
- * Used by clif_spiritball [KeiKun]
- */
-enum spirit_ball_types {
-	BALL_TYPE_NONE = 0,
-	BALL_TYPE_SPIRIT,
-	BALL_TYPE_SOUL
 };
 
 /**

@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2023 Hercules Dev Team
+ * Copyright (C) 2012-2024 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -1199,7 +1199,7 @@ enum {
 #endif
 };
 
-#define ENUM_VALUE(name, id) JOB_ ## name = id,
+#define JOB_ENUM_VALUE(name, id, msgtbl) JOB_ ## name = id,
 //These mark the ID of the jobs, as expected by the client. [Skotlex]
 enum e_class {
 #include "common/class_hidden.h"
@@ -1209,7 +1209,7 @@ enum e_class {
 	JOB_MAX,
 #endif
 };
-#undef ENUM_VALUE
+#undef JOB_ENUM_VALUE
 
 
 //Total number of classes (for data storage)

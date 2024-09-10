@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2023 Hercules Dev Team
+ * Copyright (C) 2012-2024 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -140,10 +140,10 @@ struct char_interface {
 	int (*waiting_disconnect) (int tid, int64 tick, int id, intptr_t data);
 	int (*delete_char_sql) (int char_id);
 	struct DBData (*create_online_char_data) (union DBKey key, va_list args);
-	void (*set_account_online) (int account_id);
+	void (*set_account_online) (int account_id, bool standalone);
 	void (*set_account_offline) (int account_id);
 	void (*set_char_charselect) (int account_id);
-	void (*set_char_online) (bool is_initializing, int char_id, int account_id);
+	void (*set_char_online) (bool is_initializing, int char_id, int account_id, bool standalone);
 	void (*set_char_offline) (int char_id, int account_id);
 	int (*db_setoffline) (union DBKey key, struct DBData *data, va_list ap);
 	int (*db_kickoffline) (union DBKey key, struct DBData *data, va_list ap);

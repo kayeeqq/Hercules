@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2023 Hercules Dev Team
+ * Copyright (C) 2012-2024 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -67,6 +67,7 @@
 #include "common/memmgr.h"
 #include "common/md5calc.h"
 #include "common/mmo.h" // NEW_CARTS
+#include "common/msgtable.h"
 #include "common/nullpo.h"
 #include "common/random.h"
 #include "common/showmsg.h"
@@ -5808,7 +5809,7 @@ static bool script_load_translation_addstring(const char *file, uint8 lang_id, c
 
 	if (strcasecmp(msgctxt, "messages.conf") == 0) {
 		int i;
-		for (i = 0; i < MAX_MSG; i++) {
+		for (i = 0; i < MSGTBL_MAX; i++) {
 			if (atcommand->msg_table[0][i] != NULL && strcmpi(atcommand->msg_table[0][i], VECTOR_DATA(*msgid)) == 0) {
 				if (atcommand->msg_table[lang_id][i] != NULL)
 					aFree(atcommand->msg_table[lang_id][i]);
@@ -7049,7 +7050,7 @@ static BUILDIN(callfunc)
 		return false;
 	}
 
-	ref = (struct reg_db *)aCalloc(sizeof(struct reg_db), 2);
+	ref = (struct reg_db *)aCalloc(2, sizeof(struct reg_db));
 	ref[0].vars = st->stack->scope.vars;
 	if (!st->stack->scope.arrays)
 		st->stack->scope.arrays = idb_alloc(DB_OPT_BASE); // TODO: Can this happen? when?
@@ -7144,7 +7145,7 @@ static BUILDIN(callfunctionofnpc) {
 	}
 
 	// alloc a reg_db reference of the current scope for the new scope
-	struct reg_db *ref = (struct reg_db *)aCalloc(sizeof(struct reg_db), 2);
+	struct reg_db *ref = (struct reg_db *)aCalloc(2, sizeof(struct reg_db));
 	// scope variables (.@var)
 	ref[0].vars = st->stack->scope.vars;
 	ref[0].arrays = st->stack->scope.arrays;
@@ -7213,7 +7214,7 @@ static BUILDIN(callsub)
 		return false;
 	}
 
-	ref = (struct reg_db *)aCalloc(sizeof(struct reg_db), 1);
+	ref = (struct reg_db *) aCalloc(1, sizeof(struct reg_db));
 	ref[0].vars = st->stack->scope.vars;
 	if (!st->stack->scope.arrays)
 		st->stack->scope.arrays = idb_alloc(DB_OPT_BASE); // TODO: Can this happen? when?
@@ -7311,7 +7312,7 @@ static BUILDIN(return)
 				// npc variable
 				if( !data->ref ) {
 					// npc variable without a reference set, link to current script
-					data->ref = (struct reg_db *)aCalloc(sizeof(struct reg_db), 1);
+					data->ref = (struct reg_db *) aCalloc(1, sizeof(struct reg_db));
 					script->add_pending_ref(st, data->ref);
 					data->ref->vars = st->script->local.vars;
 					if( !st->script->local.arrays )
@@ -9133,6 +9134,74 @@ static BUILDIN(grouprandomitem)
 }
 
 /*==========================================
+ * getitemgroupitems <reference array of item_id>, <item_group_id>;
+ *------------------------------------------*/
+static BUILDIN(getitemgroupitems)
+{
+	struct script_data* data = script_getdata(st, 2);
+
+	if (!data_isreference(data)) {
+		ShowError("buildin_getitemgroupitems: not a variable\n");
+		script->reportdata(data);
+		script_pushnil(st);
+		st->state = END;
+		return false;// not a variable
+	}
+
+	int32 idata = reference_getindex(data);
+	int32 dataid = reference_getid(data);
+	const char *data_name = reference_getname(data);
+
+	if (not_server_variable(*data_name)) {
+		if (script->rid2sd(st) == NULL) {
+			// no player attached
+			script_pushint(st, 0);
+			return false;
+		}
+	}
+
+	if (is_string_variable(data_name)) {
+		// string array
+		ShowError("buildin_getitemgroupitems: not an integer array reference\n");
+		script->reportdata(data);
+		st->state = END;
+		return false;
+	}
+
+	int nameid = script_getnum(st, 3);
+	struct item_data *item = itemdb->exists(nameid);
+	if (item == NULL) {
+		ShowError("buildin_getitemgroupitems: invalid item %d\n", nameid);
+		script_pushint(st, 0);
+		return false;
+	}
+
+	const struct item_group *group = itemdb->search_group(item->nameid);
+	if (group == NULL) {
+		ShowWarning("buildin_getitemgroupitems: item group not found\n");
+		script_pushint(st, 0);
+		return false;
+	}
+
+	int count = 0;
+	for (int i = 0; i < group->qty; i++) {
+		int id = group->nameid[i];
+		int j = 0;
+		ARR_FIND(0, i, j, group->nameid[i] == group->nameid[j]);
+		if (i != j) {
+			// Already encountered - skip duplicates
+			continue;
+		}
+		const void *v = (const void *)h64BPTRSIZE(id);
+		script->set_reg(st, NULL, reference_uid(dataid, idata + count), data_name, v, reference_getref(data));
+		count++;
+	}
+
+	script_pushint(st, count);
+	return true;
+}
+
+/*==========================================
  * makeitem <item_id>, <amount>, "<map name>", <X>, <Y> {, <showdropeffect>}};
  *------------------------------------------*/
 static BUILDIN(makeitem)
@@ -9851,41 +9920,75 @@ static BUILDIN(getpartyname)
 
 /*==========================================
  * Get the information of the members of a party by type
- * @party_id, @type
- * return by @type :
- * - : nom des membres
- * 1 : char_id des membres
- * 2 : account_id des membres
+ * getpartymember(<party_id>, <type>, <array>);
  *------------------------------------------*/
 static BUILDIN(getpartymember)
 {
-	struct party_data *p;
-	int j=0,type=0;
+	struct map_session_data *sd = NULL;
+	struct party_data *p = party->search(script_getnum(st, 2));
+	enum partymember_type type = script_getnum(st, 3);
+	struct script_data *data = script_getdata(st, 4);
+	const char *varname = reference_getname(data);
+	int id = reference_getid(data);
+	int num = 0;
 
-	p=party->search(script_getnum(st,2));
+	if (!data_isreference(data) || reference_toconstant(data)) {
+		ShowError("buildin_getpartymember: Target argument is not a variable\n");
+		script->reportdata(data);
+		st->state = END;
+		return false;
+	}
 
-	if (script_hasdata(st,3))
-		type=script_getnum(st,3);
+	if (type < PT_MEMBER_NAME || type > PT_MEMBER_ACCID) {
+		ShowError("buildin_getpartymember: Invalid type argument\n");
+		script->reportdata(data);
+		st->state = END;
+		return false;
+	}
+	
+	if (!is_int_variable(varname) && (type == PT_MEMBER_CHARID || type == PT_MEMBER_ACCID)) {
+		ShowError("buildin_getpartymember: Target argument is not an int variable\n");
+		script->reportdata(data);
+		st->state = END;
+		return false;
+	}
 
-	if ( p != NULL) {
-		int i;
-		for (i = 0; i < MAX_PARTY; i++) {
-			if(p->party.member[i].account_id) {
+	if (!is_string_variable(varname) && type == PT_MEMBER_NAME) {
+		ShowError("buildin_getpartymember: Target argument is not a string variable\n");
+		script->reportdata(data);
+		st->state = END;
+		return false;
+	}
+
+	if (not_server_variable(*varname)) {
+		sd = script->rid2sd(st);
+
+		if (sd == NULL) {
+			script_pushint(st, 0);
+			return true; // player variable but no player attached
+		}
+	}
+
+	if (p != NULL) {
+		for (int i = 0; i < MAX_PARTY; i++) {
+			if (p->party.member[i].account_id != 0) {
 				switch (type) {
-					case 2:
-						mapreg->setreg(reference_uid(script->add_variable("$@partymemberaid"), j),p->party.member[i].account_id);
-						break;
-					case 1:
-						mapreg->setreg(reference_uid(script->add_variable("$@partymembercid"), j),p->party.member[i].char_id);
-						break;
-					default:
-						mapreg->setregstr(reference_uid(script->add_variable("$@partymembername$"), j),p->party.member[i].name);
+				case PT_MEMBER_NAME:
+					script->set_reg(st, sd, reference_uid(id, num), varname, (const void *)h64BPTRSIZE(p->party.member[i].name), reference_getref(data));
+					break;
+				case PT_MEMBER_CHARID:
+					script->set_reg(st, sd, reference_uid(id, num), varname, (const void *)h64BPTRSIZE(p->party.member[i].char_id), reference_getref(data));
+					break;
+				case PT_MEMBER_ACCID:
+					script->set_reg(st, sd, reference_uid(id, num), varname, (const void *)h64BPTRSIZE(p->party.member[i].account_id), reference_getref(data));
+					break;
 				}
-				j++;
+				num++;
 			}
 		}
 	}
-	mapreg->setreg(script->add_variable("$@partymembercount"),j);
+
+	script_pushint(st, num);
 
 	return true;
 }
@@ -10025,44 +10128,76 @@ static BUILDIN(getguildinfo)
 
 /*==========================================
  * Get the information of the members of a guild by type.
- * getguildmember <guild_id>{,<type>};
- * @param guild_id: ID of guild
- * @param type:
- * 0 : name (default)
- * 1 : character ID
- * 2 : account ID
+ * getguildmember(<guild_id>, <type>, <array>);
  *------------------------------------------*/
 static BUILDIN(getguildmember)
 {
-	struct guild *g = NULL;
-	int j = 0;
+	struct map_session_data *sd = NULL;
+	struct guild *g = guild->search(script_getnum(st, 2));
+	enum guildmember_type type = script_getnum(st, 3);
+	struct script_data *data = script_getdata(st, 4);
+	const char *varname = reference_getname(data);
+	int id = reference_getid(data);
+	int num = 0;
 
-	g = guild->search(script_getnum(st,2));
+	if (!data_isreference(data) || reference_toconstant(data)) {
+		ShowError("buildin_getguildmember: Target argument is not a variable\n");
+		script->reportdata(data);
+		st->state = END;
+		return false;
+	}
+	
+	if (type < GD_MEMBER_NAME || type > GD_MEMBER_ACCID) {
+		ShowError("buildin_getguildmember: Invalid type argument\n");
+		script->reportdata(data);
+		st->state = END;
+		return false;
+	}
 
-	if (g) {
-		int i, type = 0;
+	if (!is_int_variable(varname) && (type == GD_MEMBER_CHARID || type == GD_MEMBER_ACCID)) {
+		ShowError("buildin_getguildmember: Target argument is not an int variable\n");
+		script->reportdata(data);
+		st->state = END;
+		return false;
+	}
 
-		if (script_hasdata(st,3))
-			type = script_getnum(st,3);
+	if (!is_string_variable(varname) && type == GD_MEMBER_NAME) {
+		ShowError("buildin_getguildmember: Target argument is not a string variable\n");
+		script->reportdata(data);
+		st->state = END;
+		return false;
+	}
 
-		for ( i = 0; i < MAX_GUILD; i++ ) {
-			if ( g->member[i].account_id ) {
+	if (not_server_variable(*varname)) {
+		sd = script->rid2sd(st);
+
+		if (sd == NULL) {
+			script_pushint(st, 0);
+			return true; // player variable but no player attached
+		}
+	}
+
+	if (g != NULL) {
+		for (int i = 0; i < MAX_GUILD; i++) {
+			if (g->member[i].account_id != 0) {
 				switch (type) {
-				case 2:
-					mapreg->setreg(reference_uid(script->add_variable("$@guildmemberaid"), j),g->member[i].account_id);
+				case GD_MEMBER_NAME:
+					script->set_reg(st, sd, reference_uid(id, num), varname, (const void *)h64BPTRSIZE(g->member[i].name), reference_getref(data));
 					break;
-				case 1:
-					mapreg->setreg(reference_uid(script->add_variable("$@guildmembercid"), j), g->member[i].char_id);
+				case GD_MEMBER_CHARID:
+					script->set_reg(st, sd, reference_uid(id, num), varname, (const void *)h64BPTRSIZE(g->member[i].char_id), reference_getref(data));
 					break;
-				default:
-					mapreg->setregstr(reference_uid(script->add_variable("$@guildmembername$"), j), g->member[i].name);
+				case GD_MEMBER_ACCID:
+					script->set_reg(st, sd, reference_uid(id, num), varname, (const void *)h64BPTRSIZE(g->member[i].account_id), reference_getref(data));
 					break;
 				}
-				j++;
+				num++;
 			}
 		}
 	}
-	mapreg->setreg(script->add_variable("$@guildmembercount"), j);
+
+	script_pushint(st, num);
+
 	return true;
 }
 
@@ -25466,12 +25601,12 @@ static BUILDIN(montransform)
 			return false;
 
 		if (battle_config.mon_trans_disable_in_gvg && map_flag_gvg2(sd->bl.m)) {
-			clif->message(sd->fd, msg_sd(sd, 1488)); // Transforming into monster is not allowed in Guild Wars.
+			clif->message(sd->fd, msg_sd(sd, MSGTBL_TRANSFORM_NOT_ALLOWED_GW)); // Transforming into monster is not allowed in Guild Wars.
 			return true;
 		}
 
 		if (sd->disguise != -1) {
-			clif->message(sd->fd, msg_sd(sd, 1486)); // Cannot transform into monster while in disguise.
+			clif->message(sd->fd, msg_sd(sd, MSGTBL_NOT_TRANSFORM_WHILE_DISGUISED)); // Cannot transform into monster while in disguise.
 			return true;
 		}
 
@@ -27262,6 +27397,84 @@ static BUILDIN(navigateto)
 #endif
 }
 
+/**
+ * Common function for script commands that generates NAVI tags.
+ */
+static bool script_format_navigation(struct script_state *st, const char *label, const char *mapname, int x, int y, enum navigation_mode mode, enum navigation_service services_flag, bool show_window, int monster_id)
+{
+	nullpo_retr(false, st);
+	nullpo_retr(false, label);
+	nullpo_retr(false, mapname);
+
+	const char *command_name = script->getfuncname(st);
+
+	if (mode < NAV_MODE_ALL || mode >= NAV_MODE_MAX) {
+		ShowError("script:%s: unknown mode (%u). See valid values for NAV_MODE_* constants\n", command_name, mode);
+		script_pushconststr(st, "");
+		return false;
+	}
+
+	if (monster_id != 0 && mob->db(monster_id) == NULL) {
+		ShowError("script:%s: unknown monster id (%d).\n", command_name, monster_id);
+		script_pushconststr(st, "");
+		return false;
+	}
+
+	StringBuf buf;
+	StrBuf->Init(&buf);
+
+	clif->format_navigation(&buf, label, mapname, x, y, mode, services_flag, show_window, monster_id);
+	script_pushstrcopy(st, StrBuf->Value(&buf));
+
+	StrBuf->Destroy(&buf);
+	return true;
+}
+
+/**
+ * Generates a <NAVI> tag with the given parameters (if supported by the client).
+ * If unsupported, returns a fall back text.
+ *
+ * mesnavigation("<label>", "<map>"{, <x>{, <y>{, <show_window>{, <mode>{, <services_flag>{, <monster_id>}}}}}})
+ */
+static BUILDIN(mesnavigation)
+{
+	const char *label = script_getstr(st, 2);
+	const char *mapname = script_getstr(st, 3);
+	int x = script_hasdata(st, 4) ? script_getnum(st, 4) : 0;
+	int y = script_hasdata(st, 5) ? script_getnum(st, 5) : 0;
+	bool showWindow = script_hasdata(st, 6) ? (script_getnum(st, 6) == 1) : false;
+	enum navigation_mode mode = script_hasdata(st, 7) ? script_getnum(st, 7) : NAV_MODE_ALL;
+	enum navigation_service services = script_hasdata(st, 8) ? script_getnum(st, 8) : NAV_KAFRA_AND_AIRSHIP;
+	int monster_id = script_hasdata(st, 9) ? script_getnum(st, 9) : 0;
+
+	return script->format_navigation(st, label, mapname, x, y, mode, services, showWindow, monster_id);
+}
+
+/**
+ * Generates a <NAVI> tag to link to the list of spawns of <monster_id>.
+ * If the client doesn't support it, returns the label as plain text.
+ *
+ * mesmobspawn(monster_id{, "label"});
+ */
+static BUILDIN(mesmobspawn)
+{
+	int monster_id = script_getnum(st, 2);
+	const char *label = script_hasdata(st, 3) ? script_getstr(st, 3) : NULL;
+
+	struct mob_db *monster = mob->db(monster_id);
+	if (monster == NULL) {
+		ShowError("buildin_mesmobspawn: Non-existent monster id %d.\n", monster_id);
+		script_pushconststr(st, "null");
+		return false;
+	}
+
+	if (label == NULL) {
+		label = monster->name;
+	}
+
+	return script->format_navigation(st, label, monster->sprite, 0, 0, NAV_MODE_MOB, NAV_WINDOW_SEARCH, true, 0);
+}
+
 static bool buildin_rodex_sendmail_sub(struct script_state *st, struct rodex_message *msg)
 {
 	const char *sender_name, *title, *body;
@@ -27269,6 +27482,9 @@ static bool buildin_rodex_sendmail_sub(struct script_state *st, struct rodex_mes
 	int receiver_id = script_getnum(st, 2);
 
 	if (strcmp(func_name, "rodex_sendmail_acc") == 0 || strcmp(func_name, "rodex_sendmail_acc2") == 0) {
+		if (battle_config.feature_rodex_use_accountmail == 0)
+			ShowWarning("script:rodex_sendmail_acc: You are sending an account mail while \"feature_rodex_use_accountmail\" is disabled. Players may not be able to view it.\n");
+
 		if (receiver_id < START_ACCOUNT_NUM || receiver_id > END_ACCOUNT_NUM) {
 			ShowError("script:rodex_sendmail: Invalid receiver account ID %d passed!\n", receiver_id);
 			return false;
@@ -27937,16 +28153,41 @@ static BUILDIN(openlapineddukddakboxui)
 	struct map_session_data *sd = script_rid2sd(st);
 	if (sd == NULL)
 		return false;
-	const int item_id = script_getnum(st, 2);
-	struct item_data *it = itemdb->exists(item_id);
-	if (it == NULL) {
-		ShowError("buildin_openlapineddukddakboxui: Item %d is not valid\n", item_id);
+
+	struct item_data *it = NULL;
+	if (script_hasdata(st, 2)) {
+		if (script_isstring(st, 2)) {
+			const char *item_name = script_getstr(st, 2);
+			it = itemdb->search_name(item_name);
+			if (it == NULL) {
+				ShowError("buildin_openlapineddukddakboxui: Item %s is not valid\n", item_name);
+				script->reportfunc(st);
+				script->reportsrc(st);
+				script_pushint(st, false);
+				return true;
+			}
+		} else {
+			it = itemdb->exists(script_getnum(st, 2));
+		}
+	} else {
+		if (sd->itemid > 0) {
+			it = itemdb->exists(sd->itemid);
+		}
+	}
+
+	if (it == NULL || it->lapineddukddak == NULL) {
+		if (it != NULL) {
+			ShowError("buildin_openlapineddukddakboxui: Item Id %d is not valid\n", it->nameid);
+		} else {
+			ShowError("buildin_openlapineddukddakboxui: Item is NULL\n");
+		}
 		script->reportfunc(st);
 		script->reportsrc(st);
 		script_pushint(st, false);
 		return true;
 	}
-	clif->lapineDdukDdak_open(sd, item_id);
+
+	clif->lapineDdukDdak_open(sd, it->nameid);
 	script_pushint(st, true);
 	return true;
 }
@@ -27958,17 +28199,40 @@ static BUILDIN(openlapineupgradeui)
 	if (sd == NULL)
 		return false;
 
-	const int item_id = script_getnum(st, 2);
-	struct item_data *it = itemdb->exists(item_id);
+	struct item_data *it = NULL;
+	if (script_hasdata(st, 2)) {
+		if (script_isstring(st, 2)) {
+			const char *item_name = script_getstr(st, 2);
+			it = itemdb->search_name(item_name);
+			if (it == NULL) {
+				ShowError("buildin_openlapineupgradeui: Item %s is not valid\n", item_name);
+				script->reportfunc(st);
+				script->reportsrc(st);
+				script_pushint(st, false);
+				return true;
+			}
+		} else {
+			it = itemdb->exists(script_getnum(st, 2));
+		}
+	} else {
+		if (sd->itemid > 0) {
+			it = itemdb->exists(sd->itemid);
+		}
+	}
+
 	if (it == NULL || it->lapineupgrade == NULL) {
-		ShowError("buildin_openlapineupgradeui: Item %d is not valid\n", item_id);
+		if (it != NULL) {
+			ShowError("buildin_openlapineddukddakboxui: Item Id %d is not valid\n", it->nameid);
+		} else {
+			ShowError("buildin_openlapineddukddakboxui: Item is NULL\n");
+		}
 		script->reportfunc(st);
 		script->reportsrc(st);
 		script_pushint(st, false);
 		return true;
 	}
 
-	clif->lapineUpgrade_open(sd, item_id);
+	clif->lapineUpgrade_open(sd, it->nameid);
 	script_pushint(st, true);
 	return true;
 }
@@ -28323,6 +28587,48 @@ static BUILDIN(setgoldpcmode)
 }
 
 /**
+ * create a <URL> tag
+ *
+ * mesurl("<label>", "url"{, <width>, <height>})
+ */
+static BUILDIN(mesurl)
+{
+	const char *label = script_getstr(st, 2);
+	const char *url = script_getstr(st, 3);
+	int width = script_hasdata(st, 4) ? script_getnum(st, 4) : -1;
+	int height = script_hasdata(st, 5) ? script_getnum(st, 5) : -1;
+
+	StringBuf buf;
+	StrBuf->Init(&buf);
+
+	clif->format_url(&buf, label, url, width, height);
+	script_pushstrcopy(st, StrBuf->Value(&buf));
+
+	StrBuf->Destroy(&buf);
+	return true;
+}
+
+/**
+ * create a <TIPBOX> tag
+ *
+ * mestipbox("<label>", <tip_id>)
+ */
+static BUILDIN(mestipbox)
+{
+	const char *label = script_getstr(st, 2);
+	int tip_id = script_getnum(st, 3);
+
+	StringBuf buf;
+	StrBuf->Init(&buf);
+
+	clif->format_tipbox(&buf, label, tip_id);
+	script_pushstrcopy(st, StrBuf->Value(&buf));
+
+	StrBuf->Destroy(&buf);
+	return true;
+}
+
+/**
  * Adds a built-in script function.
  *
  * @param buildin Script function data
@@ -28600,6 +28906,7 @@ static void script_parse_builtin(void)
 		BUILDIN_DEF(getitem2,"viiiiiiii?"),
 		BUILDIN_DEF(getnameditem,"vv"),
 		BUILDIN_DEF2(grouprandomitem,"groupranditem","i"),
+		BUILDIN_DEF(getitemgroupitems, "ri"),
 		BUILDIN_DEF(makeitem,"visii?"),
 		BUILDIN_DEF(makeitem2,"viiiiiiii?????"),
 		BUILDIN_DEF(delitem,"vi?"),
@@ -28626,9 +28933,9 @@ static void script_parse_builtin(void)
 		BUILDIN_DEF(setdialogpos, "ii"),
 		BUILDIN_DEF(setdialogpospercent, "ii"),
 		BUILDIN_DEF(getpartyname,"i"),
-		BUILDIN_DEF(getpartymember,"i?"),
+		BUILDIN_DEF(getpartymember,"iir"),
 		BUILDIN_DEF(getpartyleader,"i?"),
-		BUILDIN_DEF(getguildmember,"i?"),
+		BUILDIN_DEF(getguildmember,"iir"),
 		BUILDIN_DEF(getguildinfo,"i?"),
 		BUILDIN_DEF(getguildonline, "i?"),
 		BUILDIN_DEF(strcharinfo,"i??"),
@@ -29132,6 +29439,8 @@ static void script_parse_builtin(void)
 
 		/* Navigation */
 		BUILDIN_DEF(navigateto, "s??????"),
+		BUILDIN_DEF(mesnavigation, "ss??????"),
+		BUILDIN_DEF(mesmobspawn, "i?"),
 
 		/* Clan System */
 		BUILDIN_DEF(clan_join,"i?"),
@@ -29179,8 +29488,8 @@ static void script_parse_builtin(void)
 
 		BUILDIN_DEF(identify, "i"),
 		BUILDIN_DEF(identifyidx, "i"),
-		BUILDIN_DEF(openlapineddukddakboxui, "i"),
-		BUILDIN_DEF(openlapineupgradeui, "i"),
+		BUILDIN_DEF(openlapineddukddakboxui, "?"),
+		BUILDIN_DEF(openlapineupgradeui, "?"),
 
 		BUILDIN_DEF(callfunctionofnpc, "vs*"),
 
@@ -29195,6 +29504,9 @@ static void script_parse_builtin(void)
 
 		BUILDIN_DEF(dynamicnpccreateresult, "i"),
 		BUILDIN_DEF(setgoldpcmode, "i?"),
+
+		BUILDIN_DEF(mesurl, "ss??"),
+		BUILDIN_DEF(mestipbox, "si"),
 	};
 	int i, len = ARRAYLENGTH(BUILDIN);
 	RECREATE(script->buildin, char *, script->buildin_count + len); // Pre-alloc to speed up
@@ -29373,6 +29685,12 @@ static void script_hardcoded_constants(void)
 	script->constdb_comment("Maximum Item Options");
 	script->set_constant("MAX_ITEM_OPTIONS", MAX_ITEM_OPTIONS, false, false);
 
+	script->constdb_comment("Navigation mode constants, use with *mesnavigation*");
+	script->set_constant("NAV_MODE_ALL", NAV_MODE_ALL, false, false);
+	script->set_constant("NAV_MODE_MAP", NAV_MODE_MAP, false, false);
+	script->set_constant("NAV_MODE_NPC", NAV_MODE_NPC, false, false);
+	script->set_constant("NAV_MODE_MOB", NAV_MODE_MOB, false, false);
+
 	script->constdb_comment("Navigation constants, use with *navigateto*");
 	script->set_constant("NAV_NONE", NAV_NONE, false, false);
 	script->set_constant("NAV_AIRSHIP_ONLY", NAV_AIRSHIP_ONLY, false, false);
@@ -29382,6 +29700,7 @@ static void script_hardcoded_constants(void)
 	script->set_constant("NAV_KAFRA_AND_AIRSHIP", NAV_KAFRA_AND_AIRSHIP, false, false);
 	script->set_constant("NAV_KAFRA_AND_SCROLL", NAV_KAFRA_AND_SCROLL, false, false);
 	script->set_constant("NAV_ALL", NAV_ALL, false, false);
+	script->set_constant("NAV_WINDOW_SEARCH", NAV_WINDOW_SEARCH, false, false);
 
 	script->constdb_comment("BL types");
 	script->set_constant("BL_PC",BL_PC,false, false);
@@ -29867,6 +30186,16 @@ static void script_hardcoded_constants(void)
 	script->set_constant("SIEGE_TYPE_FE", SIEGE_TYPE_FE, false, false);
 	script->set_constant("SIEGE_TYPE_SE", SIEGE_TYPE_SE, false, false);
 	script->set_constant("SIEGE_TYPE_TE", SIEGE_TYPE_TE, false, false);
+
+	script->constdb_comment("guildmember types");
+	script->set_constant("GD_MEMBER_NAME", GD_MEMBER_NAME, false, false);
+	script->set_constant("GD_MEMBER_CHARID", GD_MEMBER_CHARID, false, false);
+	script->set_constant("GD_MEMBER_ACCID", GD_MEMBER_ACCID, false, false);
+
+  script->constdb_comment("partymember types");
+	script->set_constant("PT_MEMBER_NAME", PT_MEMBER_NAME, false, false);
+	script->set_constant("PT_MEMBER_CHARID", PT_MEMBER_CHARID, false, false);
+	script->set_constant("PT_MEMBER_ACCID", PT_MEMBER_ACCID, false, false);
 
 	script->constdb_comment("guildinfo types");
 	script->set_constant("GUILDINFO_NAME", GUILDINFO_NAME, false, false);
@@ -30444,6 +30773,7 @@ void script_defaults(void)
 	script->buildin_query_sql_sub = buildin_query_sql_sub;
 	script->buildin_instance_warpall_sub = buildin_instance_warpall_sub;
 	script->buildin_mobuseskill_sub = buildin_mobuseskill_sub;
+	script->format_navigation = script_format_navigation;
 	script->buildin_rodex_sendmail_sub = buildin_rodex_sendmail_sub;
 	script->cleanfloor_sub = script_cleanfloor_sub;
 	script->run_func = run_func;

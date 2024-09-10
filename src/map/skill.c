@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2023 Hercules Dev Team
+ * Copyright (C) 2012-2024 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -52,6 +52,7 @@
 #include "common/cbasetypes.h"
 #include "common/ers.h"
 #include "common/memmgr.h"
+#include "common/msgtable.h"
 #include "common/nullpo.h"
 #include "common/random.h"
 #include "common/showmsg.h"
@@ -123,16 +124,23 @@ static int skill_name2id(const char *name)
 	return strdb_iget(skill->name2id_db, name);
 }
 
-/// Maps skill ids to skill db offsets.
-/// Returns the skill's array index, or 0 (Unknown Skill).
-static int skill_get_index(int skill_id)
+/**
+ * Maps skill ids to skill db offsets.
+ *
+ * @param  skill_id      skill to search
+ * @param  report_errors if the skill is not found, report an error to help solving it?
+ * @return Returns the skill's array index, or 0 (Unknown Skill).
+ */
+static int skill_get_index_sub(int skill_id, bool report_errors)
 {
 	int length = ARRAYLENGTH(skill_idx_ranges);
 
 
 	if (skill_id < skill_idx_ranges[0].start || skill_id > skill_idx_ranges[length - 1].end) {
-		ShowWarning("skill_get_index: skill id '%d' is not being handled!\n", skill_id);
-		Assert_report(0);
+		if (report_errors) {
+			ShowWarning("skill_get_index: skill id '%d' is not being handled!\n", skill_id);
+			Assert_report(0);
+		}
 		return 0;
 	}
 
@@ -151,17 +159,33 @@ static int skill_get_index(int skill_id)
 	}
 
 	if (!found) {
-		ShowWarning("skill_get_index: skill id '%d' (idx: %d) is not handled as it lies outside the defined ranges!\n", skill_id, skill_idx);
-		Assert_report(0);
+		if (report_errors) {
+			ShowWarning("skill_get_index: skill id '%d' (idx: %d) is not handled as it lies outside the defined ranges!\n", skill_id, skill_idx);
+			Assert_report(0);
+		}
 		return 0;
 	}
 	if (skill_idx >= MAX_SKILL_DB) {
-		ShowWarning("skill_get_index: skill id '%d'(idx: %d) is not being handled as it exceeds MAX_SKILL_DB!\n", skill_id, skill_idx);
-		Assert_report(0);
+		if (report_errors) {
+			ShowWarning("skill_get_index: skill id '%d'(idx: %d) is not being handled as it exceeds MAX_SKILL_DB!\n", skill_id, skill_idx);
+			Assert_report(0);
+		}
 		return 0;
 	}
 
 	return skill_idx;
+}
+
+/**
+ * Maps skill ids to skill db offsets.
+ * If something goes wrong, errors will be reported to console.
+ *
+ * @param  skill_id      skill to search not found, report an error to help solving it?
+ * @return Returns the skill's array index, or 0 (Unknown Skill).
+ */
+static int skill_get_index(int skill_id)
+{
+	return skill->get_index_sub(skill_id, true);
 }
 
 static const char *skill_get_name(int skill_id)
@@ -1238,7 +1262,9 @@ static int can_copy(struct map_session_data *sd, uint16 skill_id)
 	if (!cidx)
 		return 0;
 
-	if (sd->status.skill[cidx].id && sd->status.skill[cidx].flag == SKILL_FLAG_PLAGIARIZED)
+	if (sd->status.skill[cidx].id != 0 && (sd->status.skill[cidx].flag >= SKILL_FLAG_REPLACED_LV_0
+	                                       || sd->status.skill[cidx].flag == SKILL_FLAG_PLAGIARIZED
+	                                       || sd->status.skill[cidx].flag == SKILL_FLAG_PERM_GRANTED))
 		return 0;
 
 	// Checks if preserve is active and if skill can be copied by Plagiarism
@@ -1331,7 +1357,7 @@ static int skillnotok(uint16 skill_id, struct map_session_data *sd)
 			if( npc->isnear(&sd->bl) ) {
 				// uncomment for more verbose message.
 				//char output[150];
-				//sprintf(output, msg_txt(862), battle_config.min_npc_vendchat_distance); // "You're too close to a NPC, you must be at least %d cells away from any NPC."
+				//sprintf(output, msg_txt(MSGTBL_TOO_CLOSE_NPC), battle_config.min_npc_vendchat_distance); // "You're too close to a NPC, you must be at least %d cells away from any NPC."
 				//clif->message(sd->fd, output);
 				clif->skill_fail(sd, skill_id, USESKILL_FAIL_THERE_ARE_NPC_AROUND, 0, 0);
 				return 1;
@@ -3364,9 +3390,10 @@ static int skill_attack(int attack_type, struct block_list *src, struct block_li
 		flag|=SD_ANIMATION;
 	}
 
-	if(sd) {
+	if (sd != NULL) {
 		int combo = 0; //Used to signal if this skill can be combo'ed later on.
 		struct status_change_entry *sce;
+
 		if ((sce = sd->sc.data[SC_COMBOATTACK])) {//End combo state after skill is invoked. [Skotlex]
 			switch (skill_id) {
 			case TK_TURNKICK:
@@ -3390,31 +3417,32 @@ static int skill_attack(int attack_type, struct block_list *src, struct block_li
 		}
 		switch(skill_id) {
 			case MO_TRIPLEATTACK:
-				if (pc->checkskill(sd, MO_CHAINCOMBO) > 0 || pc->checkskill(sd, SR_DRAGONCOMBO) > 0)
-					combo=1;
 				// Contrary to other MO combos, triple doesn't get delayed through skill_castend_id
-				// A little delay (amotion) is required for the animation to display properly
-				// even if next combo isn't possible
-				int delay = combo ? skill->delay_fix(src, MO_TRIPLEATTACK, skill_lv) : status_get_amotion(src);
-				sd->ud.canact_tick = max(tick + delay, sd->ud.canact_tick);
+				// Send adelay (which matches aspd) to correctly display animation when there's no next combo
+				if (pc->checkskill(sd, MO_CHAINCOMBO) > 0 || pc->checkskill(sd, SR_DRAGONCOMBO) > 0) {
+					combo = 1;
+					sd->ud.canact_tick = max(tick + skill->delay_fix(src, MO_TRIPLEATTACK, skill_lv), sd->ud.canact_tick);
+				} else
+					clif->combo_delay(src, status_get_adelay(src));
 				break;
 			case MO_CHAINCOMBO:
-				if(pc->checkskill(sd, MO_COMBOFINISH) > 0 && sd->spiritball > 0)
-					combo=1;
+				if (pc->checkskill(sd, MO_COMBOFINISH) > 0 && sd->spiritball > 0)
+					combo = 1;
 				break;
 			case MO_COMBOFINISH:
-				if (sd->status.party_id>0) //bonus from SG_FRIEND [Komurka]
+				if (sd->status.party_id > 0) //bonus from SG_FRIEND [Komurka]
 					party->skill_check(sd, sd->status.party_id, MO_COMBOFINISH, skill_lv);
+
 				if (pc->checkskill(sd, CH_TIGERFIST) > 0 && sd->spiritball > 0)
-					combo=1;
-			/* Fall through */
+					combo = 1;
+				FALLTHROUGH
 			case CH_TIGERFIST:
 				if (!combo && pc->checkskill(sd, CH_CHAINCRUSH) > 0 && sd->spiritball > 1)
-					combo=1;
-			/* Fall through */
+					combo = 1;
+				FALLTHROUGH
 			case CH_CHAINCRUSH:
 				if (!combo && pc->checkskill(sd, MO_EXTREMITYFIST) > 0 && sd->spiritball > 0 && sd->sc.data[SC_EXPLOSIONSPIRITS])
-					combo=1;
+					combo = 1;
 				break;
 			case AC_DOUBLE:
 				// AC_DOUBLE can start the combo with other monster types, but the
@@ -3442,15 +3470,15 @@ static int skill_attack(int attack_type, struct block_list *src, struct block_li
 				sd->ud.attackabletime = sd->canuseitem_tick = sd->ud.canact_tick;
 				break;
 			case TK_DODGE:
-				if( pc->checkskill(sd, TK_JUMPKICK) > 0 )
+				if (pc->checkskill(sd, TK_JUMPKICK) > 0)
 					combo = 1;
 				break;
 			case SR_DRAGONCOMBO:
-				if( pc->checkskill(sd, SR_FALLENEMPIRE) > 0 )
+				if (pc->checkskill(sd, SR_FALLENEMPIRE) > 0)
 					combo = 1;
 				break;
 			case SR_FALLENEMPIRE:
-				if( pc->checkskill(sd, SR_TIGERCANNON) > 0 || pc->checkskill(sd, SR_GATEOFHELL) > 0 )
+				if (pc->checkskill(sd, SR_TIGERCANNON) > 0 || pc->checkskill(sd, SR_GATEOFHELL) > 0)
 					combo = 1;
 				break;
 			case SJ_PROMINENCEKICK:
@@ -3462,8 +3490,8 @@ static int skill_attack(int attack_type, struct block_list *src, struct block_li
 				break;
 		} //Switch End
 		if (combo) { //Possible to chain
-			combo = (int)max(status_get_amotion(src), DIFF_TICK(sd->ud.canact_tick, tick));
-			sc_start2(NULL, src, SC_COMBOATTACK, 100, skill_id, bl->id, combo, skill_id);
+			combo = (int)max(status_get_amotion(src), DIFF_TICK(sd->ud.canact_tick, tick)) + 300 * battle_config.combo_delay_rate / 100;
+			sc_start2(NULL, src, SC_COMBOATTACK, 100, skill_id, 0, combo, skill_id);
 			clif->combo_delay(src, combo);
 		}
 	}
@@ -3655,22 +3683,18 @@ static int skill_attack(int attack_type, struct block_list *src, struct block_li
 				break;
 		}
 
-		int cidx, idx, lv = 0;
+		int cidx, lv = 0;
 		cidx = skill->get_index(copy_skill);
+		int learned_lv = tsd->status.skill[cidx].lv;
+		bool copying_own_skill = pc->is_own_skill(tsd, copy_skill);
 		switch(can_copy(tsd, copy_skill)) {
 		case 1: // Plagiarism
 		{
-			if (tsd->cloneskill_id) {
-				idx = skill->get_index(tsd->cloneskill_id);
-				if (tsd->status.skill[idx].flag == SKILL_FLAG_PLAGIARIZED) {
-					tsd->status.skill[idx].id = 0;
-					tsd->status.skill[idx].lv = 0;
-					tsd->status.skill[idx].flag = 0;
-					clif->deleteskill(tsd, tsd->cloneskill_id, false);
-				}
-			}
+			pc->clear_existing_cloneskill(tsd, false);
 
 			lv = min(skill_lv, pc->checkskill(tsd, RG_PLAGIARISM));
+			if (learned_lv > lv)
+				break; // [Aegis] can't overwrite skill of higher level, but will still remove previously copied skill.
 
 			tsd->cloneskill_id = copy_skill;
 			pc_setglobalreg(tsd, script->add_variable("CLONE_SKILL"), copy_skill);
@@ -3678,23 +3702,21 @@ static int skill_attack(int attack_type, struct block_list *src, struct block_li
 
 			tsd->status.skill[cidx].id = copy_skill;
 			tsd->status.skill[cidx].lv = lv;
-			tsd->status.skill[cidx].flag = SKILL_FLAG_PLAGIARIZED;
+			if (copying_own_skill)
+				tsd->status.skill[cidx].flag = learned_lv + SKILL_FLAG_REPLACED_LV_0;
+			else
+				tsd->status.skill[cidx].flag = SKILL_FLAG_PLAGIARIZED;
 			clif->addskill(tsd, copy_skill);
 		}
 		break;
 		case 2: // Reproduce
 		{
 			lv = sc ? sc->data[SC__REPRODUCE]->val1 : 1;
-			if (tsd->reproduceskill_id) {
-				idx = skill->get_index(tsd->reproduceskill_id);
-				if (tsd->status.skill[idx].flag == SKILL_FLAG_PLAGIARIZED) {
-					tsd->status.skill[idx].id = 0;
-					tsd->status.skill[idx].lv = 0;
-					tsd->status.skill[idx].flag = 0;
-					clif->deleteskill(tsd, tsd->reproduceskill_id, false);
-				}
-			}
+			pc->clear_existing_reproduceskill(tsd, false);
+
 			lv = min(lv, skill->get_max(copy_skill));
+			if (learned_lv > lv)
+				break; // unconfirmed, but probably the same behavior as for RG_PLAGIARISM
 
 			tsd->reproduceskill_id = copy_skill;
 			pc_setglobalreg(tsd, script->add_variable("REPRODUCE_SKILL"), copy_skill);
@@ -3702,7 +3724,10 @@ static int skill_attack(int attack_type, struct block_list *src, struct block_li
 
 			tsd->status.skill[cidx].id = copy_skill;
 			tsd->status.skill[cidx].lv = lv;
-			tsd->status.skill[cidx].flag = SKILL_FLAG_PLAGIARIZED;
+			if (copying_own_skill)
+				tsd->status.skill[cidx].flag = learned_lv + SKILL_FLAG_REPLACED_LV_0;
+			else
+				tsd->status.skill[cidx].flag = SKILL_FLAG_PLAGIARIZED;
 			clif->addskill(tsd, copy_skill);
 		}
 		break;
@@ -5060,7 +5085,7 @@ static int skill_castend_damage_id(struct block_list *src, struct block_list *bl
 					}
 					clif->slide(src, src->x, src->y);
 					clif->fixpos(src);
-					clif->spiritball(src, BALL_TYPE_SPIRIT, AREA);
+					clif->spiritballs(src, status->get_spiritballs(src), AREA);
 				}
 			}
 			break;
@@ -6604,7 +6629,7 @@ static int skill_castend_id(int tid, int64 tick, int id, intptr_t data)
 			if (unit->move_pos(src, src->x + x, src->y + y, 1, true) == 0) {
 				//Display movement + animation.
 				clif->slide(src, src->x, src->y);
-				clif->spiritball(src, BALL_TYPE_SPIRIT, AREA);
+				clif->spiritballs(src, status->get_spiritballs(src), AREA);
 			}
 			// "Skill Failed" message was already shown when checking that target is invalid
 			//clif->skill_fail(sd, ud->skill_id, USESKILL_FAIL_LEVEL, 0, 0);
@@ -7237,7 +7262,7 @@ static int skill_castend_nodamage_id(struct block_list *src, struct block_list *
 				if (sd)
 					clif->skill_fail(sd, skill_id, USESKILL_FAIL_LEVEL, 0, 0);
 				if (skill->break_equip(bl, EQP_WEAPON, 10000, BCT_PARTY) && sd && sd != dstsd)
-					clif->message(sd->fd, msg_sd(sd,869)); // "You broke the target's weapon."
+					clif->message(sd->fd, msg_sd(sd, MSGTBL_BROKEN_TARGET_WEAPON)); // "You broke the target's weapon."
 			}
 			break;
 
@@ -8060,7 +8085,7 @@ static int skill_castend_nodamage_id(struct block_list *src, struct block_list *
 				// custom hack to make the mob display the skill, because these skills don't show the skill use text themselves
 				//NOTE: mobs don't have the sprite animation that is used when performing this skill (will cause glitches)
 				char temp[70];
-				snprintf(temp, sizeof(temp), msg_txt(882), md->name, skill->get_desc(skill_id)); // %s : %s !!
+				snprintf(temp, sizeof(temp), msg_txt(MSGTBL_SKILL_FROST_JOKER), md->name, skill->get_desc(skill_id)); // %s : %s !!
 				clif->disp_overhead(&md->bl, temp, AREA_CHAT_WOC, NULL);
 			}
 			break;
@@ -8297,7 +8322,7 @@ static int skill_castend_nodamage_id(struct block_list *src, struct block_list *
 					break;
 				}
 				if(!battle_config.duel_allow_teleport && sd->duel_group && skill_lv <= 2) { // duel restriction [LuzZza]
-					char output[128]; sprintf(output, msg_sd(sd,365), skill->get_name(AL_TELEPORT));
+					char output[128]; sprintf(output, msg_sd(sd, MSGTBL_DUEL_CANT_USE), skill->get_name(AL_TELEPORT));
 					clif->message(sd->fd, output); //"Duel: Can't use %s in duel."
 					break;
 				}
@@ -9329,7 +9354,7 @@ static int skill_castend_nodamage_id(struct block_list *src, struct block_list *
 						status_percent_damage(src, bl, 0, 100, false);
 						break;
 					case 1: // matk halved
-						sc_start(src, bl, SC_INCMATKRATE, 100, -50, skill->get_time2(skill_id, skill_lv), skill_id);
+						sc_start(src, bl, SC_TAROTCARD_MATK_PERC, 100, -50, skill->get_time2(skill_id, skill_lv), skill_id);
 						break;
 					case 2: // all buffs removed
 						status->change_clear_buffs(bl,1);
@@ -9345,7 +9370,7 @@ static int skill_castend_nodamage_id(struct block_list *src, struct block_list *
 						}
 						break;
 					case 4: // atk halved
-						sc_start(src, bl, SC_INCATKRATE, 100, -50, skill->get_time2(skill_id, skill_lv), skill_id);
+						sc_start(src, bl, SC_TAROTCARD_ATK_PERC, 100, -50, skill->get_time2(skill_id, skill_lv), skill_id);
 						break;
 					case 5: // 2000HP heal, random teleported
 						status->heal(src, 2000, 0, STATUS_HEAL_DEFAULT);
@@ -9375,8 +9400,8 @@ static int skill_castend_nodamage_id(struct block_list *src, struct block_list *
 					case 10: // 6666 damage, atk matk halved, cursed
 						status_fix_damage(src, bl, 6666, 0);
 						clif->damage(src,bl,0,0,6666,0,BDT_NORMAL,0);
-						sc_start(src, bl, SC_INCATKRATE, 100, -50, skill->get_time2(skill_id, skill_lv), skill_id);
-						sc_start(src, bl, SC_INCMATKRATE, 100, -50, skill->get_time2(skill_id, skill_lv), skill_id);
+						sc_start(src, bl, SC_TAROTCARD_ATK_PERC, 100, -50, skill->get_time2(skill_id, skill_lv), skill_id);
+						sc_start(src, bl, SC_TAROTCARD_MATK_PERC, 100, -50, skill->get_time2(skill_id, skill_lv), skill_id);
 						sc_start(src, bl, SC_CURSE, skill_lv, 100, skill->get_time2(skill_id, skill_lv), skill_id);
 						break;
 					case 11: // 4444 damage
@@ -9387,11 +9412,11 @@ static int skill_castend_nodamage_id(struct block_list *src, struct block_list *
 						sc_start(src, bl, SC_STUN, 100, skill_lv, 5000, skill_id);
 						break;
 					case 13: // atk,matk,hit,flee,def reduced
-						sc_start(src, bl, SC_INCATKRATE, 100, -20, skill->get_time2(skill_id, skill_lv), skill_id);
-						sc_start(src, bl, SC_INCMATKRATE, 100, -20, skill->get_time2(skill_id, skill_lv), skill_id);
+						sc_start(src, bl, SC_TAROTCARD_ATK_PERC, 100, -20, skill->get_time2(skill_id, skill_lv), skill_id);
+						sc_start(src, bl, SC_TAROTCARD_MATK_PERC, 100, -20, skill->get_time2(skill_id, skill_lv), skill_id);
 						sc_start(src, bl, SC_INCHITRATE, 100, -20, skill->get_time2(skill_id, skill_lv), skill_id);
 						sc_start(src, bl, SC_INCFLEERATE, 100, -20, skill->get_time2(skill_id, skill_lv), skill_id);
-						sc_start(src, bl, SC_INCDEFRATE, 100, -20, skill->get_time2(skill_id, skill_lv), skill_id);
+						sc_start(src, bl, SC_TAROTCARD_DEF_PERC, 100, -20, skill->get_time2(skill_id, skill_lv), skill_id);
 						sc_start(src, bl, type, 100, skill_lv, skill->get_time2(skill_id, skill_lv), skill_id);
 						break;
 					default:
@@ -10442,15 +10467,19 @@ static int skill_castend_nodamage_id(struct block_list *src, struct block_list *
 			}
 			break;
 		case SC_AUTOSHADOWSPELL:
-			if( sd ) {
-				int idx1 = skill->get_index(sd->reproduceskill_id), idx2 = skill->get_index(sd->cloneskill_id);
-				if( sd->status.skill[idx1].id || sd->status.skill[idx2].id ) {
+			if (sd != NULL) {
+				int reproduceIdx = sd->reproduceskill_id > 0 ? skill->get_index(sd->reproduceskill_id) : -1;
+				int cloneIdx = sd->cloneskill_id > 0 ? skill->get_index(sd->cloneskill_id) : -1;
+
+				bool hasReproduceSkill = reproduceIdx >= 0 && sd->status.skill[reproduceIdx].id != 0;
+				bool hasCloneSkill = cloneIdx >= 0 && sd->status.skill[cloneIdx].id != 0;
+				if (hasReproduceSkill || hasCloneSkill) {
 					sc_start(src, src, SC_STOP, 100, skill_lv, INFINITE_DURATION, skill_id); // The skill_lv is stored in val1 used in skill_select_menu to determine the used skill lvl [Xazax]
 					clif->autoshadowspell_list(sd);
-					clif->skill_nodamage(src,bl,skill_id,1,1);
-				}
-				else
+					clif->skill_nodamage(src, bl, skill_id, 1, 1);
+				} else {
 					clif->skill_fail(sd, skill_id, USESKILL_FAIL_IMITATION_SKILL_NONE, 0, 0);
+				}
 			}
 			break;
 
@@ -14311,7 +14340,7 @@ static int skill_unit_onplace_timer(struct skill_unit *src, struct block_list *b
 						if (tsd) clif->gospel_info(tsd, 0x1e);
 						break;
 					case 11: // ATK +100%
-						sc_start(ss, bl, SC_INCATKRATE, 100, 100, time, skill_id);
+						sc_start(ss, bl, SC_GOSPEL_ATK_PERC, 100, 100, time, skill_id);
 						if (tsd) clif->gospel_info(tsd, 0x1f);
 						break;
 					case 12: // HIT/Flee +50
@@ -14340,13 +14369,16 @@ static int skill_unit_onplace_timer(struct skill_unit *src, struct block_list *b
 						sc_start(ss, bl, SC_POISON, 100, 1, time, skill_id);
 						break;
 					case 4: // Level 10 Provoke
+						// TODO: [Aegis] while this does apply the status effect of provoke, it manually sets the atk / def percentage changes...
+						// this means you could be affected by gospel provoke as well as normal provoke, since provoke also manually applies the atk / def changes in Aegis.
+						// We're not doing that here.
 						sc_start(ss, bl, SC_PROVOKE, 100, 10, time, skill_id);
 						break;
 					case 5: // DEF -100%
 				                sc_start(ss, bl, SC_INCDEFRATE, 100, -100, time, skill_id);
 						break;
 					case 6: // ATK -100%
-				                sc_start(ss, bl, SC_INCATKRATE, 100, -100, time, skill_id);
+						sc_start(ss, bl, SC_GOSPEL_ATK_PERC, 100, -100, time, skill_id);
 						break;
 					case 7: // Flee -100%
 				                sc_start(ss, bl, SC_INCFLEERATE, 100, -100, time, skill_id);
@@ -15466,12 +15498,12 @@ static int skill_check_condition_castbegin(struct map_session_data *sd, uint16 s
 		case MC_VENDING:
 		case ALL_BUYING_STORE:
 			if (map->list[sd->bl.m].flag.novending) {
-				clif->message(sd->fd, msg_sd(sd, 276)); // "You can't open a shop on this map"
+				clif->message(sd->fd, msg_sd(sd, MSGTBL_CANT_OPEN_SHOP_IN_MAP)); // "You can't open a shop on this map"
 				clif->skill_fail(sd, skill_id, USESKILL_FAIL_LEVEL, 0, 0);
 				return 0;
 			}
 			if (map->getcell(sd->bl.m, &sd->bl, sd->bl.x, sd->bl.y, CELL_CHKNOVENDING)) {
-				clif->message(sd->fd, msg_sd(sd, 204)); // "You can't open a shop on this cell."
+				clif->message(sd->fd, msg_sd(sd, MSGTBL_CANT_OPEN_SHOP_IN_CELL)); // "You can't open a shop on this cell."
 				clif->skill_fail(sd, skill_id, USESKILL_FAIL_LEVEL, 0, 0);
 				return 0;
 			}
@@ -15490,7 +15522,7 @@ static int skill_check_condition_castbegin(struct map_session_data *sd, uint16 s
 			break;
 		case AL_WARP:
 			if(!battle_config.duel_allow_teleport && sd->duel_group) { // duel restriction [LuzZza]
-				char output[128]; sprintf(output, msg_sd(sd,365), skill->get_name(AL_WARP));
+				char output[128]; sprintf(output, msg_sd(sd, MSGTBL_DUEL_CANT_USE), skill->get_name(AL_WARP));
 				clif->message(sd->fd, output); //"Duel: Can't use %s in duel."
 				return 0;
 			}
@@ -15948,7 +15980,7 @@ static int skill_check_condition_castbegin(struct map_session_data *sd, uint16 s
 				if (map->foreachinrange(mob->count_sub, &sd->bl, skill->get_splash(skill_id, skill_lv), BL_MOB,
 				                        MOBID_EMPELIUM, MOBID_S_EMPEL_1, MOBID_S_EMPEL_2)) {
 					char output[128];
-					sprintf(output, "%s", msg_txt(883)); /* TODO official response */ // You are too close to a stone or emperium to do this skill
+					sprintf(output, "%s", msg_txt(MSGTBL_TOO_CLOSE_TO_STONE)); /* TODO official response */ // You are too close to a stone or emperium to do this skill
 					clif->messagecolor_self(sd->fd, COLOR_RED, output);
 					return 0;
 				}
@@ -16646,7 +16678,7 @@ static int skill_check_condition_castend(struct map_session_data *sd, uint16 ski
 			return 0;
 		} else if( sd->status.inventory[i].amount < require.ammo_qty ) {
 			char e_msg[100];
-			sprintf(e_msg, msg_txt(884), // Skill Failed. [%s] requires %dx %s.
+			sprintf(e_msg, msg_txt(MSGTBL_SKILL_FAILED_REQUIREMENTS), // Skill Failed. [%s] requires %dx %s.
 						skill->get_desc(skill_id),
 						require.ammo_qty,
 						itemdb_jname(sd->status.inventory[i].nameid));
@@ -17919,7 +17951,7 @@ static int skill_autospell_spell_selected(struct map_session_data *sd, uint16 sk
 	if (max_lv > skill_lv)
 		max_lv = skill_lv;
 
-	sc_start4(&sd->bl, &sd->bl, SC_AUTOSPELL, 100, skill_lv, skill_id, max_lv, 0,
+	sc_start4(&sd->bl, &sd->bl, SC_AUTOSPELL, 100, autospell_lv, skill_id, max_lv, 0,
 		skill->get_time(SA_AUTOSPELL, skill_lv), SA_AUTOSPELL);
 	return 0;
 }
@@ -25192,6 +25224,7 @@ void skill_defaults(void)
 	skill->unit_group_newid = 0;
 	/* accessors */
 	skill->get_index = skill_get_index;
+	skill->get_index_sub = skill_get_index_sub;
 	skill->get_type = skill_get_type;
 	skill->get_hit = skill_get_hit;
 	skill->get_inf = skill_get_inf;

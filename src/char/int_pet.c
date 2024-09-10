@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2023 Hercules Dev Team
+ * Copyright (C) 2012-2024 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -206,7 +206,7 @@ static int inter_pet_fromsql(int pet_id, struct s_pet *p)
 static int inter_pet_sql_init(void)
 {
 	//memory alloc
-	inter_pet->pt = (struct s_pet*)aCalloc(sizeof(struct s_pet), 1);
+	inter_pet->pt = (struct s_pet*)aCalloc(1, sizeof(struct s_pet));
 	return 0;
 }
 

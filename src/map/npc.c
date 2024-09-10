@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2012-2023 Hercules Dev Team
+ * Copyright (C) 2012-2024 Hercules Dev Team
  * Copyright (C) Athena Dev Teams
  *
  * Hercules is free software: you can redistribute it and/or modify
@@ -47,6 +47,7 @@
 #include "common/db.h"
 #include "common/ers.h"
 #include "common/memmgr.h"
+#include "common/msgtable.h"
 #include "common/nullpo.h"
 #include "common/showmsg.h"
 #include "common/socket.h"
@@ -312,7 +313,8 @@ static int npc_rr_secure_timeout_timer(int tid, int64 tick, int id, intptr_t dat
 		case NPCT_MENU:
 			timeout = NPC_SECURE_TIMEOUT_MENU;
 			break;
-		//case NPCT_WAIT: var starts with this value
+		case NPCT_WAIT: //var starts with this value
+			break;
 	}
 
 	if( DIFF_TICK(tick,sd->npc_idle_tick) > (timeout*1000) ) {
@@ -1332,17 +1334,17 @@ static void run_tomb(struct map_session_data *sd, struct npc_data *nd)
 	strftime(time, sizeof(time), "%H:%M", localtime(&nd->u.tomb.kill_time));
 
 	// TODO: Find exact color?
-	snprintf(buffer, sizeof(buffer), msg_sd(sd,857), nd->u.tomb.md->db->name); // "[ ^EE0000%s^000000 ]"
+	snprintf(buffer, sizeof(buffer), msg_sd(sd, MSGTBL_TOMB_MONSTER_NAME), nd->u.tomb.md->db->name); // "[ ^EE0000%s^000000 ]"
 	clif->scriptmes(sd, nd->bl.id, buffer);
 
-	clif->scriptmes(sd, nd->bl.id, msg_sd(sd,858)); // "Has met its demise"
+	clif->scriptmes(sd, nd->bl.id, msg_sd(sd, MSGTBL_TOMB_MET_ITS_DEMISE)); // "Has met its demise"
 
-	snprintf(buffer, sizeof(buffer), msg_sd(sd,859), time); // "Time of death : ^EE0000%s^000000"
+	snprintf(buffer, sizeof(buffer), msg_sd(sd, MSGTBL_TOMB_TIME_OF_DEATH), time); // "Time of death : ^EE0000%s^000000"
 	clif->scriptmes(sd, nd->bl.id, buffer);
 
-	clif->scriptmes(sd, nd->bl.id, msg_sd(sd,860)); // "Defeated by"
+	clif->scriptmes(sd, nd->bl.id, msg_sd(sd, MSGTBL_TOMB_DEFATED_BY)); // "Defeated by"
 
-	snprintf(buffer, sizeof(buffer), msg_sd(sd,861), nd->u.tomb.killer_name[0] ? nd->u.tomb.killer_name : msg_sd(sd,15)); // "[^EE0000%s^000000]" / "Unknown"
+	snprintf(buffer, sizeof(buffer), msg_sd(sd, MSGTBL_TOMB_PLAYER_NAME), nd->u.tomb.killer_name[0] ? nd->u.tomb.killer_name : msg_sd(sd, MSGTBL_UNKNOWN)); // "[^EE0000%s^000000]" / "Unknown"
 	clif->scriptmes(sd, nd->bl.id, buffer);
 
 	clif->scriptclose(sd, nd->bl.id);
@@ -2057,7 +2059,7 @@ static bool npc_trader_open(struct map_session_data *sd, struct npc_data *nd)
 
 				/* nothing to display, no items available */
 				if (i == nd->u.scr.shop->items) {
-					clif->messagecolor_self(sd->fd, COLOR_RED, msg_sd(sd,881));
+					clif->messagecolor_self(sd->fd, COLOR_RED, msg_sd(sd, MSGTBL_SHOP_OUT_STOCK));
 					return false;
 				}
 

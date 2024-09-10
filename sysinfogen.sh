@@ -3,7 +3,7 @@
 # This file is part of Hercules.
 # http://herc.ws - http://github.com/HerculesWS/Hercules
 #
-# Copyright (C) 2014-2023 Hercules Dev Team
+# Copyright (C) 2014-2024 Hercules Dev Team
 #
 # Hercules is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -190,7 +190,7 @@ case $HERC_PLATFORM in
 			HWDATA="$( system_profiler SPHardwareDataType )"
 			HWDATA_CPU="$( echo "$HWDATA" | grep "Processor Name:" | cut -d: -f2- )"
 			HWDATA_CPUSPEED="$( cleanstring "$( echo "$HWDATA" | grep "Processor Speed:" | cut -d: -f2- )" )"
-			HERC_CORES="$( echo "$HWDATA" | grep "Total Number of Cores:" | cut -d: -f2- )"
+			HERC_CORES="$( echo "$HWDATA" | grep "Total Number of Cores:" | cut -d: -f2- | sed -E 's/ *([0-9]+).*/\1/')"
 			HERC_CPU="${HWDATA_CPU} (${HWDATA_CPUSPEED})"
 		fi
 		;;
@@ -290,4 +290,3 @@ cat >> "$OUTFILE" << EOF
 
 EOF
 [ $? -eq 0 ] || do_fail
-

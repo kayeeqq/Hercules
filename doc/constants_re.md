@@ -1231,6 +1231,10 @@
 - `SC_SOULGOLEM`: 715
 - `SC_SOULDIVISION`: 716
 - `SC_ACTIVE_MONSTER_TRANSFORM`: 717
+- `SC_TAROTCARD_ATK_PERC`: 719
+- `SC_TAROTCARD_MATK_PERC`: 720
+- `SC_TAROTCARD_DEF_PERC`: 721
+- `SC_GOSPEL_ATK_PERC`: 722
 
 ### Emotes
 
@@ -4874,7 +4878,7 @@
 ### Server defines
 
 - `PACKETVER`: 20190530
-- `HERCULES_VERSION`: 202311000
+- `HERCULES_VERSION`: 202408000
 - `MAX_LEVEL`: 175
 - `MAX_STORAGE`: 600
 - `MAX_GUILD_STORAGE`: 500
@@ -5021,6 +5025,13 @@
 
 - `MAX_ITEM_OPTIONS`: 5
 
+### Navigation mode constants, use with *mesnavigation*
+
+- `NAV_MODE_ALL`: 0
+- `NAV_MODE_MAP`: 1
+- `NAV_MODE_NPC`: 2
+- `NAV_MODE_MOB`: 3
+
 ### Navigation constants, use with *navigateto*
 
 - `NAV_NONE`: 0
@@ -5031,6 +5042,7 @@
 - `NAV_KAFRA_AND_AIRSHIP`: 101
 - `NAV_KAFRA_AND_SCROLL`: 110
 - `NAV_ALL`: 111
+- `NAV_WINDOW_SEARCH`: -222
 
 ### BL types
 
@@ -5555,6 +5567,18 @@
 - `SIEGE_TYPE_FE`: 0
 - `SIEGE_TYPE_SE`: 1
 - `SIEGE_TYPE_TE`: 2
+
+### guildmember types
+
+- `GD_MEMBER_NAME`: 0
+- `GD_MEMBER_CHARID`: 1
+- `GD_MEMBER_ACCID`: 2
+
+### partymember types
+
+- `PT_MEMBER_NAME`: 0
+- `PT_MEMBER_CHARID`: 1
+- `PT_MEMBER_ACCID`: 2
 
 ### guildinfo types
 

@@ -2,7 +2,7 @@
  * This file is part of Hercules.
  * http://herc.ws - http://github.com/HerculesWS/Hercules
  *
- * Copyright (C) 2013-2023 Hercules Dev Team
+ * Copyright (C) 2013-2024 Hercules Dev Team
  *
  * Hercules is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -744,14 +744,14 @@ typedef int (*HPMHOOK_pre_chr_delete_char_sql) (int *char_id);
 typedef int (*HPMHOOK_post_chr_delete_char_sql) (int retVal___, int char_id);
 typedef struct DBData (*HPMHOOK_pre_chr_create_online_char_data) (union DBKey *key, va_list args);
 typedef struct DBData (*HPMHOOK_post_chr_create_online_char_data) (struct DBData retVal___, union DBKey key, va_list args);
-typedef void (*HPMHOOK_pre_chr_set_account_online) (int *account_id);
-typedef void (*HPMHOOK_post_chr_set_account_online) (int account_id);
+typedef void (*HPMHOOK_pre_chr_set_account_online) (int *account_id, bool *standalone);
+typedef void (*HPMHOOK_post_chr_set_account_online) (int account_id, bool standalone);
 typedef void (*HPMHOOK_pre_chr_set_account_offline) (int *account_id);
 typedef void (*HPMHOOK_post_chr_set_account_offline) (int account_id);
 typedef void (*HPMHOOK_pre_chr_set_char_charselect) (int *account_id);
 typedef void (*HPMHOOK_post_chr_set_char_charselect) (int account_id);
-typedef void (*HPMHOOK_pre_chr_set_char_online) (bool *is_initializing, int *char_id, int *account_id);
-typedef void (*HPMHOOK_post_chr_set_char_online) (bool is_initializing, int char_id, int account_id);
+typedef void (*HPMHOOK_pre_chr_set_char_online) (bool *is_initializing, int *char_id, int *account_id, bool *standalone);
+typedef void (*HPMHOOK_post_chr_set_char_online) (bool is_initializing, int char_id, int account_id, bool standalone);
 typedef void (*HPMHOOK_pre_chr_set_char_offline) (int *char_id, int *account_id);
 typedef void (*HPMHOOK_post_chr_set_char_offline) (int char_id, int account_id);
 typedef int (*HPMHOOK_pre_chr_db_setoffline) (union DBKey *key, struct DBData **data, va_list ap);
@@ -1336,6 +1336,12 @@ typedef unsigned short (*HPMHOOK_pre_clif_decrypt_cmd) (int *cmd, struct map_ses
 typedef unsigned short (*HPMHOOK_post_clif_decrypt_cmd) (unsigned short retVal___, int cmd, struct map_session_data *sd);
 typedef void (*HPMHOOK_pre_clif_format_itemlink) (struct StringBuf **buf, const struct item **it);
 typedef void (*HPMHOOK_post_clif_format_itemlink) (struct StringBuf *buf, const struct item *it);
+typedef void (*HPMHOOK_pre_clif_format_navigation) (struct StringBuf **buf, const char **label, const char **mapname, int *x, int *y, enum navigation_mode *mode, enum navigation_service *services_flag, bool *show_window, int *monster_id);
+typedef void (*HPMHOOK_post_clif_format_navigation) (struct StringBuf *buf, const char *label, const char *mapname, int x, int y, enum navigation_mode mode, enum navigation_service services_flag, bool show_window, int monster_id);
+typedef void (*HPMHOOK_pre_clif_format_url) (struct StringBuf **buf, const char **label, const char **url, int *width, int *height);
+typedef void (*HPMHOOK_post_clif_format_url) (struct StringBuf *buf, const char *label, const char *url, int width, int height);
+typedef void (*HPMHOOK_pre_clif_format_tipbox) (struct StringBuf **buf, const char **label, int *tip_id);
+typedef void (*HPMHOOK_post_clif_format_tipbox) (struct StringBuf *buf, const char *label, int tip_id);
 typedef void (*HPMHOOK_pre_clif_authok) (struct map_session_data **sd);
 typedef void (*HPMHOOK_post_clif_authok) (struct map_session_data *sd);
 typedef void (*HPMHOOK_pre_clif_auth_error) (int *fd, int *errorCode);
@@ -1800,8 +1806,10 @@ typedef void (*HPMHOOK_pre_clif_produce_effect) (struct map_session_data **sd, i
 typedef void (*HPMHOOK_post_clif_produce_effect) (struct map_session_data *sd, int flag, int nameid);
 typedef void (*HPMHOOK_pre_clif_devotion) (struct block_list **src, struct map_session_data **tsd);
 typedef void (*HPMHOOK_post_clif_devotion) (struct block_list *src, struct map_session_data *tsd);
-typedef void (*HPMHOOK_pre_clif_spiritball) (struct block_list **bl, enum spirit_ball_types *spirit, enum send_target *target);
-typedef void (*HPMHOOK_post_clif_spiritball) (struct block_list *bl, enum spirit_ball_types spirit, enum send_target target);
+typedef void (*HPMHOOK_pre_clif_soulballs) (struct block_list **bl, int *soulballs, enum send_target *target);
+typedef void (*HPMHOOK_post_clif_soulballs) (struct block_list *bl, int soulballs, enum send_target target);
+typedef void (*HPMHOOK_pre_clif_spiritballs) (struct block_list **bl, int *spiritballs, enum send_target *target);
+typedef void (*HPMHOOK_post_clif_spiritballs) (struct block_list *bl, int spiritballs, enum send_target target);
 typedef void (*HPMHOOK_pre_clif_spiritball_single) (int *fd, struct map_session_data **sd);
 typedef void (*HPMHOOK_post_clif_spiritball_single) (int fd, struct map_session_data *sd);
 typedef void (*HPMHOOK_pre_clif_bladestop) (struct block_list **src, int *dst_id, int *active);
@@ -2458,8 +2466,10 @@ typedef void (*HPMHOOK_pre_clif_pStatusUp) (int *fd, struct map_session_data **s
 typedef void (*HPMHOOK_post_clif_pStatusUp) (int fd, struct map_session_data *sd);
 typedef void (*HPMHOOK_pre_clif_pSkillUp) (int *fd, struct map_session_data **sd);
 typedef void (*HPMHOOK_post_clif_pSkillUp) (int fd, struct map_session_data *sd);
-typedef void (*HPMHOOK_pre_clif_useSkillToIdReal) (int *fd, struct map_session_data **sd, int *skill_id, int *skill_lv, int *target_id);
-typedef void (*HPMHOOK_post_clif_useSkillToIdReal) (int fd, struct map_session_data *sd, int skill_id, int skill_lv, int target_id);
+typedef void (*HPMHOOK_pre_clif_useSkillToIdReal) (int *fd, struct map_session_data **sd, int *skill_id, int *skill_lv, int *target_id, bool *skip_combo_check);
+typedef void (*HPMHOOK_post_clif_useSkillToIdReal) (int fd, struct map_session_data *sd, int skill_id, int skill_lv, int target_id, bool skip_combo_check);
+typedef int (*HPMHOOK_pre_clif_combo_delay_timer) (int *tid, int64 *tick, int *id, intptr_t *data);
+typedef int (*HPMHOOK_post_clif_combo_delay_timer) (int retVal___, int tid, int64 tick, int id, intptr_t data);
 typedef void (*HPMHOOK_pre_clif_pUseSkillToId) (int *fd, struct map_session_data **sd);
 typedef void (*HPMHOOK_post_clif_pUseSkillToId) (int fd, struct map_session_data *sd);
 typedef void (*HPMHOOK_pre_clif_pStartUseSkillToId) (int *fd, struct map_session_data **sd);
@@ -4798,6 +4808,8 @@ typedef struct item_reform* (*HPMHOOK_pre_itemdb_reform_exists) (int *idx);
 typedef struct item_reform* (*HPMHOOK_post_itemdb_reform_exists) (struct item_reform* retVal___, int idx);
 typedef bool (*HPMHOOK_pre_itemdb_in_group) (struct item_group **group, int *nameid);
 typedef bool (*HPMHOOK_post_itemdb_in_group) (bool retVal___, struct item_group *group, int nameid);
+typedef const struct item_group* (*HPMHOOK_pre_itemdb_search_group) (int *nameid);
+typedef const struct item_group* (*HPMHOOK_post_itemdb_search_group) (const struct item_group* retVal___, int nameid);
 typedef int (*HPMHOOK_pre_itemdb_group_item) (struct item_group **group);
 typedef int (*HPMHOOK_post_itemdb_group_item) (int retVal___, struct item_group *group);
 typedef int (*HPMHOOK_pre_itemdb_chain_item) (unsigned short *chain_id, int **rate);
@@ -7534,6 +7546,12 @@ typedef bool (*HPMHOOK_pre_pc_auto_exp_insurance) (struct map_session_data **sd)
 typedef bool (*HPMHOOK_post_pc_auto_exp_insurance) (bool retVal___, struct map_session_data *sd);
 typedef void (*HPMHOOK_pre_pc_crimson_marker_clear) (struct map_session_data **sd);
 typedef void (*HPMHOOK_post_pc_crimson_marker_clear) (struct map_session_data *sd);
+typedef bool (*HPMHOOK_pre_pc_is_own_skill) (struct map_session_data **sd, uint16 *skill_id);
+typedef bool (*HPMHOOK_post_pc_is_own_skill) (bool retVal___, struct map_session_data *sd, uint16 skill_id);
+typedef void (*HPMHOOK_pre_pc_clear_existing_cloneskill) (struct map_session_data **sd, bool *clear_vars);
+typedef void (*HPMHOOK_post_pc_clear_existing_cloneskill) (struct map_session_data *sd, bool clear_vars);
+typedef void (*HPMHOOK_pre_pc_clear_existing_reproduceskill) (struct map_session_data **sd, bool *clear_vars);
+typedef void (*HPMHOOK_post_pc_clear_existing_reproduceskill) (struct map_session_data *sd, bool clear_vars);
 #endif // MAP_PC_H
 #ifdef MAP_NPC_H /* libpcre */
 typedef pcre* (*HPMHOOK_pre_libpcre_compile) (const char **pattern, int *options, const char ***errptr, int **erroffset, const unsigned char **tableptr);
@@ -8146,6 +8164,8 @@ typedef int (*HPMHOOK_pre_script_buildin_instance_warpall_sub) (struct block_lis
 typedef int (*HPMHOOK_post_script_buildin_instance_warpall_sub) (int retVal___, struct block_list *bl, va_list ap);
 typedef int (*HPMHOOK_pre_script_buildin_mobuseskill_sub) (struct block_list **bl, va_list ap);
 typedef int (*HPMHOOK_post_script_buildin_mobuseskill_sub) (int retVal___, struct block_list *bl, va_list ap);
+typedef bool (*HPMHOOK_pre_script_format_navigation) (struct script_state **st, const char **label, const char **mapname, int *x, int *y, enum navigation_mode *mode, enum navigation_service *services_flag, bool *show_window, int *monster_id);
+typedef bool (*HPMHOOK_post_script_format_navigation) (bool retVal___, struct script_state *st, const char *label, const char *mapname, int x, int y, enum navigation_mode mode, enum navigation_service services_flag, bool show_window, int monster_id);
 typedef bool (*HPMHOOK_pre_script_buildin_rodex_sendmail_sub) (struct script_state **st, struct rodex_message **msg);
 typedef bool (*HPMHOOK_post_script_buildin_rodex_sendmail_sub) (bool retVal___, struct script_state *st, struct rodex_message *msg);
 typedef int (*HPMHOOK_pre_script_cleanfloor_sub) (struct block_list **bl, va_list ap);
@@ -8276,6 +8296,8 @@ typedef void (*HPMHOOK_pre_skill_read_db) (bool *minimal);
 typedef void (*HPMHOOK_post_skill_read_db) (bool minimal);
 typedef int (*HPMHOOK_pre_skill_get_index) (int *skill_id);
 typedef int (*HPMHOOK_post_skill_get_index) (int retVal___, int skill_id);
+typedef int (*HPMHOOK_pre_skill_get_index_sub) (int *skill_id, bool *report_errors);
+typedef int (*HPMHOOK_post_skill_get_index_sub) (int retVal___, int skill_id, bool report_errors);
 typedef int (*HPMHOOK_pre_skill_get_type) (int *skill_id, int *skill_lv);
 typedef int (*HPMHOOK_post_skill_get_type) (int retVal___, int skill_id, int skill_lv);
 typedef int (*HPMHOOK_pre_skill_get_hit) (int *skill_id, int *skill_lv);
@@ -9034,8 +9056,8 @@ typedef void (*HPMHOOK_pre_status_final) (void);
 typedef void (*HPMHOOK_post_status_final) (void);
 typedef int (*HPMHOOK_pre_status_sc2skill) (sc_type *sc);
 typedef int (*HPMHOOK_post_status_sc2skill) (int retVal___, sc_type sc);
-typedef unsigned int (*HPMHOOK_pre_status_sc2scb_flag) (sc_type *sc);
-typedef unsigned int (*HPMHOOK_post_status_sc2scb_flag) (unsigned int retVal___, sc_type sc);
+typedef e_scb_flag (*HPMHOOK_pre_status_sc2scb_flag) (sc_type *sc);
+typedef e_scb_flag (*HPMHOOK_post_status_sc2scb_flag) (e_scb_flag retVal___, sc_type sc);
 typedef int (*HPMHOOK_pre_status_get_sc_relevant_bl_types) (sc_type *type);
 typedef int (*HPMHOOK_post_status_get_sc_relevant_bl_types) (int retVal___, sc_type type);
 typedef int (*HPMHOOK_pre_status_get_sc_type) (sc_type *idx);
@@ -9070,6 +9092,8 @@ typedef int (*HPMHOOK_pre_status_get_class) (const struct block_list **bl);
 typedef int (*HPMHOOK_post_status_get_class) (int retVal___, const struct block_list *bl);
 typedef int (*HPMHOOK_pre_status_get_lv) (const struct block_list **bl);
 typedef int (*HPMHOOK_post_status_get_lv) (int retVal___, const struct block_list *bl);
+typedef int (*HPMHOOK_pre_status_get_spiritballs) (const struct block_list **bl);
+typedef int (*HPMHOOK_post_status_get_spiritballs) (int retVal___, const struct block_list *bl);
 typedef defType (*HPMHOOK_pre_status_get_def) (struct block_list **bl);
 typedef defType (*HPMHOOK_post_status_get_def) (defType retVal___, struct block_list *bl);
 typedef unsigned short (*HPMHOOK_pre_status_get_speed) (struct block_list **bl);
@@ -9120,8 +9144,8 @@ typedef int (*HPMHOOK_pre_status_get_val_flag) (enum sc_type *type);
 typedef int (*HPMHOOK_post_status_get_val_flag) (int retVal___, enum sc_type type);
 typedef void (*HPMHOOK_pre_status_change_start_display) (struct map_session_data **sd, enum sc_type *type, int *val1, int *val2, int *val3, int *val4);
 typedef void (*HPMHOOK_post_status_change_start_display) (struct map_session_data *sd, enum sc_type type, int val1, int val2, int val3, int val4);
-typedef bool (*HPMHOOK_pre_status_change_start_unknown_sc) (struct block_list **src, struct block_list **bl, enum sc_type *type, int *calc_flag, int *rate, int *val1, int *val2, int *val3, int *val4, int *total_tick, int *flag);
-typedef bool (*HPMHOOK_post_status_change_start_unknown_sc) (bool retVal___, struct block_list *src, struct block_list *bl, enum sc_type type, int calc_flag, int rate, int val1, int val2, int val3, int val4, int total_tick, int flag);
+typedef bool (*HPMHOOK_pre_status_change_start_unknown_sc) (struct block_list **src, struct block_list **bl, enum sc_type *type, e_scb_flag *calc_flag, int *rate, int *val1, int *val2, int *val3, int *val4, int *total_tick, int *flag);
+typedef bool (*HPMHOOK_post_status_change_start_unknown_sc) (bool retVal___, struct block_list *src, struct block_list *bl, enum sc_type type, e_scb_flag calc_flag, int rate, int val1, int val2, int val3, int val4, int total_tick, int flag);
 typedef int (*HPMHOOK_pre_status_kaahi_heal_timer) (int *tid, int64 *tick, int *id, intptr_t *data);
 typedef int (*HPMHOOK_post_status_kaahi_heal_timer) (int retVal___, int tid, int64 tick, int id, intptr_t data);
 typedef int (*HPMHOOK_pre_status_change_timer) (int *tid, int64 *tick, int *id, intptr_t *data);
@@ -9132,8 +9156,8 @@ typedef int (*HPMHOOK_pre_status_change_clear) (struct block_list **bl, int *typ
 typedef int (*HPMHOOK_post_status_change_clear) (int retVal___, struct block_list *bl, int type);
 typedef int (*HPMHOOK_pre_status_change_clear_buffs) (struct block_list **bl, int *type);
 typedef int (*HPMHOOK_post_status_change_clear_buffs) (int retVal___, struct block_list *bl, int type);
-typedef void (*HPMHOOK_pre_status_calc_bl_) (struct block_list **bl, enum scb_flag *flag, enum e_status_calc_opt *opt);
-typedef void (*HPMHOOK_post_status_calc_bl_) (struct block_list *bl, enum scb_flag flag, enum e_status_calc_opt opt);
+typedef void (*HPMHOOK_pre_status_calc_bl_) (struct block_list **bl, e_scb_flag *flag, enum e_status_calc_opt *opt);
+typedef void (*HPMHOOK_post_status_calc_bl_) (struct block_list *bl, e_scb_flag flag, enum e_status_calc_opt opt);
 typedef int (*HPMHOOK_pre_status_calc_mob_) (struct mob_data **md, enum e_status_calc_opt *opt);
 typedef int (*HPMHOOK_post_status_calc_mob_) (int retVal___, struct mob_data *md, enum e_status_calc_opt opt);
 typedef int (*HPMHOOK_pre_status_calc_pet_) (struct pet_data **pd, enum e_status_calc_opt *opt);
@@ -9234,6 +9258,14 @@ typedef unsigned short (*HPMHOOK_pre_status_calc_dex) (struct block_list **bl, s
 typedef unsigned short (*HPMHOOK_post_status_calc_dex) (unsigned short retVal___, struct block_list *bl, struct status_change *sc, int dex);
 typedef unsigned short (*HPMHOOK_pre_status_calc_luk) (struct block_list **bl, struct status_change **sc, int *luk);
 typedef unsigned short (*HPMHOOK_post_status_calc_luk) (unsigned short retVal___, struct block_list *bl, struct status_change *sc, int luk);
+typedef int (*HPMHOOK_pre_status_calc_atk_percent) (struct block_list **bl, struct status_change **sc);
+typedef int (*HPMHOOK_post_status_calc_atk_percent) (int retVal___, struct block_list *bl, struct status_change *sc);
+typedef int (*HPMHOOK_pre_status_calc_matk_percent) (struct block_list **bl, struct status_change **sc);
+typedef int (*HPMHOOK_post_status_calc_matk_percent) (int retVal___, struct block_list *bl, struct status_change *sc);
+typedef int (*HPMHOOK_pre_status_calc_def_percent) (struct block_list **bl, struct status_change **sc);
+typedef int (*HPMHOOK_post_status_calc_def_percent) (int retVal___, struct block_list *bl, struct status_change *sc);
+typedef int (*HPMHOOK_pre_status_calc_mdef_percent) (struct block_list **bl, struct status_change **sc);
+typedef int (*HPMHOOK_post_status_calc_mdef_percent) (int retVal___, struct block_list *bl, struct status_change *sc);
 typedef int (*HPMHOOK_pre_status_calc_watk) (struct block_list **bl, struct status_change **sc, int *watk, bool *viewable);
 typedef int (*HPMHOOK_post_status_calc_watk) (int retVal___, struct block_list *bl, struct status_change *sc, int watk, bool viewable);
 typedef int (*HPMHOOK_pre_status_calc_matk) (struct block_list **bl, struct status_change **sc, int *matk, bool *viewable);
@@ -9268,8 +9300,8 @@ typedef uint32 (*HPMHOOK_pre_status_calc_mode) (const struct block_list **bl, co
 typedef uint32 (*HPMHOOK_post_status_calc_mode) (uint32 retVal___, const struct block_list *bl, const struct status_change *sc, uint32 mode);
 typedef int (*HPMHOOK_pre_status_calc_ematk) (struct block_list **bl, struct status_change **sc, int *matk);
 typedef int (*HPMHOOK_post_status_calc_ematk) (int retVal___, struct block_list *bl, struct status_change *sc, int matk);
-typedef void (*HPMHOOK_pre_status_calc_bl_main) (struct block_list **bl, int *flag);
-typedef void (*HPMHOOK_post_status_calc_bl_main) (struct block_list *bl, int flag);
+typedef void (*HPMHOOK_pre_status_calc_bl_main) (struct block_list **bl, e_scb_flag *flag);
+typedef void (*HPMHOOK_post_status_calc_bl_main) (struct block_list *bl, e_scb_flag flag);
 typedef void (*HPMHOOK_pre_status_display_add) (struct map_session_data **sd, enum sc_type *type, int *dval1, int *dval2, int *dval3);
 typedef void (*HPMHOOK_post_status_display_add) (struct map_session_data *sd, enum sc_type type, int dval1, int dval2, int dval3);
 typedef void (*HPMHOOK_pre_status_display_remove) (struct map_session_data **sd, enum sc_type *type);
@@ -9278,6 +9310,8 @@ typedef int (*HPMHOOK_pre_status_natural_heal) (struct block_list **bl, va_list 
 typedef int (*HPMHOOK_post_status_natural_heal) (int retVal___, struct block_list *bl, va_list args);
 typedef int (*HPMHOOK_pre_status_natural_heal_timer) (int *tid, int64 *tick, int *id, intptr_t *data);
 typedef int (*HPMHOOK_post_status_natural_heal_timer) (int retVal___, int tid, int64 tick, int id, intptr_t data);
+typedef void (*HPMHOOK_pre_status_load_sc_type) (void);
+typedef void (*HPMHOOK_post_status_load_sc_type) (void);
 typedef bool (*HPMHOOK_pre_status_readdb_job2) (char **fields[], int *columns, int *current);
 typedef bool (*HPMHOOK_post_status_readdb_job2) (bool retVal___, char *fields[], int columns, int current);
 typedef bool (*HPMHOOK_pre_status_readdb_sizefix) (char **fields[], int *columns, int *current);
@@ -9310,8 +9344,10 @@ typedef int (*HPMHOOK_pre_status_maxhp_entry_compare) (const void **entry1, cons
 typedef int (*HPMHOOK_post_status_maxhp_entry_compare) (int retVal___, const void *entry1, const void *entry2);
 typedef bool (*HPMHOOK_pre_status_read_unit_params_db_additional) (struct s_unit_params **entry, struct s_unit_params **inherited, struct config_setting_t **group, const char **source);
 typedef bool (*HPMHOOK_post_status_read_unit_params_db_additional) (bool retVal___, struct s_unit_params *entry, struct s_unit_params *inherited, struct config_setting_t *group, const char *source);
-typedef void (*HPMHOOK_pre_status_unit_params_destroy) (struct s_unit_params **entry);
-typedef void (*HPMHOOK_post_status_unit_params_destroy) (struct s_unit_params *entry);
+typedef void (*HPMHOOK_pre_status_unit_params_destroy_entry) (struct s_unit_params **entry);
+typedef void (*HPMHOOK_post_status_unit_params_destroy_entry) (struct s_unit_params *entry);
+typedef void (*HPMHOOK_pre_status_unit_params_clear_db) (void);
+typedef void (*HPMHOOK_post_status_unit_params_clear_db) (void);
 typedef void (*HPMHOOK_pre_status_copy) (struct status_data **a, const struct status_data **b);
 typedef void (*HPMHOOK_post_status_copy) (struct status_data *a, const struct status_data *b);
 typedef int (*HPMHOOK_pre_status_base_matk_min) (const struct status_data **st);
